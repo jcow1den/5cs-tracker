@@ -1,3 +1,4 @@
+<!doctype html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,38 +13,70 @@ button{background:#111;color:white;border:0;border-radius:10px}
 </style>
 </head>
 <body>
-<header><h1>5Cs Tracker</h1></header>
+
+<header>
+<h1>5Cs Customer Tracker</h1>
+</header>
+
 <main>
+
 <div class="box">
 <h2>Add Customer</h2>
-<input id="name" placeholder="Customer name">
+<input id="customerInput" placeholder="Customer name">
 <button onclick="addCustomer()">Add Customer</button>
 </div>
+
 <div id="list"></div>
+
 </main>
+
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAY2Qm46g5CCMiAQsIO4UMM1QMYIMuZMr0",
   authDomain: "cs-tracker-23ef9.firebaseapp.com",
-  projectId: "cs-tracker-23ef9"
+  projectId: "cs-tracker-23ef9",
+  storageBucket: "cs-tracker-23ef9.firebasestorage.app",
+  messagingSenderId: "107901431900",
+  appId: "1:107901431900:web:def2e585c9ce5ea5c37699"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-window.addCustomer = async function(){
-  if(!name.value.trim()) return;
-  await addDoc(collection(db,"customers"),{name:name.value});
-  name.value="";
+const input = document.getElementById("customerInput");
+const list = document.getElementById("list");
+
+window.addCustomer = async function() {
+  const value = input.value.trim();
+
+  if (!value) {
+    alert("Type a customer name first");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "customers"), {
+      name: value,
+      createdAt: new Date().toISOString()
+    });
+    input.value = "";
+  } catch (error) {
+    alert("Error: " + error.message);
+    console.error(error);
+  }
 };
 
-onSnapshot(collection(db,"customers"), snap => {
-  list.innerHTML = snap.docs.map(d => `<div class="box">${d.data().name}</div>`).join("");
+onSnapshot(collection(db, "customers"), (snapshot) => {
+  list.innerHTML = snapshot.docs
+    .map(doc => `<div class="box">${doc.data().name}</div>`)
+    .join("");
 });
-</script>
-  </body>
-</html>
 
+</script>
+
+</body>
+</html>
