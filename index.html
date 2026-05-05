@@ -1,0 +1,49 @@
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5Cs Tracker</title>
+<style>
+body{font-family:Arial;margin:0;background:#f5f1e8}
+header{background:#17130f;color:white;padding:18px}
+main{padding:16px}
+.box{background:white;border-radius:12px;padding:14px;margin:10px 0}
+input,button{font-size:16px;padding:12px;width:100%;margin:5px 0}
+button{background:#111;color:white;border:0;border-radius:10px}
+</style>
+</head>
+<body>
+<header><h1>5Cs Tracker</h1></header>
+<main>
+<div class="box">
+<h2>Add Customer</h2>
+<input id="name" placeholder="Customer name">
+<button onclick="addCustomer()">Add Customer</button>
+</div>
+<div id="list"></div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAY2Qm46g5CCMiAQsIO4UMM1QMYIMuZMr0",
+  authDomain: "cs-tracker-23ef9.firebaseapp.com",
+  projectId: "cs-tracker-23ef9"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.addCustomer = async function(){
+  if(!name.value.trim()) return;
+  await addDoc(collection(db,"customers"),{name:name.value});
+  name.value="";
+};
+
+onSnapshot(collection(db,"customers"), snap => {
+  list.innerHTML = snap.docs.map(d => `<div class="box">${d.data().name}</div>`).join("");
+});
+</script>
+  </body>
+</html>
+
