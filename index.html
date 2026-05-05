@@ -7,27 +7,49 @@
 <style>
 body{font-family:Arial;margin:0;background:#f5f1e8}
 header{background:#17130f;color:white;padding:18px}
-main{padding:16px}
+main{padding:16px;max-width:900px;margin:auto}
 .box{background:white;border-radius:12px;padding:14px;margin:10px 0}
-input,button{font-size:16px;padding:12px;width:100%;margin:5px 0;box-sizing:border-box}
+input,button,select{font-size:16px;padding:10px;width:100%;margin:5px 0;box-sizing:border-box}
 button{background:#111;color:white;border:0;border-radius:10px}
+h2{margin-top:0}
+.row{display:flex;gap:10px}
+.stat{background:white;padding:12px;border-radius:10px;flex:1;text-align:center}
 </style>
 </head>
 <body>
+
 <header>
-<h1>5Cs Customer Tracker</h1>
+<h1>5Cs Tracker</h1>
 </header>
 
 <main>
+
+<div class="row">
+<div class="stat"><b>Total Paid</b><div id="totalPaid">$0</div></div>
+<div class="stat"><b>Total Owed</b><div id="totalOwed">$0</div></div>
+</div>
+
 <div class="box">
 <h2>Add Customer</h2>
 <input id="customerInput" placeholder="Customer name">
-<button id="addBtn">Add Customer</button>
+<button onclick="addCustomer()">Add Customer</button>
 </div>
-<div id="list"></div>
+
+<div class="box">
+<h2>Add Job</h2>
+<select id="customerSelect"></select>
+<input id="jobTitle" placeholder="Job description">
+<input id="jobAmount" type="number" placeholder="Amount charged">
+<input id="jobPaid" type="number" placeholder="Amount paid">
+<button onclick="addJob()">Add Job</button>
+</div>
+
+<div id="customerList"></div>
+
 </main>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -43,37 +65,86 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const input = document.getElementById("customerInput");
-const list = document.getElementById("list");
-const button = document.getElementById("addBtn");
+let customers = [];
+let jobs = [];
 
-button.addEventListener("click", async function() {
-  const customerName = input.value.trim();
+const customerInput = document.getElementById("customerInput");
+const customerSelect = document.getElementById("customerSelect");
+const list = document.getElementById("customerList");
 
-  if (!customerName) {
-    alert("Type a customer name first");
-    return;
-  }
+window.addCustomer = async function(){
+  const name = customerInput.value.trim();
+  if(!name) return;
 
-  try {
-    await addDoc(collection(db, "customers"), {
-      name: customerName,
-      createdAt: new Date().toISOString()
-    });
-    input.value = "";
-  } catch (error) {
-    alert("Firebase error: " + error.message);
-  }
+  await addDoc(collection(db,"customers"),{name});
+  customerInput.value="";
+};
+
+window.addJob = async function(){
+  const customerId = customerSelect.value;
+  const title = document.getElementById("jobTitle").value;
+  const amount = Number(document.getElementById("jobAmount").value || 0);
+  const paid = Number(document.getElementById("jobPaid").value || 0);
+
+  if(!customerId || !title) return;
+
+  await addDoc(collection(db,"jobs"),{
+    customerId,
+    title,
+    amount,
+    paid
+  });
+
+  document.getElementById("jobTitle").value="";
+  document.getElementById("jobAmount").value="";
+  document.getElementById("jobPaid").value="";
+};
+
+onSnapshot(collection(db,"customers"), snap=>{
+  customers = snap.docs.map(d=>({id:d.id,...d.data()}));
+  updateUI();
 });
 
-onSnapshot(collection(db, "customers"), function(snapshot) {
-  list.innerHTML = snapshot.docs.map(function(doc) {
-    const data = doc.data();
-    return "<div class='box'>" + data.name + "</div>";
+onSnapshot(collection(db,"jobs"), snap=>{
+  jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
+  updateUI();
+});
+
+function updateUI(){
+  customerSelect.innerHTML = '<option value="">Select customer</option>' +
+    customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+
+  let totalPaid = 0;
+  let totalOwed = 0;
+
+  list.innerHTML = customers.map(c=>{
+    const custJobs = jobs.filter(j=>j.customerId===c.id);
+
+    let paid = custJobs.reduce((s,j)=>s+j.paid,0);
+    let owed = custJobs.reduce((s,j)=>s+(j.amount-j.paid),0);
+
+    totalPaid += paid;
+    totalOwed += owed;
+
+    return `
+      <div class="box">
+        <h3>${c.name}</h3>
+        <div>Paid: $${paid}</div>
+        <div>Owes: $${owed}</div>
+        ${custJobs.map(j=>`
+          <div>
+            ${j.title} - $${j.amount} / Paid $${j.paid}
+          </div>
+        `).join("")}
+      </div>
+    `;
   }).join("");
-}, function(error) {
-  alert("Database read error: " + error.message);
-});
+
+  document.getElementById("totalPaid").innerText = "$"+totalPaid;
+  document.getElementById("totalOwed").innerText = "$"+totalOwed;
+}
+
 </script>
+
 </body>
 </html>
