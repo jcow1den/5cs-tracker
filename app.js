@@ -562,7 +562,7 @@ function startListeners(){
 }
 
 window.showView = function(id){
-  ["dashboardView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
