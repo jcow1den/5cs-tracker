@@ -25,7 +25,7 @@ body{
   margin:0;
   background:var(--bg);
   color:#1f1c18;
-  padding-bottom:85px;
+  padding-bottom:95px;
 }
 
 header{
@@ -34,7 +34,7 @@ header{
   padding:14px;
   position:sticky;
   top:0;
-  z-index:10;
+  z-index:20;
 }
 
 .headerWrap{
@@ -65,7 +65,7 @@ header p{
 
 main{
   padding:14px;
-  max-width:1050px;
+  max-width:1150px;
   margin:auto;
 }
 
@@ -312,10 +312,31 @@ button.blue{background:var(--blue)}
   margin-top:8px;
 }
 
-.clickNote{
-  font-size:12px;
-  color:var(--muted);
-  margin-top:8px;
+.fab{
+  position:fixed;
+  right:18px;
+  bottom:95px;
+  width:62px;
+  height:62px;
+  border-radius:999px;
+  background:var(--green);
+  color:white;
+  font-size:30px;
+  z-index:60;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);
+}
+
+.fabMenu{
+  position:fixed;
+  right:18px;
+  bottom:165px;
+  width:220px;
+  background:white;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:10px;
+  z-index:61;
+  box-shadow:0 6px 20px rgba(0,0,0,.18);
 }
 
 @media(min-width:800px){
@@ -324,7 +345,7 @@ button.blue{background:var(--blue)}
 }
 
 @media print{
-  header,.bottomNav,.noPrint,button,input,select,textarea,.searchBar{display:none!important}
+  header,.bottomNav,.noPrint,button,input,select,textarea,.searchBar,.fab,.fabMenu{display:none!important}
   body{background:white;padding-bottom:0}
   main{max-width:none}
   .invoice{border:0;box-shadow:none}
@@ -364,10 +385,10 @@ button.blue{background:var(--blue)}
 </div>
 
 <div class="grid">
-<div class="stat" onclick="openPaidJobs()">
+<div class="stat" onclick="openPayments()">
 <b>Paid</b>
 <h2 id="dashPaid">$0</h2>
-<div class="statHint">Tap to see paid jobs</div>
+<div class="statHint">Tap to see payments</div>
 </div>
 
 <div class="stat" onclick="openOwedJobs()">
@@ -385,8 +406,13 @@ button.blue{background:var(--blue)}
 <div class="stat" onclick="openProfitBreakdown()">
 <b>Profit</b>
 <h2 id="dashProfit">$0</h2>
-<div class="statHint">Tap for breakdown</div>
+<div class="statHint">Tap for report</div>
 </div>
+</div>
+
+<div class="box">
+<h2>Notification Center</h2>
+<div id="notificationCenter"></div>
 </div>
 
 <div class="box noPrint">
@@ -394,8 +420,8 @@ button.blue{background:var(--blue)}
 <div class="quickAdd">
 <button onclick="openOwedJobs()">Unpaid Jobs</button>
 <button onclick="openPaidJobs()">Paid Jobs</button>
-<button onclick="showView('invoicesView')">Invoices</button>
-<button onclick="openProfitBreakdown()">Profit Breakdown</button>
+<button onclick="openPayments()">Payments</button>
+<button onclick="openProfitBreakdown()">Reports</button>
 </div>
 </div>
 
@@ -425,10 +451,10 @@ button.blue{background:var(--blue)}
 <div class="box">
 <h2>Profit Breakdown</h2>
 <div class="grid">
-<div class="stat"><b>Total Collected</b><h2 id="profitPaid">$0</h2></div>
-<div class="stat"><b>Total Expenses</b><h2 id="profitExpenses">$0</h2></div>
-<div class="stat"><b>Estimated Profit</b><h2 id="profitNet">$0</h2></div>
-<div class="stat"><b>Outstanding</b><h2 id="profitOutstanding">$0</h2></div>
+<div class="stat" onclick="openPayments()"><b>Total Collected</b><h2 id="profitPaid">$0</h2><div class="statHint">Tap for payments</div></div>
+<div class="stat" onclick="openExpenses()"><b>Total Expenses</b><h2 id="profitExpenses">$0</h2><div class="statHint">Tap for expenses</div></div>
+<div class="stat" onclick="openProfitBreakdown()"><b>Estimated Profit</b><h2 id="profitNet">$0</h2><div class="statHint">Collected minus expenses</div></div>
+<div class="stat" onclick="openOwedJobs()"><b>Outstanding</b><h2 id="profitOutstanding">$0</h2><div class="statHint">Tap for owed</div></div>
 </div>
 <p class="small">Profit is based on money collected minus expenses. Outstanding balances are not counted as profit until paid.</p>
 </div>
@@ -502,6 +528,13 @@ button.blue{background:var(--blue)}
 <div id="jobList"></div>
 </section>
 
+<section id="paymentsView" class="hidden">
+<div class="box">
+<h2>Payments</h2>
+<div id="paymentsList"></div>
+</div>
+</section>
+
 <section id="recurringView" class="hidden">
 
 <div class="box noPrint">
@@ -521,6 +554,11 @@ button.blue{background:var(--blue)}
 </select>
 <button onclick="saveRecurring()">Save Recurring Job</button>
 <button class="secondary" onclick="resetRecurringForm()">Clear</button>
+</div>
+
+<div class="box">
+<h2>Recurring Calendar</h2>
+<div id="recurringCalendar"></div>
 </div>
 
 <div id="recurringList"></div>
@@ -574,7 +612,8 @@ button.blue{background:var(--blue)}
 <button onclick="showView('recurringView')">Recurring</button>
 <button onclick="showView('expensesView')">Expenses</button>
 <button onclick="showView('invoicesView')">Invoices</button>
-<button onclick="openProfitBreakdown()">Profit</button>
+<button onclick="showView('paymentsView')">Payments</button>
+<button onclick="openProfitBreakdown()">Reports</button>
 <button onclick="exportBackup()">Export Backup</button>
 <button class="secondary" onclick="logout()">Logout</button>
 </div>
@@ -582,7 +621,7 @@ button.blue{background:var(--blue)}
 
 <div class="box">
 <h2>Settings</h2>
-<p class="small">Payment history is tracked separately. Invoices use actual payment records when available.</p>
+<p class="small">Payment records are only created when you add a payment. Mark Paid now only records the remaining balance as one payment.</p>
 </div>
 
 </section>
@@ -590,6 +629,15 @@ button.blue{background:var(--blue)}
 </section>
 
 </main>
+
+<button id="fabButton" class="fab hidden noPrint" onclick="toggleFab()">+</button>
+
+<div id="fabMenu" class="fabMenu hidden noPrint">
+<button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
+<button onclick="toggleFab();showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+<button onclick="toggleFab();showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
+<button onclick="toggleFab();showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
+</div>
 
 <nav id="bottomNav" class="bottomNav hidden noPrint">
 <button id="navDashboard" onclick="showView('dashboardView')">Home</button>
@@ -660,6 +708,10 @@ window.logout = async function(){
   await signOut(auth);
 };
 
+window.toggleFab = function(){
+  el("fabMenu").classList.toggle("hidden");
+};
+
 let listenersStarted = false;
 
 onAuthStateChanged(auth, user => {
@@ -667,12 +719,14 @@ onAuthStateChanged(auth, user => {
     el("loginScreen").classList.add("hidden");
     el("appScreen").classList.remove("hidden");
     el("bottomNav").classList.remove("hidden");
+    el("fabButton").classList.remove("hidden");
     startListeners();
     showView("dashboardView");
   }else{
     el("loginScreen").classList.remove("hidden");
     el("appScreen").classList.add("hidden");
     el("bottomNav").classList.add("hidden");
+    el("fabButton").classList.add("hidden");
   }
 });
 
@@ -707,11 +761,12 @@ function startListeners(){
 }
 
 window.showView = function(id){
-  ["dashboardView","profitView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
   el(id).classList.remove("hidden");
+  el("fabMenu").classList.add("hidden");
 
   document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
 
@@ -719,16 +774,17 @@ window.showView = function(id){
   if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
   if(id === "jobsView") el("navJobs").classList.add("active");
   if(id === "invoicesView" || id === "invoiceView") el("navInvoices").classList.add("active");
-  if(id === "settingsView" || id === "expensesView" || id === "recurringView" || id === "profitView") el("navMore").classList.add("active");
+  if(["settingsView","expensesView","recurringView","profitView","paymentsView"].includes(id)) el("navMore").classList.add("active");
 
   const titles = {
     dashboardView:"Business dashboard",
-    profitView:"Profit breakdown",
+    profitView:"Reports",
     customersView:"Customers",
     customerDetailView:"Customer detail",
     jobsView:"Jobs",
-    recurringView:"Recurring work",
-    expensesView:"Expenses",
+    paymentsView:"Payments",
+    recurringView:"Recurring calendar",
+    expensesView:"Expense ledger",
     invoicesView:"Invoice center",
     invoiceView:"Invoice preview",
     settingsView:"More"
@@ -754,6 +810,10 @@ window.openOwedJobs = function(){
 
 window.openExpenses = function(){
   showView("expensesView");
+};
+
+window.openPayments = function(){
+  showView("paymentsView");
 };
 
 window.openProfitBreakdown = function(){
@@ -904,7 +964,13 @@ window.saveJob = async function(){
   }
 
   if(editingJobId){
-    await updateDoc(doc(db,"jobs",editingJobId),data);
+    await updateDoc(doc(db,"jobs",editingJobId),{
+      customerId:data.customerId,
+      title:data.title,
+      date:data.date,
+      amount:data.amount,
+      notes:data.notes
+    });
   }else{
     data.createdAt = new Date().toISOString();
     const jobRef = await addDoc(collection(db,"jobs"),data);
@@ -1438,18 +1504,16 @@ function renderAll(){
     expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
   });
 
-  const expenseRows = Object.entries(expenseGroups)
+  el("expenseBreakdown").innerHTML = Object.entries(expenseGroups)
     .sort((a,b)=>b[1]-a[1])
     .map(([cat,total])=>`
       <div class="moneyLine">
         <span>${safe(cat)}</span>
         <b>${money(total)}</b>
       </div>
-    `).join("");
+    `).join("") || "<p class='small'>No expenses yet.</p>";
 
-  el("expenseBreakdown").innerHTML = expenseRows || "<p class='small'>No expenses yet.</p>";
-
-  const topCustomerRows = customers
+  el("topCustomers").innerHTML = customers
     .map(c=>({customer:c,total:customerTotals(c.id)}))
     .sort((a,b)=>b.total.paid-a.total.paid)
     .slice(0,5)
@@ -1460,15 +1524,30 @@ function renderAll(){
         <div>Owed: ${money(x.total.owed)}</div>
         <button onclick="viewCustomer('${x.customer.id}')">View Customer</button>
       </div>
-    `).join("");
-
-  el("topCustomers").innerHTML = topCustomerRows || "<p class='small'>No customer payments yet.</p>";
+    `).join("") || "<p class='small'>No customer payments yet.</p>";
 
   const unpaidJobs = jobs.filter(j => jobStatus(j) !== "Paid");
   const dueRecurring = recurring.filter(r => ["Past Due","Due Today","Upcoming"].includes(recurringStatus(r).label));
 
+  const notifications = [];
+
+  if(unpaidJobs.length){
+    notifications.push(`<div class="box"><h3>${unpaidJobs.length} unpaid or partial jobs</h3><button onclick="openOwedJobs()">View Balances</button></div>`);
+  }
+
+  if(dueRecurring.length){
+    notifications.push(`<div class="box"><h3>${dueRecurring.length} recurring jobs due soon</h3><button onclick="showView('recurringView')">View Recurring</button></div>`);
+  }
+
+  const unpaidCustomers = customers.filter(c => customerTotals(c.id).owed > 0);
+  if(unpaidCustomers.length){
+    notifications.push(`<div class="box"><h3>${unpaidCustomers.length} customers owe money</h3><button onclick="showView('invoicesView')">Open Invoices</button></div>`);
+  }
+
+  el("notificationCenter").innerHTML = notifications.length ? notifications.join("") : "<p class='small'>Nothing urgent right now.</p>";
+
   const attentionItems = [
-    ...unpaidJobs.map(j => ({type:"job",date:j.date || "",html:`
+    ...unpaidJobs.map(j => ({html:`
       <div class="box">
         <h3>${safe(j.title)}</h3>
         <div>${safe(getCustomerName(j.customerId))}</div>
@@ -1477,7 +1556,7 @@ function renderAll(){
         <button onclick="viewCustomer('${j.customerId}')">View Customer</button>
       </div>
     `})),
-    ...dueRecurring.map(r => ({type:"recurring",date:r.nextDate || "",html:recurringCardHtml(r)}))
+    ...dueRecurring.map(r => ({html:recurringCardHtml(r)}))
   ];
 
   el("attentionList").innerHTML = attentionItems.length
@@ -1545,6 +1624,36 @@ function renderAll(){
     })
     .map(jobCardHtml)
     .join("") || "<p class='small'>No jobs found.</p>";
+
+  el("paymentsList").innerHTML = payments
+    .slice()
+    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
+    .map(p=>{
+      const job = jobs.find(j => j.id === p.jobId);
+      return `
+        <div class="box">
+          <h3>${money(p.amount)}</h3>
+          <div>${safe(getCustomerName(p.customerId))}</div>
+          <div class="small">${safe(p.date)} | ${safe(job?.title || "Payment")}</div>
+          <p>${safe(p.notes)}</p>
+          <button class="red" onclick="deletePayment('${p.id}')">Delete Payment</button>
+        </div>
+      `;
+    }).join("") || "<p class='small'>No payments yet.</p>";
+
+  el("recurringCalendar").innerHTML = recurring
+    .slice()
+    .sort((a,b)=>(a.nextDate || "").localeCompare(b.nextDate || ""))
+    .slice(0,10)
+    .map(r=>{
+      const s = recurringStatus(r);
+      return `
+        <div class="moneyLine">
+          <span>${safe(r.nextDate)} | ${safe(r.title)} | ${safe(getCustomerName(r.customerId))}</span>
+          <b><span class="badge ${s.cls}">${s.label}</span></b>
+        </div>
+      `;
+    }).join("") || "<p class='small'>No recurring jobs scheduled.</p>";
 
   el("recurringList").innerHTML = recurring
     .slice()
