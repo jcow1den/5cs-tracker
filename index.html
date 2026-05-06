@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>5Cs Tracker</title>
+
 <style>
 body{font-family:Arial;margin:0;background:#f5f1e8;color:#1f1c18}
 header{background:#17130f;color:white;padding:18px}
-main{padding:16px;max-width:1000px;margin:auto}
+main{padding:16px;max-width:1050px;margin:auto}
 h1,h2,h3{margin-top:0}
 .box,.stat{background:white;border-radius:14px;padding:14px;margin:10px 0;border:1px solid #ddd}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
@@ -15,6 +16,8 @@ input,button,select,textarea{font-size:16px;padding:11px;width:100%;margin:5px 0
 button{background:#111;color:white;border:0;font-weight:bold}
 button.danger{background:#b42318}
 button.gray{background:#555}
+button.green{background:#087443}
+button.gold{background:#b7791f}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
 .tabs button{width:auto;padding:10px 12px}
 .hidden{display:none}
@@ -22,60 +25,106 @@ button.gray{background:#555}
 .paid{color:green;font-weight:bold}
 .owed{color:#b42318;font-weight:bold}
 .partial{color:#b7791f;font-weight:bold}
+.statusPaid{background:#d1fadf}
+.statusPartial{background:#fef0c7}
+.statusUnpaid{background:#fee4e2}
+.badge{display:inline-block;padding:5px 8px;border-radius:20px;font-size:13px;font-weight:bold;margin:3px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{flex:1;min-width:130px}
+.invoice{background:white;padding:25px;border-radius:14px;border:1px solid #ddd}
+.invoice table{width:100%;border-collapse:collapse;margin-top:15px}
+.invoice th,.invoice td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
+.invoiceTotal{text-align:right;font-size:24px;font-weight:bold}
+@media print{
+header,.tabs,.noPrint,button,input,select,textarea{display:none!important}
+body{background:white}
+main{max-width:none}
+.invoice{border:0}
+}
 </style>
 </head>
+
 <body>
 
 <header>
 <h1>5Cs Tracker</h1>
-<div>Customers, jobs, payments, recurring work, expenses, and yearly totals</div>
+<div>Customers, jobs, payments, recurring work, invoices, reminders, expenses, and totals</div>
 </header>
 
 <main>
 
-<div class="grid">
-<div class="stat"><b>Total Paid</b><h2 id="yearPaid">$0</h2></div>
-<div class="stat"><b>Total Owed</b><h2 id="totalOwed">$0</h2></div>
-<div class="stat"><b>Total Expenses</b><h2 id="yearExpenses">$0</h2></div>
-<div class="stat"><b>Profit</b><h2 id="yearProfit">$0</h2></div>
+<section id="loginScreen" class="box">
+<h2>Login</h2>
+<input id="loginEmail" placeholder="Email">
+<input id="loginPassword" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<button class="gray" onclick="signup()">Create Account</button>
+<p class="small">Use this only after Email / Password login is enabled in Firebase Authentication.</p>
+</section>
+
+<section id="appScreen" class="hidden">
+
+<div class="noPrint">
+<button class="gray" onclick="logout()">Logout</button>
 </div>
 
-<div class="tabs">
+<div class="grid">
+<div class="stat"><b>Paid</b><h2 id="totalPaid">$0</h2></div>
+<div class="stat"><b>Owed</b><h2 id="totalOwed">$0</h2></div>
+<div class="stat"><b>Expenses</b><h2 id="totalExpenses">$0</h2></div>
+<div class="stat"><b>Profit</b><h2 id="totalProfit">$0</h2></div>
+</div>
+
+<div class="box noPrint">
+<h3>Filters</h3>
+<select id="timeFilter" onchange="updateUI()">
+<option value="all">All Time</option>
+<option value="year">This Year</option>
+<option value="month">This Month</option>
+</select>
+<input id="searchInput" oninput="updateUI()" placeholder="Search customer, address, job, notes">
+<button onclick="exportBackup()">Export Backup</button>
+</div>
+
+<div class="tabs noPrint">
 <button onclick="showTab('customersTab')">Customers</button>
 <button onclick="showTab('jobsTab')">Jobs</button>
 <button onclick="showTab('recurringTab')">Recurring</button>
 <button onclick="showTab('expensesTab')">Expenses</button>
+<button onclick="showTab('invoiceTab')">Invoice</button>
 </div>
 
 <section id="customersTab">
 <div class="box">
-<h2>Add Customer</h2>
+<h2 id="customerFormTitle">Add Customer</h2>
 <input id="customerName" placeholder="Customer name">
 <input id="customerPhone" placeholder="Phone">
 <input id="customerAddress" placeholder="Address">
 <textarea id="customerNotes" placeholder="Notes"></textarea>
-<button onclick="addCustomer()">Add Customer</button>
+<button onclick="saveCustomer()">Save Customer</button>
+<button class="gray" onclick="resetCustomerForm()">Clear</button>
 </div>
 <div id="customerList"></div>
 </section>
 
 <section id="jobsTab" class="hidden">
 <div class="box">
-<h2>Add Job</h2>
+<h2 id="jobFormTitle">Add Job</h2>
 <select id="jobCustomer"></select>
 <input id="jobTitle" placeholder="Job description">
 <input id="jobDate" type="date">
 <input id="jobAmount" type="number" placeholder="Amount charged">
 <input id="jobPaid" type="number" placeholder="Amount paid">
 <textarea id="jobNotes" placeholder="Job notes"></textarea>
-<button onclick="addJob()">Add Job</button>
+<button onclick="saveJob()">Save Job</button>
+<button class="gray" onclick="resetJobForm()">Clear</button>
 </div>
 <div id="jobList"></div>
 </section>
 
 <section id="recurringTab" class="hidden">
 <div class="box">
-<h2>Add Recurring Job</h2>
+<h2 id="recurringFormTitle">Add Recurring Job</h2>
 <select id="recurringCustomer"></select>
 <input id="recurringTitle" placeholder="Recurring job title">
 <input id="recurringNextDate" type="date">
@@ -85,21 +134,29 @@ button.gray{background:#555}
 <option value="biweekly">Bi-weekly</option>
 <option value="monthly">Monthly</option>
 </select>
-<button onclick="addRecurring()">Add Recurring Job</button>
+<button onclick="saveRecurring()">Save Recurring Job</button>
+<button class="gray" onclick="resetRecurringForm()">Clear</button>
 </div>
 <div id="recurringList"></div>
 </section>
 
 <section id="expensesTab" class="hidden">
 <div class="box">
-<h2>Add Expense</h2>
+<h2 id="expenseFormTitle">Add Expense</h2>
 <input id="expenseDate" type="date">
 <input id="expenseCategory" placeholder="Category">
 <input id="expenseAmount" type="number" placeholder="Amount">
 <textarea id="expenseNotes" placeholder="Notes"></textarea>
-<button onclick="addExpense()">Add Expense</button>
+<button onclick="saveExpense()">Save Expense</button>
+<button class="gray" onclick="resetExpenseForm()">Clear</button>
 </div>
 <div id="expenseList"></div>
+</section>
+
+<section id="invoiceTab" class="hidden">
+<div id="invoiceArea"></div>
+</section>
+
 </section>
 
 </main>
@@ -108,6 +165,7 @@ button.gray{background:#555}
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAY2Qm46g5CCMiAQsIO4UMM1QMYIMuZMr0",
@@ -120,11 +178,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let customers = [];
 let jobs = [];
 let recurring = [];
 let expenses = [];
+
+let editingCustomerId = null;
+let editingJobId = null;
+let editingRecurringId = null;
+let editingExpenseId = null;
 
 const money = n => Number(n || 0).toLocaleString(undefined,{style:"currency",currency:"USD"});
 const today = () => new Date().toISOString().slice(0,10);
@@ -133,8 +197,66 @@ document.getElementById("jobDate").value = today();
 document.getElementById("recurringNextDate").value = today();
 document.getElementById("expenseDate").value = today();
 
+window.login = async function(){
+  try{
+    await signInWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value);
+  }catch(error){
+    alert("Login error: " + error.message);
+  }
+};
+
+window.signup = async function(){
+  try{
+    await createUserWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value);
+  }catch(error){
+    alert("Signup error: " + error.message);
+  }
+};
+
+window.logout = async function(){
+  await signOut(auth);
+};
+
+onAuthStateChanged(auth, user => {
+  if(user){
+    document.getElementById("loginScreen").classList.add("hidden");
+    document.getElementById("appScreen").classList.remove("hidden");
+    startListeners();
+  }else{
+    document.getElementById("loginScreen").classList.remove("hidden");
+    document.getElementById("appScreen").classList.add("hidden");
+  }
+});
+
+let listenersStarted = false;
+
+function startListeners(){
+  if(listenersStarted) return;
+  listenersStarted = true;
+
+  onSnapshot(collection(db,"customers"), snap=>{
+    customers = snap.docs.map(d=>({id:d.id,...d.data()}));
+    updateUI();
+  });
+
+  onSnapshot(collection(db,"jobs"), snap=>{
+    jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    updateUI();
+  });
+
+  onSnapshot(collection(db,"recurring"), snap=>{
+    recurring = snap.docs.map(d=>({id:d.id,...d.data()}));
+    updateUI();
+  });
+
+  onSnapshot(collection(db,"expenses"), snap=>{
+    expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
+    updateUI();
+  });
+}
+
 window.showTab = function(id){
-  document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+  document.querySelectorAll("#appScreen section").forEach(s => s.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
 };
 
@@ -146,97 +268,239 @@ function refreshDropdowns(){
   const html = '<option value="">Select customer</option>' +
     customers.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  document.getElementById("jobCustomer").innerHTML = html;
-  document.getElementById("recurringCustomer").innerHTML = html;
+  jobCustomer.innerHTML = html;
+  recurringCustomer.innerHTML = html;
 }
 
-window.addCustomer = async function(){
-  const name = document.getElementById("customerName").value.trim();
+function passesDateFilter(dateValue){
+  const filter = timeFilter.value;
+  if(filter === "all") return true;
+  if(!dateValue) return true;
 
-  if(!name){
+  const d = new Date(dateValue + "T00:00:00");
+  const now = new Date();
+
+  if(filter === "year") return d.getFullYear() === now.getFullYear();
+  if(filter === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+
+  return true;
+}
+
+function searchMatch(text){
+  const q = searchInput.value.trim().toLowerCase();
+  if(!q) return true;
+  return String(text || "").toLowerCase().includes(q);
+}
+
+function jobStatus(j){
+  const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  if(balance === 0) return "Paid";
+  if(Number(j.paid || 0) > 0) return "Partial";
+  return "Unpaid";
+}
+
+function recurringStatus(r){
+  const now = new Date(today() + "T00:00:00");
+  const d = new Date((r.nextDate || today()) + "T00:00:00");
+  const diff = Math.ceil((d - now) / 86400000);
+
+  if(diff < 0) return "Past Due";
+  if(diff === 0) return "Due Today";
+  if(diff <= 7) return "Upcoming";
+  return "Scheduled";
+}
+
+window.saveCustomer = async function(){
+  const data = {
+    name: customerName.value.trim(),
+    phone: customerPhone.value.trim(),
+    address: customerAddress.value.trim(),
+    notes: customerNotes.value.trim()
+  };
+
+  if(!data.name){
     alert("Enter customer name");
     return;
   }
 
-  await addDoc(collection(db,"customers"),{
-    name,
-    phone: document.getElementById("customerPhone").value.trim(),
-    address: document.getElementById("customerAddress").value.trim(),
-    notes: document.getElementById("customerNotes").value.trim()
-  });
+  if(editingCustomerId){
+    await updateDoc(doc(db,"customers",editingCustomerId),data);
+  }else{
+    data.createdAt = new Date().toISOString();
+    await addDoc(collection(db,"customers"),data);
+  }
 
-  document.getElementById("customerName").value = "";
-  document.getElementById("customerPhone").value = "";
-  document.getElementById("customerAddress").value = "";
-  document.getElementById("customerNotes").value = "";
+  resetCustomerForm();
 };
 
-window.addJob = async function(){
+window.editCustomer = function(id){
+  const c = customers.find(x => x.id === id);
+  if(!c) return;
 
-  const customerId = document.getElementById("jobCustomer").value;
-  const title = document.getElementById("jobTitle").value.trim();
+  editingCustomerId = id;
+  customerFormTitle.innerText = "Edit Customer";
+  customerName.value = c.name || "";
+  customerPhone.value = c.phone || "";
+  customerAddress.value = c.address || "";
+  customerNotes.value = c.notes || "";
+  showTab("customersTab");
+  window.scrollTo(0,0);
+};
 
-  if(!customerId || !title){
-    alert("Complete all job fields");
+window.resetCustomerForm = function(){
+  editingCustomerId = null;
+  customerFormTitle.innerText = "Add Customer";
+  customerName.value = "";
+  customerPhone.value = "";
+  customerAddress.value = "";
+  customerNotes.value = "";
+};
+
+window.saveJob = async function(){
+  const data = {
+    customerId: jobCustomer.value,
+    title: jobTitle.value.trim(),
+    date: jobDate.value || today(),
+    amount: Number(jobAmount.value || 0),
+    paid: Number(jobPaid.value || 0),
+    notes: jobNotes.value.trim()
+  };
+
+  if(!data.customerId || !data.title){
+    alert("Select customer and enter job description");
     return;
   }
 
-  await addDoc(collection(db,"jobs"),{
-    customerId,
-    title,
-    date: document.getElementById("jobDate").value,
-    amount: Number(document.getElementById("jobAmount").value || 0),
-    paid: Number(document.getElementById("jobPaid").value || 0),
-    notes: document.getElementById("jobNotes").value.trim()
-  });
+  if(editingJobId){
+    await updateDoc(doc(db,"jobs",editingJobId),data);
+  }else{
+    data.createdAt = new Date().toISOString();
+    await addDoc(collection(db,"jobs"),data);
+  }
 
-  document.getElementById("jobTitle").value = "";
-  document.getElementById("jobAmount").value = "";
-  document.getElementById("jobPaid").value = "";
-  document.getElementById("jobNotes").value = "";
+  resetJobForm();
 };
 
-window.addRecurring = async function(){
+window.editJob = function(id){
+  const j = jobs.find(x => x.id === id);
+  if(!j) return;
 
-  const customerId = document.getElementById("recurringCustomer").value;
-  const title = document.getElementById("recurringTitle").value.trim();
+  editingJobId = id;
+  jobFormTitle.innerText = "Edit Job";
+  jobCustomer.value = j.customerId || "";
+  jobTitle.value = j.title || "";
+  jobDate.value = j.date || today();
+  jobAmount.value = j.amount || 0;
+  jobPaid.value = j.paid || 0;
+  jobNotes.value = j.notes || "";
+  showTab("jobsTab");
+  window.scrollTo(0,0);
+};
 
-  if(!customerId || !title){
-    alert("Complete recurring fields");
+window.resetJobForm = function(){
+  editingJobId = null;
+  jobFormTitle.innerText = "Add Job";
+  jobCustomer.value = "";
+  jobTitle.value = "";
+  jobDate.value = today();
+  jobAmount.value = "";
+  jobPaid.value = "";
+  jobNotes.value = "";
+};
+
+window.saveRecurring = async function(){
+  const data = {
+    customerId: recurringCustomer.value,
+    title: recurringTitle.value.trim(),
+    nextDate: recurringNextDate.value || today(),
+    amount: Number(recurringAmount.value || 0),
+    frequency: recurringFrequency.value
+  };
+
+  if(!data.customerId || !data.title){
+    alert("Select customer and enter recurring job title");
     return;
   }
 
-  await addDoc(collection(db,"recurring"),{
-    customerId,
-    title,
-    nextDate: document.getElementById("recurringNextDate").value,
-    amount: Number(document.getElementById("recurringAmount").value || 0),
-    frequency: document.getElementById("recurringFrequency").value
-  });
+  if(editingRecurringId){
+    await updateDoc(doc(db,"recurring",editingRecurringId),data);
+  }else{
+    data.createdAt = new Date().toISOString();
+    await addDoc(collection(db,"recurring"),data);
+  }
 
-  document.getElementById("recurringTitle").value = "";
-  document.getElementById("recurringAmount").value = "";
+  resetRecurringForm();
 };
 
-window.addExpense = async function(){
+window.editRecurring = function(id){
+  const r = recurring.find(x => x.id === id);
+  if(!r) return;
 
-  const category = document.getElementById("expenseCategory").value.trim();
+  editingRecurringId = id;
+  recurringFormTitle.innerText = "Edit Recurring Job";
+  recurringCustomer.value = r.customerId || "";
+  recurringTitle.value = r.title || "";
+  recurringNextDate.value = r.nextDate || today();
+  recurringAmount.value = r.amount || 0;
+  recurringFrequency.value = r.frequency || "weekly";
+  showTab("recurringTab");
+  window.scrollTo(0,0);
+};
 
-  if(!category){
+window.resetRecurringForm = function(){
+  editingRecurringId = null;
+  recurringFormTitle.innerText = "Add Recurring Job";
+  recurringCustomer.value = "";
+  recurringTitle.value = "";
+  recurringNextDate.value = today();
+  recurringAmount.value = "";
+  recurringFrequency.value = "weekly";
+};
+
+window.saveExpense = async function(){
+  const data = {
+    date: expenseDate.value || today(),
+    category: expenseCategory.value.trim(),
+    amount: Number(expenseAmount.value || 0),
+    notes: expenseNotes.value.trim()
+  };
+
+  if(!data.category){
     alert("Enter expense category");
     return;
   }
 
-  await addDoc(collection(db,"expenses"),{
-    date: document.getElementById("expenseDate").value,
-    category,
-    amount: Number(document.getElementById("expenseAmount").value || 0),
-    notes: document.getElementById("expenseNotes").value.trim()
-  });
+  if(editingExpenseId){
+    await updateDoc(doc(db,"expenses",editingExpenseId),data);
+  }else{
+    data.createdAt = new Date().toISOString();
+    await addDoc(collection(db,"expenses"),data);
+  }
 
-  document.getElementById("expenseCategory").value = "";
-  document.getElementById("expenseAmount").value = "";
-  document.getElementById("expenseNotes").value = "";
+  resetExpenseForm();
+};
+
+window.editExpense = function(id){
+  const e = expenses.find(x => x.id === id);
+  if(!e) return;
+
+  editingExpenseId = id;
+  expenseFormTitle.innerText = "Edit Expense";
+  expenseDate.value = e.date || today();
+  expenseCategory.value = e.category || "";
+  expenseAmount.value = e.amount || 0;
+  expenseNotes.value = e.notes || "";
+  showTab("expensesTab");
+  window.scrollTo(0,0);
+};
+
+window.resetExpenseForm = function(){
+  editingExpenseId = null;
+  expenseFormTitle.innerText = "Add Expense";
+  expenseDate.value = today();
+  expenseCategory.value = "";
+  expenseAmount.value = "";
+  expenseNotes.value = "";
 };
 
 window.deleteItem = async function(collectionName,id){
@@ -246,15 +510,11 @@ window.deleteItem = async function(collectionName,id){
 };
 
 window.markPaid = async function(id,amount){
-  await updateDoc(doc(db,"jobs",id),{
-    paid:Number(amount || 0)
-  });
+  await updateDoc(doc(db,"jobs",id),{paid:Number(amount || 0)});
 };
 
 window.createJobFromRecurring = async function(id){
-
   const r = recurring.find(x => x.id === id);
-
   if(!r) return;
 
   await addDoc(collection(db,"jobs"),{
@@ -263,7 +523,8 @@ window.createJobFromRecurring = async function(id){
     date:r.nextDate,
     amount:Number(r.amount || 0),
     paid:0,
-    notes:"Created from recurring"
+    notes:"Created from recurring job",
+    createdAt:new Date().toISOString()
   });
 
   const d = new Date(r.nextDate + "T00:00:00");
@@ -277,36 +538,125 @@ window.createJobFromRecurring = async function(id){
   });
 };
 
-function updateUI(){
+window.reminderText = function(jobId){
+  const j = jobs.find(x => x.id === jobId);
+  if(!j) return;
 
+  const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  const message = `Hey ${getCustomerName(j.customerId)}, just wanted to touch base on the remaining balance for ${j.title}. The current balance is ${money(balance)}. Thank you.`;
+
+  navigator.clipboard.writeText(message).then(()=>{
+    alert("Reminder copied:\n\n" + message);
+  }).catch(()=>{
+    alert(message);
+  });
+};
+
+window.makeInvoice = function(customerId){
+  const c = customers.find(x => x.id === customerId);
+  if(!c) return;
+
+  const custJobs = jobs.filter(j => j.customerId === customerId);
+  const total = custJobs.reduce((s,j)=>s + Number(j.amount || 0),0);
+  const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const balance = total - paid;
+
+  invoiceArea.innerHTML = `
+    <div class="invoice">
+      <h1>Invoice</h1>
+      <h2>5Cs Property Service</h2>
+      <p>Cleaned up. Fixed Right. Ready to sell.</p>
+
+      <h3>Bill To</h3>
+      <p>
+        <b>${c.name}</b><br>
+        ${c.phone || ""}<br>
+        ${c.address || ""}
+      </p>
+
+      <table>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Amount</th>
+          <th>Paid</th>
+          <th>Balance</th>
+        </tr>
+        ${custJobs.map(j=>`
+          <tr>
+            <td>${j.date || ""}</td>
+            <td>${j.title || ""}</td>
+            <td>${money(j.amount)}</td>
+            <td>${money(j.paid)}</td>
+            <td>${money(Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)))}</td>
+          </tr>
+        `).join("")}
+      </table>
+
+      <p class="invoiceTotal">Total: ${money(total)}</p>
+      <p class="invoiceTotal">Paid: ${money(paid)}</p>
+      <p class="invoiceTotal">Balance Due: ${money(balance)}</p>
+
+      <p>Thank you for your business.</p>
+
+      <button onclick="window.print()">Print / Save PDF</button>
+    </div>
+  `;
+
+  showTab("invoiceTab");
+};
+
+window.exportBackup = function(){
+  const data = {
+    customers,
+    jobs,
+    recurring,
+    expenses,
+    exportedAt:new Date().toISOString()
+  };
+
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "5cs-tracker-backup.json";
+  a.click();
+};
+
+function updateUI(){
   refreshDropdowns();
 
-  const totalPaid = jobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const q = searchInput.value.trim().toLowerCase();
 
-  const totalOwed = jobs.reduce((s,j)=>{
-    return s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
-  },0);
+  const filteredJobs = jobs.filter(j => {
+    const c = customers.find(x => x.id === j.customerId);
+    const text = `${j.title || ""} ${j.notes || ""} ${c?.name || ""} ${c?.address || ""}`;
+    return passesDateFilter(j.date) && searchMatch(text);
+  });
 
-  const totalExpenses = expenses.reduce((s,e)=>{
-    return s + Number(e.amount || 0);
-  },0);
+  const filteredExpenses = expenses.filter(e => {
+    const text = `${e.category || ""} ${e.notes || ""}`;
+    return passesDateFilter(e.date) && searchMatch(text);
+  });
 
-  const profit = totalPaid - totalExpenses;
+  const totalPaidVal = filteredJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const totalOwedVal = filteredJobs.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)),0);
+  const totalExpensesVal = filteredExpenses.reduce((s,e)=>s + Number(e.amount || 0),0);
+  const profitVal = totalPaidVal - totalExpensesVal;
 
-  document.getElementById("yearPaid").innerText = money(totalPaid);
-  document.getElementById("totalOwed").innerText = money(totalOwed);
-  document.getElementById("yearExpenses").innerText = money(totalExpenses);
-  document.getElementById("yearProfit").innerText = money(profit);
+  totalPaid.innerText = money(totalPaidVal);
+  totalOwed.innerText = money(totalOwedVal);
+  totalExpenses.innerText = money(totalExpensesVal);
+  totalProfit.innerText = money(profitVal);
 
-  document.getElementById("customerList").innerHTML = customers.map(c=>{
-
+  customerList.innerHTML = customers.filter(c => {
     const custJobs = jobs.filter(j => j.customerId === c.id);
-
+    const text = `${c.name || ""} ${c.phone || ""} ${c.address || ""} ${c.notes || ""} ${custJobs.map(j=>j.title).join(" ")}`;
+    return !q || text.toLowerCase().includes(q);
+  }).map(c=>{
+    const custJobs = jobs.filter(j => j.customerId === c.id);
     const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
-
-    const owed = custJobs.reduce((s,j)=>{
-      return s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
-    },0);
+    const owed = custJobs.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)),0);
 
     return `
       <div class="box">
@@ -316,14 +666,29 @@ function updateUI(){
         <p>${c.notes || ""}</p>
         <div class="paid">Paid: ${money(paid)}</div>
         <div class="owed">Owes: ${money(owed)}</div>
-        <button class="danger" onclick="deleteItem('customers','${c.id}')">Delete Customer</button>
+
+        <h4>Jobs</h4>
+        ${custJobs.map(j=>`
+          <div class="box">
+            <b>${j.title}</b><br>
+            ${j.date || ""}<br>
+            ${money(j.amount)} charged | ${money(j.paid)} paid<br>
+            <span class="badge ${jobStatus(j)==='Paid'?'statusPaid':jobStatus(j)==='Partial'?'statusPartial':'statusUnpaid'}">${jobStatus(j)}</span>
+          </div>
+        `).join("")}
+
+        <div class="row">
+          <button onclick="makeInvoice('${c.id}')">Invoice</button>
+          <button onclick="editCustomer('${c.id}')">Edit</button>
+          <button class="danger" onclick="deleteItem('customers','${c.id}')">Delete</button>
+        </div>
       </div>
     `;
   }).join("");
 
-  document.getElementById("jobList").innerHTML = jobs.map(j=>{
-
-    const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  jobList.innerHTML = filteredJobs.slice().sort((a,b)=>(b.date || "").localeCompare(a.date || "")).map(j=>{
+    const balance = Math.max(0,Number(j.amount || 0)-Number(j.paid || 0));
+    const status = jobStatus(j);
 
     return `
       <div class="box">
@@ -332,58 +697,52 @@ function updateUI(){
         <div class="small">${j.date || ""}</div>
         <div>Charge: ${money(j.amount)}</div>
         <div>Paid: ${money(j.paid)}</div>
-        <div class="${balance === 0 ? 'paid' : 'owed'}">
-          Balance: ${money(balance)}
-        </div>
+        <div class="${balance === 0 ? 'paid' : Number(j.paid || 0) > 0 ? 'partial' : 'owed'}">Balance: ${money(balance)}</div>
+        <span class="badge ${status==='Paid'?'statusPaid':status==='Partial'?'statusPartial':'statusUnpaid'}">${status}</span>
         <p>${j.notes || ""}</p>
-        <button onclick="markPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
-        <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete Job</button>
+
+        <div class="row">
+          <button onclick="markPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
+          <button onclick="reminderText('${j.id}')">Reminder Text</button>
+          <button onclick="editJob('${j.id}')">Edit</button>
+          <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete</button>
+        </div>
       </div>
     `;
   }).join("");
 
-  document.getElementById("recurringList").innerHTML = recurring.map(r=>`
-    <div class="box">
-      <h3>${r.title}</h3>
-      <div>${getCustomerName(r.customerId)}</div>
-      <div>Next: ${r.nextDate}</div>
-      <div>Frequency: ${r.frequency}</div>
-      <div>Amount: ${money(r.amount)}</div>
-      <button onclick="createJobFromRecurring('${r.id}')">Create Job From This</button>
-      <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete Recurring</button>
-    </div>
-  `).join("");
+  recurringList.innerHTML = recurring.slice().sort((a,b)=>(a.nextDate || "").localeCompare(b.nextDate || "")).map(r=>{
+    const status = recurringStatus(r);
+    return `
+      <div class="box">
+        <h3>${r.title}</h3>
+        <div>${getCustomerName(r.customerId)}</div>
+        <div>Next: ${r.nextDate}</div>
+        <div>Frequency: ${r.frequency}</div>
+        <div>Amount: ${money(r.amount)}</div>
+        <span class="badge ${status==='Past Due'?'statusUnpaid':status==='Due Today'?'statusPartial':'statusPaid'}">${status}</span>
+        <div class="row">
+          <button onclick="createJobFromRecurring('${r.id}')">Create Job</button>
+          <button onclick="editRecurring('${r.id}')">Edit</button>
+          <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join("");
 
-  document.getElementById("expenseList").innerHTML = expenses.map(e=>`
+  expenseList.innerHTML = filteredExpenses.slice().sort((a,b)=>(b.date || "").localeCompare(a.date || "")).map(e=>`
     <div class="box">
       <h3>${e.category}</h3>
       <div>${e.date}</div>
       <div>${money(e.amount)}</div>
       <p>${e.notes || ""}</p>
-      <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete Expense</button>
+      <div class="row">
+        <button onclick="editExpense('${e.id}')">Edit</button>
+        <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete</button>
+      </div>
     </div>
   `).join("");
 }
-
-onSnapshot(collection(db,"customers"), snap=>{
-  customers = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
-
-onSnapshot(collection(db,"jobs"), snap=>{
-  jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
-
-onSnapshot(collection(db,"recurring"), snap=>{
-  recurring = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
-
-onSnapshot(collection(db,"expenses"), snap=>{
-  expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
 
 </script>
 
