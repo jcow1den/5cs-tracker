@@ -59,14 +59,22 @@ const money = n => Number(n || 0).toLocaleString(undefined,{style:"currency",cur
 const today = () => new Date().toISOString().slice(0,10);
 
 function el(id){return document.getElementById(id)}
-function safe(v){return String(v || "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
-function cleanPhone(phone){return String(phone || "").replace(/\D/g,"")}
+
+function safe(v){
+  return String(v || "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+}
+
+function cleanPhone(phone){
+  return String(phone || "").replace(/\D/g,"");
+}
+
 function dateLabel(value){
   if(!value) return "";
   const d = new Date(value + "T00:00:00");
   if(isNaN(d)) return value;
   return d.toLocaleDateString();
 }
+
 function timeLabel(value){
   if(!value) return "";
   const parts = value.split(":");
@@ -76,11 +84,13 @@ function timeLabel(value){
   hour = hour % 12 || 12;
   return `${hour}:${minute} ${ampm}`;
 }
+
 function addDays(dateValue,days){
   const d = new Date((dateValue || today()) + "T00:00:00");
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0,10);
 }
+
 function isPastDue(dateValue){
   if(!dateValue) return false;
   return new Date(dateValue + "T00:00:00") < new Date(today() + "T00:00:00");
@@ -303,6 +313,9 @@ appRoot.innerHTML = `
       <option value="paid">Paid</option>
       <option value="today">Today</option>
       <option value="upcoming">Upcoming</option>
+      <option value="scheduled">Scheduled</option>
+      <option value="in progress">In Progress</option>
+      <option value="complete">Complete</option>
     </select>
   </div>
 
@@ -584,9 +597,18 @@ window.showAllSchedule = function(){
   renderSchedule("all");
 };
 
-window.openExpenses = function(){showView("expensesView")};
-window.openPayments = function(){showView("paymentsView")};
-window.openProfitBreakdown = function(){showView("profitView");renderAll()};
+window.openExpenses = function(){
+  showView("expensesView");
+};
+
+window.openPayments = function(){
+  showView("paymentsView");
+};
+
+window.openProfitBreakdown = function(){
+  showView("profitView");
+  renderAll();
+};
 
 window.toggleBox = function(id,forceOpen){
   const box = el(id);
@@ -597,8 +619,13 @@ window.toggleBox = function(id,forceOpen){
   box.classList.toggle("hidden");
 };
 
-function getCustomer(id){return customers.find(c => c.id === id)}
-function getCustomerName(id){return getCustomer(id)?.name || "Unknown customer"}
+function getCustomer(id){
+  return customers.find(c => c.id === id);
+}
+
+function getCustomerName(id){
+  return getCustomer(id)?.name || "Unknown customer";
+}
 
 function jobPayments(jobId){
   return payments.filter(p => p.jobId === jobId).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
@@ -614,18 +641,25 @@ function jobBalance(j){
   return Math.max(0,Number(j.amount || 0) - jobPaidAmount(j));
 }
 
-function jobStatus(j){
+function paymentStatus(j){
   const balance = jobBalance(j);
   if(balance === 0) return "Paid";
   if(jobPaidAmount(j) > 0) return "Partial";
   return "Unpaid";
 }
 
-function jobBadge(j){
-  const status = jobStatus(j);
+function paymentBadge(j){
+  const status = paymentStatus(j);
   if(status === "Paid") return `<span class="badge badgeGreen">Paid</span>`;
   if(status === "Partial") return `<span class="badge badgeGold">Partial</span>`;
   return `<span class="badge badgeRed">Unpaid</span>`;
+}
+
+function workflowBadge(j){
+  const status = j.status || "Scheduled";
+  if(status === "Complete") return `<span class="badge badgeGreen">Complete</span>`;
+  if(status === "In Progress") return `<span class="badge badgeGold">In Progress</span>`;
+  return `<span class="badge badgeBlue">${safe(status)}</span>`;
 }
 
 function customerTotals(customerId){
@@ -720,6 +754,8 @@ window.resetCustomerForm = function(){
 };
 
 window.saveJob = async function(){
+  const existingJob = editingJobId ? jobs.find(x => x.id === editingJobId) : null;
+
   const data = {
     customerId: el("jobCustomer").value,
     title: el("jobTitle").value.trim(),
@@ -728,7 +764,7 @@ window.saveJob = async function(){
     amount: Number(el("jobAmount").value || 0),
     paid: Number(el("jobPaid").value || 0),
     notes: el("jobNotes").value.trim(),
-status: "Scheduled"
+    status: existingJob?.status || "Scheduled"
   };
 
   if(!data.customerId || !data.title){
@@ -744,8 +780,8 @@ status: "Scheduled"
       time:data.time,
       amount:data.amount,
       notes:data.notes,
-status: jobs.find(x => x.id === editingJobId)?.status || "Scheduled"
-});
+      status:data.status
+    });
   }else{
     data.createdAt = new Date().toISOString();
     const jobRef = await addDoc(collection(db,"jobs"),data);
@@ -797,7 +833,33 @@ window.resetJobForm = function(){
 window.addPayment = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
-  window.savePaymentFromCustomer = async function(){
+
+  const amountText = prompt("Payment amount received?");
+  if(amountText === null) return;
+
+  const amount = Number(amountText);
+  if(!amount || amount <= 0){
+    alert("Enter a valid payment amount");
+    return;
+  }
+
+  const noteText = prompt("Payment note? Example: Cash, check, Venmo, card") || "";
+
+  await addDoc(collection(db,"payments"),{
+    jobId:j.id,
+    customerId:j.customerId,
+    amount,
+    date:today(),
+    notes:noteText,
+    createdAt:new Date().toISOString()
+  });
+
+  await updateDoc(doc(db,"jobs",id),{
+    paid:jobPaidAmount(j) + amount
+  });
+};
+
+window.savePaymentFromCustomer = async function(){
   const jobId = el("paymentJobSelect")?.value;
   const amount = Number(el("paymentAmount")?.value || 0);
   const date = el("paymentDate")?.value || today();
@@ -837,31 +899,6 @@ window.addPayment = async function(id){
   }
 };
 
-  const amountText = prompt("Payment amount received?");
-  if(amountText === null) return;
-
-  const amount = Number(amountText);
-  if(!amount || amount <= 0){
-    alert("Enter a valid payment amount");
-    return;
-  }
-
-  const noteText = prompt("Payment note? Example: Cash, check, Venmo, card") || "";
-
-  await addDoc(collection(db,"payments"),{
-    jobId:j.id,
-    customerId:j.customerId,
-    amount,
-    date:today(),
-    notes:noteText,
-    createdAt:new Date().toISOString()
-  });
-
-  await updateDoc(doc(db,"jobs",id),{
-    paid:jobPaidAmount(j) + amount
-  });
-};
-
 window.deletePayment = async function(id){
   if(confirm("Delete this payment?")) await deleteDoc(doc(db,"payments",id));
 };
@@ -869,26 +906,6 @@ window.deletePayment = async function(id){
 window.markPaid = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
- window.setJobStatus = async function(id,status){
-  try{
-    await updateDoc(doc(db,"jobs",id),{
-      status: status
-    });
-
-    renderAll();
-
-    if(activeCustomerDetailId){
-      setTimeout(()=>{
-        viewCustomer(activeCustomerDetailId);
-      },500);
-    }
-
-    alert("Status changed to " + status);
-
-  }catch(error){
-    alert("Status update failed: " + error.message);
-  }
-};
 
   const balance = jobBalance(j);
 
@@ -906,7 +923,35 @@ window.markPaid = async function(id){
     createdAt:new Date().toISOString()
   });
 
-  await updateDoc(doc(db,"jobs",id),{paid:Number(j.amount || 0)});
+  await updateDoc(doc(db,"jobs",id),{
+    paid:Number(j.amount || 0),
+    status:"Complete"
+  });
+
+  renderAll();
+
+  if(activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")){
+    setTimeout(()=>viewCustomer(activeCustomerDetailId),500);
+  }
+};
+
+window.setJobStatus = async function(id,status){
+  try{
+    await updateDoc(doc(db,"jobs",id),{
+      status:status
+    });
+
+    renderAll();
+
+    if(activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")){
+      setTimeout(()=>viewCustomer(activeCustomerDetailId),400);
+    }
+
+    alert("Status changed to " + status);
+
+  }catch(error){
+    alert("Status update failed: " + error.message);
+  }
 };
 
 window.saveRecurring = async function(){
@@ -973,6 +1018,7 @@ window.createJobFromRecurring = async function(id){
     amount:Number(r.amount || 0),
     paid:0,
     notes:"Created from recurring job",
+    status:"Scheduled",
     createdAt:new Date().toISOString()
   });
 
@@ -1107,6 +1153,7 @@ Thank you for your business.
 window.viewCustomer = function(id){
   activeCustomerDetailId = id;
   const c = getCustomer(id);
+  if(!c) return;
 
   const phone = cleanPhone(c.phone);
   const totals = customerTotals(id);
@@ -1155,6 +1202,7 @@ window.viewCustomer = function(id){
       <h3>Add Job For This Customer</h3>
       <button onclick="quickJob('${c.id}')">Add Job</button>
     </div>
+
     <div class="box noPrint">
       <h3>Add Payment</h3>
       <select id="paymentJobSelect">
@@ -1170,6 +1218,7 @@ window.viewCustomer = function(id){
       <textarea id="paymentNotes" placeholder="Payment notes"></textarea>
       <button class="green" onclick="savePaymentFromCustomer()">Save Payment</button>
     </div>
+
     <div class="box">
       <h3>Jobs</h3>
       ${custJobs.length ? custJobs.map(jobCardHtml).join("") : "<p class='small'>No jobs yet.</p>"}
@@ -1216,8 +1265,8 @@ function jobCardHtml(j){
     <div class="jobCard">
       <h3>${safe(j.title)}</h3>
       <div class="small">${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</div>
-      ${jobBadge(j)}
-            <span class="badge badgeBlue">${safe(j.status || "Scheduled")}</span>
+      ${paymentBadge(j)}
+      ${workflowBadge(j)}
       ${isPastDue(j.date) && balance > 0 ? `<span class="badge badgeRed">Overdue</span>` : ""}
       <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
       <div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>
@@ -1229,16 +1278,17 @@ function jobCardHtml(j){
         ${list.length ? list.map(paymentLineHtml).join("") : "<p class='small'>No payment records yet.</p>"}
       </details>
 
-                  <div class="row">
-        <button class="blue statusBtn" data-job-id="${j.id}" data-status="Scheduled">Scheduled</button>
-        <button class="gold statusBtn" data-job-id="${j.id}" data-status="In Progress">In Progress</button>
-        <button class="green statusBtn" data-job-id="${j.id}" data-status="Complete">Complete</button>
+      <div class="row">
+        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
+        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
+        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
         <button onclick="markPaid('${j.id}')">Mark Paid</button>
         <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
         <button class="gold" onclick="copyReminder('${j.id}')">Reminder</button>
         <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
         <button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button>
       </div>
+    </div>
   `;
 }
 
@@ -1287,7 +1337,8 @@ function scheduleCardHtml(j){
       <div class="small">${safe(c?.address || "")}</div>
       <div class="small">${safe(c?.gateCode ? "Gate or access: " + c.gateCode : "")}</div>
       <div class="small">${safe(c?.propertyNotes || "")}</div>
-      ${jobBadge(j)}
+      ${paymentBadge(j)}
+      ${workflowBadge(j)}
       <div class="row">
         ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
         ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
@@ -1470,7 +1521,7 @@ function renderAll(){
       </div>
     `).join("") || "<p class='small'>No customer payments yet.</p>";
 
-  const unpaidJobs = jobs.filter(j => jobStatus(j) !== "Paid");
+  const unpaidJobs = jobs.filter(j => paymentStatus(j) !== "Paid");
   const dueRecurring = recurring.filter(r => ["Past Due","Due Today","Upcoming"].includes(recurringStatus(r).label));
 
   const notifications = [];
@@ -1506,7 +1557,8 @@ function renderAll(){
       <div class="box">
         <h3>${safe(j.title)}</h3>
         <div>${safe(getCustomerName(j.customerId))}</div>
-        ${jobBadge(j)}
+        ${paymentBadge(j)}
+        ${workflowBadge(j)}
         <div class="owed">Balance: ${money(jobBalance(j))}</div>
         <button onclick="viewCustomer('${j.customerId}')">View Customer</button>
       </div>
@@ -1574,10 +1626,11 @@ function renderAll(){
     .slice()
     .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
     .filter(j=>{
-      const status = jobStatus(j).toLowerCase();
+      const payStatus = paymentStatus(j).toLowerCase();
+      const workflowStatus = String(j.status || "Scheduled").toLowerCase();
       const text = `${j.title || ""} ${j.notes || ""} ${getCustomerName(j.customerId)}`.toLowerCase();
 
-      let statusOk = statusFilter === "all" || status === statusFilter;
+      let statusOk = statusFilter === "all" || payStatus === statusFilter || workflowStatus === statusFilter;
       if(statusFilter === "today") statusOk = j.date === today();
       if(statusFilter === "upcoming") statusOk = j.date >= today() && j.date <= addDays(today(),7);
 
@@ -1643,29 +1696,4 @@ function renderAll(){
       `;
     }).join("")
     : "<p class='small'>No unpaid balances right now.</p>";
-}document.addEventListener("click", async function(e){
-  const btn = e.target.closest(".statusBtn");
-  if(!btn) return;
-
-  const jobId = btn.dataset.jobId;
-  const status = btn.dataset.status;
-
-  try{
-    await updateDoc(doc(db,"jobs",jobId),{
-      status: status
-    });
-
-    alert("Status changed to " + status);
-
-    renderAll();
-
-    if(typeof activeCustomerDetailId !== "undefined" && activeCustomerDetailId){
-      setTimeout(()=>{
-        viewCustomer(activeCustomerDetailId);
-      },500);
-    }
-
-  }catch(error){
-    alert("Status update failed: " + error.message);
-  }
-});
+}
