@@ -795,6 +795,45 @@ window.resetJobForm = function(){
 window.addPayment = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
+  window.savePaymentFromCustomer = async function(){
+  const jobId = el("paymentJobSelect")?.value;
+  const amount = Number(el("paymentAmount")?.value || 0);
+  const date = el("paymentDate")?.value || today();
+  const method = el("paymentMethod")?.value.trim() || "";
+  const notes = el("paymentNotes")?.value.trim() || "";
+
+  const j = jobs.find(x => x.id === jobId);
+
+  if(!j){
+    alert("Select a job");
+    return;
+  }
+
+  if(!amount || amount <= 0){
+    alert("Enter a valid payment amount");
+    return;
+  }
+
+  await addDoc(collection(db,"payments"),{
+    jobId:j.id,
+    customerId:j.customerId,
+    amount,
+    date,
+    method,
+    notes: method ? `${method} ${notes}`.trim() : notes,
+    createdAt:new Date().toISOString()
+  });
+
+  await updateDoc(doc(db,"jobs",j.id),{
+    paid:jobPaidAmount(j) + amount
+  });
+
+  alert("Payment saved");
+
+  if(activeCustomerDetailId){
+    setTimeout(()=>viewCustomer(activeCustomerDetailId),500);
+  }
+};
 
   const amountText = prompt("Payment amount received?");
   if(amountText === null) return;
@@ -1094,7 +1133,21 @@ window.viewCustomer = function(id){
       <h3>Add Job For This Customer</h3>
       <button onclick="quickJob('${c.id}')">Add Job</button>
     </div>
-
+    <div class="box noPrint">
+      <h3>Add Payment</h3>
+      <select id="paymentJobSelect">
+        ${custJobs.map(j=>`
+          <option value="${j.id}">
+            ${safe(j.title)} | Balance ${money(jobBalance(j))}
+          </option>
+        `).join("")}
+      </select>
+      <input id="paymentAmount" type="number" placeholder="Payment amount">
+      <input id="paymentDate" type="date" value="${today()}">
+      <input id="paymentMethod" placeholder="Payment method, ex: Cash, Check, Venmo, Card">
+      <textarea id="paymentNotes" placeholder="Payment notes"></textarea>
+      <button class="green" onclick="savePaymentFromCustomer()">Save Payment</button>
+    </div>
     <div class="box">
       <h3>Jobs</h3>
       ${custJobs.length ? custJobs.map(jobCardHtml).join("") : "<p class='small'>No jobs yet.</p>"}
