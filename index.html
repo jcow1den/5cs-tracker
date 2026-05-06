@@ -31,10 +31,25 @@ body{
 header{
   background:var(--dark);
   color:white;
-  padding:18px;
+  padding:14px;
   position:sticky;
   top:0;
   z-index:10;
+}
+
+.headerWrap{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.headerLogo{
+  width:58px;
+  height:58px;
+  object-fit:contain;
+  background:white;
+  border-radius:12px;
+  padding:4px;
 }
 
 header h1{
@@ -182,15 +197,9 @@ button.blue{background:var(--blue)}
   color:#111;
 }
 
-.topActions{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-}
-
 .searchBar{
   position:sticky;
-  top:76px;
+  top:86px;
   z-index:9;
   background:var(--bg);
   padding:8px 0;
@@ -217,9 +226,25 @@ button.blue{background:var(--blue)}
 
 .invoice{
   background:white;
-  padding:22px;
+  padding:24px;
   border-radius:18px;
   border:1px solid var(--line);
+}
+
+.invoiceTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  border-bottom:2px solid #111;
+  padding-bottom:15px;
+  margin-bottom:15px;
+}
+
+.invoiceLogo{
+  width:150px;
+  max-width:45%;
+  object-fit:contain;
 }
 
 .invoice table{
@@ -254,6 +279,22 @@ button.blue{background:var(--blue)}
   gap:8px;
 }
 
+.logoHero{
+  text-align:center;
+}
+
+.logoHero img{
+  width:170px;
+  max-width:80%;
+  object-fit:contain;
+}
+
+.moreGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
 @media(min-width:800px){
   .grid{grid-template-columns:repeat(4,1fr)}
   .cardsGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -271,8 +312,13 @@ button.blue{background:var(--blue)}
 <body>
 
 <header>
+<div class="headerWrap">
+<img class="headerLogo" src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
+<div>
 <h1>5Cs Tracker</h1>
 <p id="headerSub">Business dashboard</p>
+</div>
+</div>
 </header>
 
 <main>
@@ -289,6 +335,10 @@ button.blue{background:var(--blue)}
 <section id="appScreen" class="hidden">
 
 <section id="dashboardView">
+
+<div class="box logoHero">
+<img src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
+</div>
 
 <div class="grid">
 <div class="stat"><b>Paid</b><h2 id="dashPaid">$0</h2></div>
@@ -420,17 +470,44 @@ button.blue{background:var(--blue)}
 <div id="expenseList"></div>
 </section>
 
+<section id="invoicesView" class="hidden">
+
+<div class="box noPrint">
+<h2>Invoice Center</h2>
+<select id="invoiceCustomerSelect"></select>
+<input id="invoiceDueDate" type="date">
+<textarea id="invoiceNotes" placeholder="Invoice notes or payment instructions">Payment due upon receipt. Thank you for your business.</textarea>
+<button onclick="makeInvoiceFromCenter()">Create Invoice</button>
+</div>
+
+<div class="box">
+<h2>Customers With Balances</h2>
+<div id="invoiceCustomerList"></div>
+</div>
+
+</section>
+
 <section id="invoiceView" class="hidden">
 <div id="invoiceArea"></div>
 </section>
 
 <section id="settingsView" class="hidden">
+
 <div class="box">
-<h2>Settings</h2>
+<h2>More</h2>
+<div class="moreGrid">
+<button onclick="showView('invoicesView')">Invoices</button>
+<button onclick="showView('expensesView')">Expenses</button>
 <button onclick="exportBackup()">Export Backup</button>
 <button class="secondary" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<div class="box">
+<h2>Settings</h2>
 <p class="small">Before adding real customer data, Firestore rules should require login.</p>
 </div>
+
 </section>
 
 </section>
@@ -441,8 +518,8 @@ button.blue{background:var(--blue)}
 <button id="navDashboard" onclick="showView('dashboardView')">Home</button>
 <button id="navCustomers" onclick="showView('customersView')">Customers</button>
 <button id="navJobs" onclick="showView('jobsView')">Jobs</button>
-<button id="navRecurring" onclick="showView('recurringView')">Recurring</button>
-<button id="navSettings" onclick="showView('settingsView')">More</button>
+<button id="navInvoices" onclick="showView('invoicesView')">Invoices</button>
+<button id="navMore" onclick="showView('settingsView')">More</button>
 </nav>
 
 <script type="module">
@@ -484,6 +561,7 @@ function cleanPhone(phone){return String(phone || "").replace(/\D/g,"")}
 el("jobDate").value = today();
 el("recurringNextDate").value = today();
 el("expenseDate").value = today();
+el("invoiceDueDate").value = today();
 
 window.login = async function(){
   try{
@@ -549,7 +627,7 @@ function startListeners(){
 window.showView = function(id){
   currentView = id;
 
-  ["dashboardView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
@@ -560,8 +638,8 @@ window.showView = function(id){
   if(id === "dashboardView") el("navDashboard").classList.add("active");
   if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
   if(id === "jobsView") el("navJobs").classList.add("active");
-  if(id === "recurringView") el("navRecurring").classList.add("active");
-  if(id === "settingsView" || id === "expensesView" || id === "invoiceView") el("navSettings").classList.add("active");
+  if(id === "invoicesView" || id === "invoiceView") el("navInvoices").classList.add("active");
+  if(id === "settingsView" || id === "expensesView" || id === "recurringView") el("navMore").classList.add("active");
 
   const titles = {
     dashboardView:"Business dashboard",
@@ -570,8 +648,9 @@ window.showView = function(id){
     jobsView:"Jobs",
     recurringView:"Recurring work",
     expensesView:"Expenses",
-    invoiceView:"Invoice",
-    settingsView:"Settings"
+    invoicesView:"Invoice center",
+    invoiceView:"Invoice preview",
+    settingsView:"More"
   };
 
   el("headerSub").innerText = titles[id] || "Business dashboard";
@@ -642,6 +721,7 @@ function refreshDropdowns(){
 
   el("jobCustomer").innerHTML = html;
   el("recurringCustomer").innerHTML = html;
+  el("invoiceCustomerSelect").innerHTML = html;
 }
 
 window.saveCustomer = async function(){
@@ -1026,23 +1106,43 @@ function expenseCardHtml(e){
   `;
 }
 
+window.makeInvoiceFromCenter = function(){
+  const customerId = el("invoiceCustomerSelect").value;
+  if(!customerId){
+    alert("Select a customer");
+    return;
+  }
+  makeInvoice(customerId);
+};
+
 window.makeInvoice = function(customerId){
   const c = getCustomer(customerId);
   if(!c) return;
 
   const custJobs = jobs.filter(j => j.customerId === customerId);
   const invoiceNumber = "INV-" + new Date().getFullYear() + "-" + String(Date.now()).slice(-5);
+  const issueDate = today();
+  const dueDate = el("invoiceDueDate")?.value || today();
   const total = custJobs.reduce((s,j)=>s + Number(j.amount || 0),0);
   const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
   const balance = total - paid;
+  const invoiceNotes = el("invoiceNotes")?.value || "Payment due upon receipt. Thank you for your business.";
 
   el("invoiceArea").innerHTML = `
     <div class="invoice">
-      <h1>Invoice</h1>
-      <p><b>${invoiceNumber}</b></p>
-
-      <h2>5Cs Property Service</h2>
-      <p>Cleaned up. Fixed Right. Ready to sell.</p>
+      <div class="invoiceTop">
+        <div>
+          <img class="invoiceLogo" src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
+          <h2>5Cs Property Services LLC</h2>
+          <p>Cleaned Up • Fixed Right • Ready To Sell</p>
+        </div>
+        <div>
+          <h1>Invoice</h1>
+          <p><b>${invoiceNumber}</b></p>
+          <p>Issue Date: ${safe(issueDate)}</p>
+          <p>Due Date: ${safe(dueDate)}</p>
+        </div>
+      </div>
 
       <h3>Bill To</h3>
       <p>
@@ -1074,7 +1174,7 @@ window.makeInvoice = function(customerId){
       <p class="invoiceTotal">Paid: ${money(paid)}</p>
       <p class="invoiceTotal">Balance Due: ${money(balance)}</p>
 
-      <p>Thank you for your business.</p>
+      <p>${safe(invoiceNotes)}</p>
 
       <button onclick="window.print()">Print or Save PDF</button>
     </div>
@@ -1172,6 +1272,7 @@ function renderAll(){
 
           <div class="row">
             <button onclick="viewCustomer('${c.id}')">View</button>
+            <button onclick="makeInvoice('${c.id}')">Invoice</button>
             ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
             ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
             <button class="secondary" onclick="editCustomer('${c.id}')">Edit</button>
@@ -1207,6 +1308,24 @@ function renderAll(){
     .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
     .map(expenseCardHtml)
     .join("") || "<p class='small'>No expenses yet.</p>";
+
+  const customersWithBalances = customers
+    .slice()
+    .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
+    .filter(c => customerTotals(c.id).owed > 0);
+
+  el("invoiceCustomerList").innerHTML = customersWithBalances.length
+    ? customersWithBalances.map(c=>{
+      const totals = customerTotals(c.id);
+      return `
+        <div class="box">
+          <h3>${safe(c.name)}</h3>
+          <div class="owed">Balance: ${money(totals.owed)}</div>
+          <button onclick="makeInvoice('${c.id}')">Create Invoice</button>
+        </div>
+      `;
+    }).join("")
+    : "<p class='small'>No unpaid balances right now.</p>";
 }
 </script>
 
