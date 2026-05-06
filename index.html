@@ -6,40 +6,264 @@
 <title>5Cs Tracker</title>
 
 <style>
-body{font-family:Arial;margin:0;background:#f5f1e8;color:#1f1c18}
-header{background:#17130f;color:white;padding:18px}
-main{padding:16px;max-width:1050px;margin:auto}
-h1,h2,h3{margin-top:0}
-.box,.stat{background:white;border-radius:14px;padding:14px;margin:10px 0;border:1px solid #ddd}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-input,button,select,textarea{font-size:16px;padding:11px;width:100%;margin:5px 0;box-sizing:border-box;border-radius:10px;border:1px solid #ccc}
-button{background:#111;color:white;border:0;font-weight:bold}
-button.danger{background:#b42318}
-button.gray{background:#555}
-button.green{background:#087443}
-button.gold{background:#b7791f}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
-.tabs button{width:auto;padding:10px 12px}
-.hidden{display:none}
-.small{font-size:13px;color:#666}
-.paid{color:green;font-weight:bold}
-.owed{color:#b42318;font-weight:bold}
-.partial{color:#b7791f;font-weight:bold}
-.statusPaid{background:#d1fadf}
-.statusPartial{background:#fef0c7}
-.statusUnpaid{background:#fee4e2}
-.badge{display:inline-block;padding:5px 8px;border-radius:20px;font-size:13px;font-weight:bold;margin:3px 0}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.row button{flex:1;min-width:130px}
-.invoice{background:white;padding:25px;border-radius:14px;border:1px solid #ddd}
-.invoice table{width:100%;border-collapse:collapse;margin-top:15px}
-.invoice th,.invoice td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
-.invoiceTotal{text-align:right;font-size:24px;font-weight:bold}
+:root{
+  --bg:#f5f1e8;
+  --dark:#17130f;
+  --card:#fffdf8;
+  --line:#ddd3c4;
+  --muted:#6b6258;
+  --green:#087443;
+  --red:#b42318;
+  --gold:#b7791f;
+  --blue:#175cd3;
+}
+
+*{box-sizing:border-box}
+
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  margin:0;
+  background:var(--bg);
+  color:#1f1c18;
+  padding-bottom:85px;
+}
+
+header{
+  background:var(--dark);
+  color:white;
+  padding:18px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+
+header h1{
+  margin:0;
+  font-size:22px;
+}
+
+header p{
+  margin:4px 0 0;
+  color:#d7cbbb;
+  font-size:14px;
+}
+
+main{
+  padding:14px;
+  max-width:1050px;
+  margin:auto;
+}
+
+h2,h3{
+  margin-top:0;
+}
+
+.box,.stat,.customerCard,.jobCard{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px;
+  margin:10px 0;
+  box-shadow:0 3px 10px rgba(0,0,0,.04);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.stat b{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.stat h2{
+  margin:8px 0 0;
+  font-size:22px;
+}
+
+input,button,select,textarea{
+  font-size:16px;
+  padding:12px;
+  width:100%;
+  margin:5px 0;
+  border-radius:12px;
+  border:1px solid #ccc;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+textarea{
+  min-height:78px;
+}
+
+button{
+  background:#111;
+  color:white;
+  border:0;
+  font-weight:bold;
+}
+
+button.secondary{background:#555}
+button.green{background:var(--green)}
+button.red{background:var(--red)}
+button.gold{background:var(--gold)}
+button.blue{background:var(--blue)}
+
+.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.row button,.row a{
+  flex:1;
+  min-width:120px;
+}
+
+.actionLink{
+  display:block;
+  text-align:center;
+  background:#111;
+  color:white;
+  text-decoration:none;
+  border-radius:12px;
+  padding:12px;
+  font-weight:bold;
+  margin:5px 0;
+}
+
+.hidden{
+  display:none!important;
+}
+
+.small{
+  font-size:13px;
+  color:var(--muted);
+}
+
+.badge{
+  display:inline-block;
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:bold;
+  margin:4px 4px 4px 0;
+}
+
+.badgeGreen{background:#d1fadf;color:#054f31}
+.badgeRed{background:#fee4e2;color:#912018}
+.badgeGold{background:#fef0c7;color:#93370d}
+.badgeBlue{background:#d1e9ff;color:#1849a9}
+.badgeGray{background:#eee;color:#333}
+
+.bottomNav{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  background:#17130f;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:4px;
+  padding:8px;
+  z-index:50;
+}
+
+.bottomNav button{
+  background:#2a211b;
+  font-size:12px;
+  padding:10px 4px;
+  border-radius:14px;
+}
+
+.bottomNav button.active{
+  background:white;
+  color:#111;
+}
+
+.topActions{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+
+.searchBar{
+  position:sticky;
+  top:76px;
+  z-index:9;
+  background:var(--bg);
+  padding:8px 0;
+}
+
+.customerHeader{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+}
+
+.customerHeader h3{
+  margin-bottom:4px;
+}
+
+.moneyLine{
+  display:flex;
+  justify-content:space-between;
+  border-top:1px solid #eee;
+  padding-top:8px;
+  margin-top:8px;
+}
+
+.invoice{
+  background:white;
+  padding:22px;
+  border-radius:18px;
+  border:1px solid var(--line);
+}
+
+.invoice table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:15px;
+}
+
+.invoice th,.invoice td{
+  border-bottom:1px solid #ddd;
+  padding:8px;
+  text-align:left;
+  font-size:14px;
+}
+
+.invoiceTotal{
+  text-align:right;
+  font-size:22px;
+  font-weight:bold;
+}
+
+.detailTitle{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+
+.quickAdd{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+@media(min-width:800px){
+  .grid{grid-template-columns:repeat(4,1fr)}
+  .cardsGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+}
+
 @media print{
-header,.tabs,.noPrint,button,input,select,textarea{display:none!important}
-body{background:white}
-main{max-width:none}
-.invoice{border:0}
+  header,.bottomNav,.noPrint,button,input,select,textarea,.searchBar{display:none!important}
+  body{background:white;padding-bottom:0}
+  main{max-width:none}
+  .invoice{border:0;box-shadow:none}
 }
 </style>
 </head>
@@ -48,7 +272,7 @@ main{max-width:none}
 
 <header>
 <h1>5Cs Tracker</h1>
-<div>Customers, jobs, payments, recurring work, invoices, reminders, expenses, and totals</div>
+<p id="headerSub">Business dashboard</p>
 </header>
 
 <main>
@@ -58,57 +282,87 @@ main{max-width:none}
 <input id="loginEmail" placeholder="Email">
 <input id="loginPassword" type="password" placeholder="Password">
 <button onclick="login()">Login</button>
-<button class="gray" onclick="signup()">Create Account</button>
-<p class="small">Use this only after Email / Password login is enabled in Firebase Authentication.</p>
+<button class="secondary" onclick="signup()">Create Account</button>
+<p class="small">Email and password login must be enabled in Firebase Authentication.</p>
 </section>
 
 <section id="appScreen" class="hidden">
 
-<div class="noPrint">
-<button class="gray" onclick="logout()">Logout</button>
-</div>
+<section id="dashboardView">
 
 <div class="grid">
-<div class="stat"><b>Paid</b><h2 id="totalPaid">$0</h2></div>
-<div class="stat"><b>Owed</b><h2 id="totalOwed">$0</h2></div>
-<div class="stat"><b>Expenses</b><h2 id="totalExpenses">$0</h2></div>
-<div class="stat"><b>Profit</b><h2 id="totalProfit">$0</h2></div>
+<div class="stat"><b>Paid</b><h2 id="dashPaid">$0</h2></div>
+<div class="stat"><b>Owed</b><h2 id="dashOwed">$0</h2></div>
+<div class="stat"><b>Expenses</b><h2 id="dashExpenses">$0</h2></div>
+<div class="stat"><b>Profit</b><h2 id="dashProfit">$0</h2></div>
 </div>
 
 <div class="box noPrint">
-<h3>Filters</h3>
-<select id="timeFilter" onchange="updateUI()">
-<option value="all">All Time</option>
-<option value="year">This Year</option>
-<option value="month">This Month</option>
-</select>
-<input id="searchInput" oninput="updateUI()" placeholder="Search customer, address, job, notes">
-<button onclick="exportBackup()">Export Backup</button>
+<h2>Quick Add</h2>
+<div class="quickAdd">
+<button onclick="showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
+<button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+<button onclick="showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
+<button onclick="showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
+</div>
 </div>
 
-<div class="tabs noPrint">
-<button onclick="showTab('customersTab')">Customers</button>
-<button onclick="showTab('jobsTab')">Jobs</button>
-<button onclick="showTab('recurringTab')">Recurring</button>
-<button onclick="showTab('expensesTab')">Expenses</button>
-<button onclick="showTab('invoiceTab')">Invoice</button>
-</div>
-
-<section id="customersTab">
 <div class="box">
+<h2>Needs Attention</h2>
+<div id="attentionList"></div>
+</div>
+
+<div class="box">
+<h2>Recent Jobs</h2>
+<div id="recentJobs"></div>
+</div>
+
+</section>
+
+<section id="customersView" class="hidden">
+
+<div class="searchBar noPrint">
+<input id="customerSearch" oninput="renderAll()" placeholder="Search customers, phone, address, notes">
+</div>
+
+<div class="box noPrint">
+<button onclick="toggleBox('customerFormBox')">Add or Edit Customer</button>
+</div>
+
+<div id="customerFormBox" class="box hidden">
 <h2 id="customerFormTitle">Add Customer</h2>
 <input id="customerName" placeholder="Customer name">
 <input id="customerPhone" placeholder="Phone">
 <input id="customerAddress" placeholder="Address">
 <textarea id="customerNotes" placeholder="Notes"></textarea>
 <button onclick="saveCustomer()">Save Customer</button>
-<button class="gray" onclick="resetCustomerForm()">Clear</button>
+<button class="secondary" onclick="resetCustomerForm()">Clear</button>
 </div>
-<div id="customerList"></div>
+
+<div id="customerList" class="cardsGrid"></div>
 </section>
 
-<section id="jobsTab" class="hidden">
-<div class="box">
+<section id="customerDetailView" class="hidden">
+<div id="customerDetail"></div>
+</section>
+
+<section id="jobsView" class="hidden">
+
+<div class="searchBar noPrint">
+<input id="jobSearch" oninput="renderAll()" placeholder="Search jobs, customers, notes">
+<select id="jobStatusFilter" onchange="renderAll()">
+<option value="all">All Jobs</option>
+<option value="unpaid">Unpaid</option>
+<option value="partial">Partial</option>
+<option value="paid">Paid</option>
+</select>
+</div>
+
+<div class="box noPrint">
+<button onclick="toggleBox('jobFormBox')">Add or Edit Job</button>
+</div>
+
+<div id="jobFormBox" class="box hidden">
 <h2 id="jobFormTitle">Add Job</h2>
 <select id="jobCustomer"></select>
 <input id="jobTitle" placeholder="Job description">
@@ -117,13 +371,19 @@ main{max-width:none}
 <input id="jobPaid" type="number" placeholder="Amount paid">
 <textarea id="jobNotes" placeholder="Job notes"></textarea>
 <button onclick="saveJob()">Save Job</button>
-<button class="gray" onclick="resetJobForm()">Clear</button>
+<button class="secondary" onclick="resetJobForm()">Clear</button>
 </div>
+
 <div id="jobList"></div>
 </section>
 
-<section id="recurringTab" class="hidden">
-<div class="box">
+<section id="recurringView" class="hidden">
+
+<div class="box noPrint">
+<button onclick="toggleBox('recurringFormBox')">Add or Edit Recurring Job</button>
+</div>
+
+<div id="recurringFormBox" class="box hidden">
 <h2 id="recurringFormTitle">Add Recurring Job</h2>
 <select id="recurringCustomer"></select>
 <input id="recurringTitle" placeholder="Recurring job title">
@@ -135,34 +395,57 @@ main{max-width:none}
 <option value="monthly">Monthly</option>
 </select>
 <button onclick="saveRecurring()">Save Recurring Job</button>
-<button class="gray" onclick="resetRecurringForm()">Clear</button>
+<button class="secondary" onclick="resetRecurringForm()">Clear</button>
 </div>
+
 <div id="recurringList"></div>
 </section>
 
-<section id="expensesTab" class="hidden">
-<div class="box">
+<section id="expensesView" class="hidden">
+
+<div class="box noPrint">
+<button onclick="toggleBox('expenseFormBox')">Add or Edit Expense</button>
+</div>
+
+<div id="expenseFormBox" class="box hidden">
 <h2 id="expenseFormTitle">Add Expense</h2>
 <input id="expenseDate" type="date">
 <input id="expenseCategory" placeholder="Category">
 <input id="expenseAmount" type="number" placeholder="Amount">
 <textarea id="expenseNotes" placeholder="Notes"></textarea>
 <button onclick="saveExpense()">Save Expense</button>
-<button class="gray" onclick="resetExpenseForm()">Clear</button>
+<button class="secondary" onclick="resetExpenseForm()">Clear</button>
 </div>
+
 <div id="expenseList"></div>
 </section>
 
-<section id="invoiceTab" class="hidden">
+<section id="invoiceView" class="hidden">
 <div id="invoiceArea"></div>
+</section>
+
+<section id="settingsView" class="hidden">
+<div class="box">
+<h2>Settings</h2>
+<button onclick="exportBackup()">Export Backup</button>
+<button class="secondary" onclick="logout()">Logout</button>
+<p class="small">Before adding real customer data, Firestore rules should require login.</p>
+</div>
 </section>
 
 </section>
 
 </main>
 
-<script type="module">
+<nav id="bottomNav" class="bottomNav hidden noPrint">
+<button id="navDashboard" onclick="showView('dashboardView')">Home</button>
+<button id="navCustomers" onclick="showView('customersView')">Customers</button>
+<button id="navJobs" onclick="showView('jobsView')">Jobs</button>
+<button id="navRecurring" onclick="showView('recurringView')">Recurring</button>
+<button id="navSettings" onclick="showView('settingsView')">More</button>
+</nav>
 
+<script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -184,6 +467,7 @@ let customers = [];
 let jobs = [];
 let recurring = [];
 let expenses = [];
+let currentView = "dashboardView";
 
 let editingCustomerId = null;
 let editingJobId = null;
@@ -193,13 +477,17 @@ let editingExpenseId = null;
 const money = n => Number(n || 0).toLocaleString(undefined,{style:"currency",currency:"USD"});
 const today = () => new Date().toISOString().slice(0,10);
 
-document.getElementById("jobDate").value = today();
-document.getElementById("recurringNextDate").value = today();
-document.getElementById("expenseDate").value = today();
+function el(id){return document.getElementById(id)}
+function safe(v){return String(v || "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+function cleanPhone(phone){return String(phone || "").replace(/\D/g,"")}
+
+el("jobDate").value = today();
+el("recurringNextDate").value = today();
+el("expenseDate").value = today();
 
 window.login = async function(){
   try{
-    await signInWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value);
+    await signInWithEmailAndPassword(auth, el("loginEmail").value.trim(), el("loginPassword").value);
   }catch(error){
     alert("Login error: " + error.message);
   }
@@ -207,7 +495,7 @@ window.login = async function(){
 
 window.signup = async function(){
   try{
-    await createUserWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value);
+    await createUserWithEmailAndPassword(auth, el("loginEmail").value.trim(), el("loginPassword").value);
   }catch(error){
     alert("Signup error: " + error.message);
   }
@@ -217,18 +505,21 @@ window.logout = async function(){
   await signOut(auth);
 };
 
+let listenersStarted = false;
+
 onAuthStateChanged(auth, user => {
   if(user){
-    document.getElementById("loginScreen").classList.add("hidden");
-    document.getElementById("appScreen").classList.remove("hidden");
+    el("loginScreen").classList.add("hidden");
+    el("appScreen").classList.remove("hidden");
+    el("bottomNav").classList.remove("hidden");
     startListeners();
+    showView("dashboardView");
   }else{
-    document.getElementById("loginScreen").classList.remove("hidden");
-    document.getElementById("appScreen").classList.add("hidden");
+    el("loginScreen").classList.remove("hidden");
+    el("appScreen").classList.add("hidden");
+    el("bottomNav").classList.add("hidden");
   }
 });
-
-let listenersStarted = false;
 
 function startListeners(){
   if(listenersStarted) return;
@@ -236,86 +527,129 @@ function startListeners(){
 
   onSnapshot(collection(db,"customers"), snap=>{
     customers = snap.docs.map(d=>({id:d.id,...d.data()}));
-    updateUI();
+    renderAll();
   });
 
   onSnapshot(collection(db,"jobs"), snap=>{
     jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
-    updateUI();
+    renderAll();
   });
 
   onSnapshot(collection(db,"recurring"), snap=>{
     recurring = snap.docs.map(d=>({id:d.id,...d.data()}));
-    updateUI();
+    renderAll();
   });
 
   onSnapshot(collection(db,"expenses"), snap=>{
     expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
-    updateUI();
+    renderAll();
   });
 }
 
-window.showTab = function(id){
-  document.querySelectorAll("#appScreen section").forEach(s => s.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
+window.showView = function(id){
+  currentView = id;
+
+  ["dashboardView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoiceView","settingsView"].forEach(v=>{
+    el(v).classList.add("hidden");
+  });
+
+  el(id).classList.remove("hidden");
+
+  document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
+
+  if(id === "dashboardView") el("navDashboard").classList.add("active");
+  if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
+  if(id === "jobsView") el("navJobs").classList.add("active");
+  if(id === "recurringView") el("navRecurring").classList.add("active");
+  if(id === "settingsView" || id === "expensesView" || id === "invoiceView") el("navSettings").classList.add("active");
+
+  const titles = {
+    dashboardView:"Business dashboard",
+    customersView:"Customers",
+    customerDetailView:"Customer detail",
+    jobsView:"Jobs",
+    recurringView:"Recurring work",
+    expensesView:"Expenses",
+    invoiceView:"Invoice",
+    settingsView:"Settings"
+  };
+
+  el("headerSub").innerText = titles[id] || "Business dashboard";
+  window.scrollTo(0,0);
 };
 
+window.toggleBox = function(id,forceOpen){
+  const box = el(id);
+  if(forceOpen === true){
+    box.classList.remove("hidden");
+    return;
+  }
+  box.classList.toggle("hidden");
+};
+
+function getCustomer(id){
+  return customers.find(c => c.id === id);
+}
+
 function getCustomerName(id){
-  return customers.find(c => c.id === id)?.name || "Unknown";
+  return getCustomer(id)?.name || "Unknown customer";
 }
 
-function refreshDropdowns(){
-  const html = '<option value="">Select customer</option>' +
-    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
-
-  jobCustomer.innerHTML = html;
-  recurringCustomer.innerHTML = html;
+function customerTotals(customerId){
+  const list = jobs.filter(j => j.customerId === customerId);
+  const charged = list.reduce((s,j)=>s + Number(j.amount || 0),0);
+  const paid = list.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const owed = list.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0) - Number(j.paid || 0)),0);
+  return {charged,paid,owed};
 }
 
-function passesDateFilter(dateValue){
-  const filter = timeFilter.value;
-  if(filter === "all") return true;
-  if(!dateValue) return true;
-
-  const d = new Date(dateValue + "T00:00:00");
-  const now = new Date();
-
-  if(filter === "year") return d.getFullYear() === now.getFullYear();
-  if(filter === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-
-  return true;
-}
-
-function searchMatch(text){
-  const q = searchInput.value.trim().toLowerCase();
-  if(!q) return true;
-  return String(text || "").toLowerCase().includes(q);
+function jobBalance(j){
+  return Math.max(0,Number(j.amount || 0) - Number(j.paid || 0));
 }
 
 function jobStatus(j){
-  const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  const balance = jobBalance(j);
   if(balance === 0) return "Paid";
   if(Number(j.paid || 0) > 0) return "Partial";
   return "Unpaid";
 }
 
-function recurringStatus(r){
-  const now = new Date(today() + "T00:00:00");
-  const d = new Date((r.nextDate || today()) + "T00:00:00");
-  const diff = Math.ceil((d - now) / 86400000);
+function jobBadge(j){
+  const status = jobStatus(j);
+  if(status === "Paid") return `<span class="badge badgeGreen">Paid</span>`;
+  if(status === "Partial") return `<span class="badge badgeGold">Partial</span>`;
+  return `<span class="badge badgeRed">Unpaid</span>`;
+}
 
-  if(diff < 0) return "Past Due";
-  if(diff === 0) return "Due Today";
-  if(diff <= 7) return "Upcoming";
-  return "Scheduled";
+function recurringStatus(r){
+  const base = new Date(today() + "T00:00:00");
+  const due = new Date((r.nextDate || today()) + "T00:00:00");
+  const diff = Math.ceil((due - base) / 86400000);
+
+  if(diff < 0) return {label:"Past Due",cls:"badgeRed"};
+  if(diff === 0) return {label:"Due Today",cls:"badgeGold"};
+  if(diff <= 7) return {label:"Upcoming",cls:"badgeBlue"};
+  return {label:"Scheduled",cls:"badgeGreen"};
+}
+
+function refreshDropdowns(){
+  const html = '<option value="">Select customer</option>' +
+    customers
+      .slice()
+      .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
+      .map(c=>`<option value="${c.id}">${safe(c.name)}</option>`)
+      .join("");
+
+  el("jobCustomer").innerHTML = html;
+  el("recurringCustomer").innerHTML = html;
 }
 
 window.saveCustomer = async function(){
   const data = {
-    name: customerName.value.trim(),
-    phone: customerPhone.value.trim(),
-    address: customerAddress.value.trim(),
-    notes: customerNotes.value.trim()
+    name: el("customerName").value.trim(),
+    phone: el("customerPhone").value.trim(),
+    address: el("customerAddress").value.trim(),
+    notes: el("customerNotes").value.trim()
   };
 
   if(!data.name){
@@ -334,40 +668,40 @@ window.saveCustomer = async function(){
 };
 
 window.editCustomer = function(id){
-  const c = customers.find(x => x.id === id);
+  const c = getCustomer(id);
   if(!c) return;
 
   editingCustomerId = id;
-  customerFormTitle.innerText = "Edit Customer";
-  customerName.value = c.name || "";
-  customerPhone.value = c.phone || "";
-  customerAddress.value = c.address || "";
-  customerNotes.value = c.notes || "";
-  showTab("customersTab");
-  window.scrollTo(0,0);
+  el("customerFormTitle").innerText = "Edit Customer";
+  el("customerName").value = c.name || "";
+  el("customerPhone").value = c.phone || "";
+  el("customerAddress").value = c.address || "";
+  el("customerNotes").value = c.notes || "";
+  showView("customersView");
+  el("customerFormBox").classList.remove("hidden");
 };
 
 window.resetCustomerForm = function(){
   editingCustomerId = null;
-  customerFormTitle.innerText = "Add Customer";
-  customerName.value = "";
-  customerPhone.value = "";
-  customerAddress.value = "";
-  customerNotes.value = "";
+  el("customerFormTitle").innerText = "Add Customer";
+  el("customerName").value = "";
+  el("customerPhone").value = "";
+  el("customerAddress").value = "";
+  el("customerNotes").value = "";
 };
 
 window.saveJob = async function(){
   const data = {
-    customerId: jobCustomer.value,
-    title: jobTitle.value.trim(),
-    date: jobDate.value || today(),
-    amount: Number(jobAmount.value || 0),
-    paid: Number(jobPaid.value || 0),
-    notes: jobNotes.value.trim()
+    customerId: el("jobCustomer").value,
+    title: el("jobTitle").value.trim(),
+    date: el("jobDate").value || today(),
+    amount: Number(el("jobAmount").value || 0),
+    paid: Number(el("jobPaid").value || 0),
+    notes: el("jobNotes").value.trim()
   };
 
   if(!data.customerId || !data.title){
-    alert("Select customer and enter job description");
+    alert("Select a customer and enter a job description");
     return;
   }
 
@@ -386,39 +720,66 @@ window.editJob = function(id){
   if(!j) return;
 
   editingJobId = id;
-  jobFormTitle.innerText = "Edit Job";
-  jobCustomer.value = j.customerId || "";
-  jobTitle.value = j.title || "";
-  jobDate.value = j.date || today();
-  jobAmount.value = j.amount || 0;
-  jobPaid.value = j.paid || 0;
-  jobNotes.value = j.notes || "";
-  showTab("jobsTab");
-  window.scrollTo(0,0);
+  el("jobFormTitle").innerText = "Edit Job";
+  el("jobCustomer").value = j.customerId || "";
+  el("jobTitle").value = j.title || "";
+  el("jobDate").value = j.date || today();
+  el("jobAmount").value = j.amount || 0;
+  el("jobPaid").value = j.paid || 0;
+  el("jobNotes").value = j.notes || "";
+  showView("jobsView");
+  el("jobFormBox").classList.remove("hidden");
 };
 
 window.resetJobForm = function(){
   editingJobId = null;
-  jobFormTitle.innerText = "Add Job";
-  jobCustomer.value = "";
-  jobTitle.value = "";
-  jobDate.value = today();
-  jobAmount.value = "";
-  jobPaid.value = "";
-  jobNotes.value = "";
+  el("jobFormTitle").innerText = "Add Job";
+  el("jobCustomer").value = "";
+  el("jobTitle").value = "";
+  el("jobDate").value = today();
+  el("jobAmount").value = "";
+  el("jobPaid").value = "";
+  el("jobNotes").value = "";
+};
+
+window.addPayment = async function(id){
+  const j = jobs.find(x => x.id === id);
+  if(!j) return;
+
+  const amountText = prompt("Payment amount received?");
+  if(amountText === null) return;
+
+  const amount = Number(amountText);
+  if(!amount || amount <= 0){
+    alert("Enter a valid payment amount");
+    return;
+  }
+
+  await updateDoc(doc(db,"jobs",id),{
+    paid:Number(j.paid || 0) + amount
+  });
+};
+
+window.markPaid = async function(id){
+  const j = jobs.find(x => x.id === id);
+  if(!j) return;
+
+  await updateDoc(doc(db,"jobs",id),{
+    paid:Number(j.amount || 0)
+  });
 };
 
 window.saveRecurring = async function(){
   const data = {
-    customerId: recurringCustomer.value,
-    title: recurringTitle.value.trim(),
-    nextDate: recurringNextDate.value || today(),
-    amount: Number(recurringAmount.value || 0),
-    frequency: recurringFrequency.value
+    customerId: el("recurringCustomer").value,
+    title: el("recurringTitle").value.trim(),
+    nextDate: el("recurringNextDate").value || today(),
+    amount: Number(el("recurringAmount").value || 0),
+    frequency: el("recurringFrequency").value
   };
 
   if(!data.customerId || !data.title){
-    alert("Select customer and enter recurring job title");
+    alert("Select a customer and enter recurring job title");
     return;
   }
 
@@ -437,32 +798,57 @@ window.editRecurring = function(id){
   if(!r) return;
 
   editingRecurringId = id;
-  recurringFormTitle.innerText = "Edit Recurring Job";
-  recurringCustomer.value = r.customerId || "";
-  recurringTitle.value = r.title || "";
-  recurringNextDate.value = r.nextDate || today();
-  recurringAmount.value = r.amount || 0;
-  recurringFrequency.value = r.frequency || "weekly";
-  showTab("recurringTab");
-  window.scrollTo(0,0);
+  el("recurringFormTitle").innerText = "Edit Recurring Job";
+  el("recurringCustomer").value = r.customerId || "";
+  el("recurringTitle").value = r.title || "";
+  el("recurringNextDate").value = r.nextDate || today();
+  el("recurringAmount").value = r.amount || 0;
+  el("recurringFrequency").value = r.frequency || "weekly";
+  showView("recurringView");
+  el("recurringFormBox").classList.remove("hidden");
 };
 
 window.resetRecurringForm = function(){
   editingRecurringId = null;
-  recurringFormTitle.innerText = "Add Recurring Job";
-  recurringCustomer.value = "";
-  recurringTitle.value = "";
-  recurringNextDate.value = today();
-  recurringAmount.value = "";
-  recurringFrequency.value = "weekly";
+  el("recurringFormTitle").innerText = "Add Recurring Job";
+  el("recurringCustomer").value = "";
+  el("recurringTitle").value = "";
+  el("recurringNextDate").value = today();
+  el("recurringAmount").value = "";
+  el("recurringFrequency").value = "weekly";
+};
+
+window.createJobFromRecurring = async function(id){
+  const r = recurring.find(x => x.id === id);
+  if(!r) return;
+
+  await addDoc(collection(db,"jobs"),{
+    customerId:r.customerId,
+    title:r.title,
+    date:r.nextDate,
+    amount:Number(r.amount || 0),
+    paid:0,
+    notes:"Created from recurring job",
+    createdAt:new Date().toISOString()
+  });
+
+  const d = new Date((r.nextDate || today()) + "T00:00:00");
+
+  if(r.frequency === "weekly") d.setDate(d.getDate()+7);
+  if(r.frequency === "biweekly") d.setDate(d.getDate()+14);
+  if(r.frequency === "monthly") d.setMonth(d.getMonth()+1);
+
+  await updateDoc(doc(db,"recurring",id),{
+    nextDate:d.toISOString().slice(0,10)
+  });
 };
 
 window.saveExpense = async function(){
   const data = {
-    date: expenseDate.value || today(),
-    category: expenseCategory.value.trim(),
-    amount: Number(expenseAmount.value || 0),
-    notes: expenseNotes.value.trim()
+    date: el("expenseDate").value || today(),
+    category: el("expenseCategory").value.trim(),
+    amount: Number(el("expenseAmount").value || 0),
+    notes: el("expenseNotes").value.trim()
   };
 
   if(!data.category){
@@ -485,22 +871,22 @@ window.editExpense = function(id){
   if(!e) return;
 
   editingExpenseId = id;
-  expenseFormTitle.innerText = "Edit Expense";
-  expenseDate.value = e.date || today();
-  expenseCategory.value = e.category || "";
-  expenseAmount.value = e.amount || 0;
-  expenseNotes.value = e.notes || "";
-  showTab("expensesTab");
-  window.scrollTo(0,0);
+  el("expenseFormTitle").innerText = "Edit Expense";
+  el("expenseDate").value = e.date || today();
+  el("expenseCategory").value = e.category || "";
+  el("expenseAmount").value = e.amount || 0;
+  el("expenseNotes").value = e.notes || "";
+  showView("expensesView");
+  el("expenseFormBox").classList.remove("hidden");
 };
 
 window.resetExpenseForm = function(){
   editingExpenseId = null;
-  expenseFormTitle.innerText = "Add Expense";
-  expenseDate.value = today();
-  expenseCategory.value = "";
-  expenseAmount.value = "";
-  expenseNotes.value = "";
+  el("expenseFormTitle").innerText = "Add Expense";
+  el("expenseDate").value = today();
+  el("expenseCategory").value = "";
+  el("expenseAmount").value = "";
+  el("expenseNotes").value = "";
 };
 
 window.deleteItem = async function(collectionName,id){
@@ -509,40 +895,11 @@ window.deleteItem = async function(collectionName,id){
   }
 };
 
-window.markPaid = async function(id,amount){
-  await updateDoc(doc(db,"jobs",id),{paid:Number(amount || 0)});
-};
-
-window.createJobFromRecurring = async function(id){
-  const r = recurring.find(x => x.id === id);
-  if(!r) return;
-
-  await addDoc(collection(db,"jobs"),{
-    customerId:r.customerId,
-    title:r.title,
-    date:r.nextDate,
-    amount:Number(r.amount || 0),
-    paid:0,
-    notes:"Created from recurring job",
-    createdAt:new Date().toISOString()
-  });
-
-  const d = new Date(r.nextDate + "T00:00:00");
-
-  if(r.frequency === "weekly") d.setDate(d.getDate()+7);
-  if(r.frequency === "biweekly") d.setDate(d.getDate()+14);
-  if(r.frequency === "monthly") d.setMonth(d.getMonth()+1);
-
-  await updateDoc(doc(db,"recurring",id),{
-    nextDate:d.toISOString().slice(0,10)
-  });
-};
-
-window.reminderText = function(jobId){
+window.copyReminder = function(jobId){
   const j = jobs.find(x => x.id === jobId);
   if(!j) return;
 
-  const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  const balance = jobBalance(j);
   const message = `Hey ${getCustomerName(j.customerId)}, just wanted to touch base on the remaining balance for ${j.title}. The current balance is ${money(balance)}. Thank you.`;
 
   navigator.clipboard.writeText(message).then(()=>{
@@ -552,26 +909,146 @@ window.reminderText = function(jobId){
   });
 };
 
+window.viewCustomer = function(id){
+  const c = getCustomer(id);
+  if(!c) return;
+
+  const phone = cleanPhone(c.phone);
+  const totals = customerTotals(id);
+  const custJobs = jobs.filter(j => j.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
+  const custRecurring = recurring.filter(r => r.customerId === id);
+
+  el("customerDetail").innerHTML = `
+    <div class="box">
+      <div class="detailTitle">
+        <div>
+          <h2>${safe(c.name)}</h2>
+          <div class="small">${safe(c.phone)}</div>
+          <div class="small">${safe(c.address)}</div>
+        </div>
+        <button class="secondary" onclick="showView('customersView')">Back</button>
+      </div>
+
+      <p>${safe(c.notes)}</p>
+
+      <div class="grid">
+        <div class="stat"><b>Paid</b><h2>${money(totals.paid)}</h2></div>
+        <div class="stat"><b>Owed</b><h2>${money(totals.owed)}</h2></div>
+      </div>
+
+      <div class="row">
+        ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
+        ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
+        <button onclick="makeInvoice('${c.id}')">Invoice</button>
+        <button onclick="editCustomer('${c.id}')">Edit</button>
+      </div>
+    </div>
+
+    <div class="box noPrint">
+      <h3>Add Job For This Customer</h3>
+      <button onclick="quickJob('${c.id}')">Add Job</button>
+    </div>
+
+    <div class="box">
+      <h3>Jobs</h3>
+      ${custJobs.length ? custJobs.map(jobCardHtml).join("") : "<p class='small'>No jobs yet.</p>"}
+    </div>
+
+    <div class="box">
+      <h3>Recurring</h3>
+      ${custRecurring.length ? custRecurring.map(recurringCardHtml).join("") : "<p class='small'>No recurring jobs yet.</p>"}
+    </div>
+  `;
+
+  showView("customerDetailView");
+};
+
+window.quickJob = function(customerId){
+  showView("jobsView");
+  el("jobFormBox").classList.remove("hidden");
+  resetJobForm();
+  el("jobCustomer").value = customerId;
+};
+
+function jobCardHtml(j){
+  const balance = jobBalance(j);
+  return `
+    <div class="jobCard">
+      <h3>${safe(j.title)}</h3>
+      <div class="small">${safe(getCustomerName(j.customerId))} | ${safe(j.date)}</div>
+      ${jobBadge(j)}
+      <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
+      <div class="moneyLine"><span>Paid</span><b>${money(j.paid)}</b></div>
+      <div class="moneyLine"><span>Balance</span><b>${money(balance)}</b></div>
+      <p>${safe(j.notes)}</p>
+      <div class="row">
+        <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
+        <button onclick="markPaid('${j.id}')">Mark Paid</button>
+        <button class="gold" onclick="copyReminder('${j.id}')">Reminder</button>
+        <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
+        <button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function recurringCardHtml(r){
+  const s = recurringStatus(r);
+  return `
+    <div class="box">
+      <h3>${safe(r.title)}</h3>
+      <div class="small">${safe(getCustomerName(r.customerId))}</div>
+      <span class="badge ${s.cls}">${s.label}</span>
+      <div>Next: ${safe(r.nextDate)}</div>
+      <div>Frequency: ${safe(r.frequency)}</div>
+      <div>Amount: ${money(r.amount)}</div>
+      <div class="row">
+        <button class="green" onclick="createJobFromRecurring('${r.id}')">Create Job</button>
+        <button class="secondary" onclick="editRecurring('${r.id}')">Edit</button>
+        <button class="red" onclick="deleteItem('recurring','${r.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function expenseCardHtml(e){
+  return `
+    <div class="box">
+      <h3>${safe(e.category)}</h3>
+      <div class="small">${safe(e.date)}</div>
+      <div><b>${money(e.amount)}</b></div>
+      <p>${safe(e.notes)}</p>
+      <div class="row">
+        <button class="secondary" onclick="editExpense('${e.id}')">Edit</button>
+        <button class="red" onclick="deleteItem('expenses','${e.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
 window.makeInvoice = function(customerId){
-  const c = customers.find(x => x.id === customerId);
+  const c = getCustomer(customerId);
   if(!c) return;
 
   const custJobs = jobs.filter(j => j.customerId === customerId);
+  const invoiceNumber = "INV-" + new Date().getFullYear() + "-" + String(Date.now()).slice(-5);
   const total = custJobs.reduce((s,j)=>s + Number(j.amount || 0),0);
   const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
   const balance = total - paid;
 
-  invoiceArea.innerHTML = `
+  el("invoiceArea").innerHTML = `
     <div class="invoice">
       <h1>Invoice</h1>
+      <p><b>${invoiceNumber}</b></p>
+
       <h2>5Cs Property Service</h2>
       <p>Cleaned up. Fixed Right. Ready to sell.</p>
 
       <h3>Bill To</h3>
       <p>
-        <b>${c.name}</b><br>
-        ${c.phone || ""}<br>
-        ${c.address || ""}
+        <b>${safe(c.name)}</b><br>
+        ${safe(c.phone)}<br>
+        ${safe(c.address)}
       </p>
 
       <table>
@@ -584,11 +1061,11 @@ window.makeInvoice = function(customerId){
         </tr>
         ${custJobs.map(j=>`
           <tr>
-            <td>${j.date || ""}</td>
-            <td>${j.title || ""}</td>
+            <td>${safe(j.date)}</td>
+            <td>${safe(j.title)}</td>
             <td>${money(j.amount)}</td>
             <td>${money(j.paid)}</td>
-            <td>${money(Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)))}</td>
+            <td>${money(jobBalance(j))}</td>
           </tr>
         `).join("")}
       </table>
@@ -599,11 +1076,11 @@ window.makeInvoice = function(customerId){
 
       <p>Thank you for your business.</p>
 
-      <button onclick="window.print()">Print / Save PDF</button>
+      <button onclick="window.print()">Print or Save PDF</button>
     </div>
   `;
 
-  showTab("invoiceTab");
+  showView("invoiceView");
 };
 
 window.exportBackup = function(){
@@ -623,127 +1100,114 @@ window.exportBackup = function(){
   a.click();
 };
 
-function updateUI(){
+window.renderAll = renderAll;
+
+function renderAll(){
   refreshDropdowns();
 
-  const q = searchInput.value.trim().toLowerCase();
+  const totalPaid = jobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const totalOwed = jobs.reduce((s,j)=>s + jobBalance(j),0);
+  const totalExpenses = expenses.reduce((s,e)=>s + Number(e.amount || 0),0);
+  const totalProfit = totalPaid - totalExpenses;
 
-  const filteredJobs = jobs.filter(j => {
-    const c = customers.find(x => x.id === j.customerId);
-    const text = `${j.title || ""} ${j.notes || ""} ${c?.name || ""} ${c?.address || ""}`;
-    return passesDateFilter(j.date) && searchMatch(text);
-  });
+  el("dashPaid").innerText = money(totalPaid);
+  el("dashOwed").innerText = money(totalOwed);
+  el("dashExpenses").innerText = money(totalExpenses);
+  el("dashProfit").innerText = money(totalProfit);
 
-  const filteredExpenses = expenses.filter(e => {
-    const text = `${e.category || ""} ${e.notes || ""}`;
-    return passesDateFilter(e.date) && searchMatch(text);
-  });
+  const unpaidJobs = jobs.filter(j => jobStatus(j) !== "Paid");
+  const dueRecurring = recurring.filter(r => ["Past Due","Due Today","Upcoming"].includes(recurringStatus(r).label));
 
-  const totalPaidVal = filteredJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
-  const totalOwedVal = filteredJobs.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)),0);
-  const totalExpensesVal = filteredExpenses.reduce((s,e)=>s + Number(e.amount || 0),0);
-  const profitVal = totalPaidVal - totalExpensesVal;
-
-  totalPaid.innerText = money(totalPaidVal);
-  totalOwed.innerText = money(totalOwedVal);
-  totalExpenses.innerText = money(totalExpensesVal);
-  totalProfit.innerText = money(profitVal);
-
-  customerList.innerHTML = customers.filter(c => {
-    const custJobs = jobs.filter(j => j.customerId === c.id);
-    const text = `${c.name || ""} ${c.phone || ""} ${c.address || ""} ${c.notes || ""} ${custJobs.map(j=>j.title).join(" ")}`;
-    return !q || text.toLowerCase().includes(q);
-  }).map(c=>{
-    const custJobs = jobs.filter(j => j.customerId === c.id);
-    const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
-    const owed = custJobs.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0)-Number(j.paid || 0)),0);
-
-    return `
+  const attentionItems = [
+    ...unpaidJobs.map(j => ({type:"job",date:j.date || "",html:`
       <div class="box">
-        <h3>${c.name}</h3>
-        <div class="small">${c.phone || ""}</div>
-        <div class="small">${c.address || ""}</div>
-        <p>${c.notes || ""}</p>
-        <div class="paid">Paid: ${money(paid)}</div>
-        <div class="owed">Owes: ${money(owed)}</div>
+        <h3>${safe(j.title)}</h3>
+        <div>${safe(getCustomerName(j.customerId))}</div>
+        ${jobBadge(j)}
+        <div class="owed">Balance: ${money(jobBalance(j))}</div>
+        <button onclick="viewCustomer('${j.customerId}')">View Customer</button>
+      </div>
+    `})),
+    ...dueRecurring.map(r => ({type:"recurring",date:r.nextDate || "",html:recurringCardHtml(r)}))
+  ];
 
-        <h4>Jobs</h4>
-        ${custJobs.map(j=>`
-          <div class="box">
-            <b>${j.title}</b><br>
-            ${j.date || ""}<br>
-            ${money(j.amount)} charged | ${money(j.paid)} paid<br>
-            <span class="badge ${jobStatus(j)==='Paid'?'statusPaid':jobStatus(j)==='Partial'?'statusPartial':'statusUnpaid'}">${jobStatus(j)}</span>
+  el("attentionList").innerHTML = attentionItems.length
+    ? attentionItems.slice(0,8).map(x=>x.html).join("")
+    : "<p class='small'>Nothing urgent right now.</p>";
+
+  el("recentJobs").innerHTML = jobs
+    .slice()
+    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
+    .slice(0,5)
+    .map(jobCardHtml)
+    .join("") || "<p class='small'>No jobs yet.</p>";
+
+  const cq = el("customerSearch").value.trim().toLowerCase();
+
+  el("customerList").innerHTML = customers
+    .slice()
+    .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
+    .filter(c=>{
+      const custJobs = jobs.filter(j => j.customerId === c.id);
+      const text = `${c.name || ""} ${c.phone || ""} ${c.address || ""} ${c.notes || ""} ${custJobs.map(j=>j.title).join(" ")}`.toLowerCase();
+      return !cq || text.includes(cq);
+    })
+    .map(c=>{
+      const totals = customerTotals(c.id);
+      const phone = cleanPhone(c.phone);
+
+      return `
+        <div class="customerCard">
+          <div class="customerHeader">
+            <div>
+              <h3>${safe(c.name)}</h3>
+              <div class="small">${safe(c.phone)}</div>
+              <div class="small">${safe(c.address)}</div>
+            </div>
+            <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">${totals.owed > 0 ? "Owes" : "Paid Up"}</span>
           </div>
-        `).join("")}
 
-        <div class="row">
-          <button onclick="makeInvoice('${c.id}')">Invoice</button>
-          <button onclick="editCustomer('${c.id}')">Edit</button>
-          <button class="danger" onclick="deleteItem('customers','${c.id}')">Delete</button>
+          <div class="moneyLine"><span>Paid</span><b>${money(totals.paid)}</b></div>
+          <div class="moneyLine"><span>Owed</span><b>${money(totals.owed)}</b></div>
+
+          <div class="row">
+            <button onclick="viewCustomer('${c.id}')">View</button>
+            ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
+            ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
+            <button class="secondary" onclick="editCustomer('${c.id}')">Edit</button>
+          </div>
         </div>
-      </div>
-    `;
-  }).join("");
+      `;
+    }).join("") || "<p class='small'>No customers found.</p>";
 
-  jobList.innerHTML = filteredJobs.slice().sort((a,b)=>(b.date || "").localeCompare(a.date || "")).map(j=>{
-    const balance = Math.max(0,Number(j.amount || 0)-Number(j.paid || 0));
-    const status = jobStatus(j);
+  const jq = el("jobSearch").value.trim().toLowerCase();
+  const statusFilter = el("jobStatusFilter").value;
 
-    return `
-      <div class="box">
-        <h3>${j.title}</h3>
-        <div>${getCustomerName(j.customerId)}</div>
-        <div class="small">${j.date || ""}</div>
-        <div>Charge: ${money(j.amount)}</div>
-        <div>Paid: ${money(j.paid)}</div>
-        <div class="${balance === 0 ? 'paid' : Number(j.paid || 0) > 0 ? 'partial' : 'owed'}">Balance: ${money(balance)}</div>
-        <span class="badge ${status==='Paid'?'statusPaid':status==='Partial'?'statusPartial':'statusUnpaid'}">${status}</span>
-        <p>${j.notes || ""}</p>
+  el("jobList").innerHTML = jobs
+    .slice()
+    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
+    .filter(j=>{
+      const status = jobStatus(j).toLowerCase();
+      const text = `${j.title || ""} ${j.notes || ""} ${getCustomerName(j.customerId)}`.toLowerCase();
+      const statusOk = statusFilter === "all" || status === statusFilter;
+      const searchOk = !jq || text.includes(jq);
+      return statusOk && searchOk;
+    })
+    .map(jobCardHtml)
+    .join("") || "<p class='small'>No jobs found.</p>";
 
-        <div class="row">
-          <button onclick="markPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
-          <button onclick="reminderText('${j.id}')">Reminder Text</button>
-          <button onclick="editJob('${j.id}')">Edit</button>
-          <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete</button>
-        </div>
-      </div>
-    `;
-  }).join("");
+  el("recurringList").innerHTML = recurring
+    .slice()
+    .sort((a,b)=>(a.nextDate || "").localeCompare(b.nextDate || ""))
+    .map(recurringCardHtml)
+    .join("") || "<p class='small'>No recurring jobs yet.</p>";
 
-  recurringList.innerHTML = recurring.slice().sort((a,b)=>(a.nextDate || "").localeCompare(b.nextDate || "")).map(r=>{
-    const status = recurringStatus(r);
-    return `
-      <div class="box">
-        <h3>${r.title}</h3>
-        <div>${getCustomerName(r.customerId)}</div>
-        <div>Next: ${r.nextDate}</div>
-        <div>Frequency: ${r.frequency}</div>
-        <div>Amount: ${money(r.amount)}</div>
-        <span class="badge ${status==='Past Due'?'statusUnpaid':status==='Due Today'?'statusPartial':'statusPaid'}">${status}</span>
-        <div class="row">
-          <button onclick="createJobFromRecurring('${r.id}')">Create Job</button>
-          <button onclick="editRecurring('${r.id}')">Edit</button>
-          <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  expenseList.innerHTML = filteredExpenses.slice().sort((a,b)=>(b.date || "").localeCompare(a.date || "")).map(e=>`
-    <div class="box">
-      <h3>${e.category}</h3>
-      <div>${e.date}</div>
-      <div>${money(e.amount)}</div>
-      <p>${e.notes || ""}</p>
-      <div class="row">
-        <button onclick="editExpense('${e.id}')">Edit</button>
-        <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete</button>
-      </div>
-    </div>
-  `).join("");
+  el("expenseList").innerHTML = expenses
+    .slice()
+    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
+    .map(expenseCardHtml)
+    .join("") || "<p class='small'>No expenses yet.</p>";
 }
-
 </script>
 
 </body>
