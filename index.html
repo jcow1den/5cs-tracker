@@ -212,10 +212,6 @@ button.blue{background:var(--blue)}
   align-items:flex-start;
 }
 
-.customerHeader h3{
-  margin-bottom:4px;
-}
-
 .moneyLine{
   display:flex;
   justify-content:space-between;
@@ -293,6 +289,12 @@ button.blue{background:var(--blue)}
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:8px;
+}
+
+.paymentLine{
+  border-top:1px solid #eee;
+  padding-top:8px;
+  margin-top:8px;
 }
 
 @media(min-width:800px){
@@ -418,7 +420,7 @@ button.blue{background:var(--blue)}
 <input id="jobTitle" placeholder="Job description">
 <input id="jobDate" type="date">
 <input id="jobAmount" type="number" placeholder="Amount charged">
-<input id="jobPaid" type="number" placeholder="Amount paid">
+<input id="jobPaid" type="number" placeholder="Initial payment amount">
 <textarea id="jobNotes" placeholder="Job notes"></textarea>
 <button onclick="saveJob()">Save Job</button>
 <button class="secondary" onclick="resetJobForm()">Clear</button>
@@ -496,8 +498,9 @@ button.blue{background:var(--blue)}
 <div class="box">
 <h2>More</h2>
 <div class="moreGrid">
-<button onclick="showView('invoicesView')">Invoices</button>
+<button onclick="showView('recurringView')">Recurring</button>
 <button onclick="showView('expensesView')">Expenses</button>
+<button onclick="showView('invoicesView')">Invoices</button>
 <button onclick="exportBackup()">Export Backup</button>
 <button class="secondary" onclick="logout()">Logout</button>
 </div>
@@ -505,7 +508,7 @@ button.blue{background:var(--blue)}
 
 <div class="box">
 <h2>Settings</h2>
-<p class="small">Before adding real customer data, Firestore rules should require login.</p>
+<p class="small">Payment history is now tracked separately. Invoices use actual payment records when available.</p>
 </div>
 
 </section>
@@ -544,7 +547,7 @@ let customers = [];
 let jobs = [];
 let recurring = [];
 let expenses = [];
-let currentView = "dashboardView";
+let payments = [];
 
 let editingCustomerId = null;
 let editingJobId = null;
@@ -622,11 +625,14 @@ function startListeners(){
     expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderAll();
   });
+
+  onSnapshot(collection(db,"payments"), snap=>{
+    payments = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderAll();
+  });
 }
 
 window.showView = function(id){
-  currentView = id;
-
   ["dashboardView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
@@ -674,22 +680,28 @@ function getCustomerName(id){
   return getCustomer(id)?.name || "Unknown customer";
 }
 
-function customerTotals(customerId){
-  const list = jobs.filter(j => j.customerId === customerId);
-  const charged = list.reduce((s,j)=>s + Number(j.amount || 0),0);
-  const paid = list.reduce((s,j)=>s + Number(j.paid || 0),0);
-  const owed = list.reduce((s,j)=>s + Math.max(0,Number(j.amount || 0) - Number(j.paid || 0)),0);
-  return {charged,paid,owed};
+function jobPayments(jobId){
+  return payments
+    .filter(p => p.jobId === jobId)
+    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
+}
+
+function jobPaidAmount(j){
+  const list = jobPayments(j.id);
+  if(list.length){
+    return list.reduce((s,p)=>s + Number(p.amount || 0),0);
+  }
+  return Number(j.paid || 0);
 }
 
 function jobBalance(j){
-  return Math.max(0,Number(j.amount || 0) - Number(j.paid || 0));
+  return Math.max(0,Number(j.amount || 0) - jobPaidAmount(j));
 }
 
 function jobStatus(j){
   const balance = jobBalance(j);
   if(balance === 0) return "Paid";
-  if(Number(j.paid || 0) > 0) return "Partial";
+  if(jobPaidAmount(j) > 0) return "Partial";
   return "Unpaid";
 }
 
@@ -698,6 +710,14 @@ function jobBadge(j){
   if(status === "Paid") return `<span class="badge badgeGreen">Paid</span>`;
   if(status === "Partial") return `<span class="badge badgeGold">Partial</span>`;
   return `<span class="badge badgeRed">Unpaid</span>`;
+}
+
+function customerTotals(customerId){
+  const list = jobs.filter(j => j.customerId === customerId);
+  const charged = list.reduce((s,j)=>s + Number(j.amount || 0),0);
+  const paid = list.reduce((s,j)=>s + jobPaidAmount(j),0);
+  const owed = list.reduce((s,j)=>s + jobBalance(j),0);
+  return {charged,paid,owed};
 }
 
 function recurringStatus(r){
@@ -789,7 +809,18 @@ window.saveJob = async function(){
     await updateDoc(doc(db,"jobs",editingJobId),data);
   }else{
     data.createdAt = new Date().toISOString();
-    await addDoc(collection(db,"jobs"),data);
+    const jobRef = await addDoc(collection(db,"jobs"),data);
+
+    if(data.paid > 0){
+      await addDoc(collection(db,"payments"),{
+        jobId:jobRef.id,
+        customerId:data.customerId,
+        amount:data.paid,
+        date:data.date,
+        notes:"Initial payment",
+        createdAt:new Date().toISOString()
+      });
+    }
   }
 
   resetJobForm();
@@ -805,7 +836,7 @@ window.editJob = function(id){
   el("jobTitle").value = j.title || "";
   el("jobDate").value = j.date || today();
   el("jobAmount").value = j.amount || 0;
-  el("jobPaid").value = j.paid || 0;
+  el("jobPaid").value = jobPaidAmount(j);
   el("jobNotes").value = j.notes || "";
   showView("jobsView");
   el("jobFormBox").classList.remove("hidden");
@@ -835,14 +866,47 @@ window.addPayment = async function(id){
     return;
   }
 
-  await updateDoc(doc(db,"jobs",id),{
-    paid:Number(j.paid || 0) + amount
+  const noteText = prompt("Payment note? Example: Cash, check, Venmo, card") || "";
+
+  await addDoc(collection(db,"payments"),{
+    jobId:j.id,
+    customerId:j.customerId,
+    amount,
+    date:today(),
+    notes:noteText,
+    createdAt:new Date().toISOString()
   });
+
+  await updateDoc(doc(db,"jobs",id),{
+    paid:jobPaidAmount(j) + amount
+  });
+};
+
+window.deletePayment = async function(id){
+  if(confirm("Delete this payment?")){
+    await deleteDoc(doc(db,"payments",id));
+  }
 };
 
 window.markPaid = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
+
+  const balance = jobBalance(j);
+
+  if(balance <= 0){
+    alert("This job is already paid.");
+    return;
+  }
+
+  await addDoc(collection(db,"payments"),{
+    jobId:j.id,
+    customerId:j.customerId,
+    amount:balance,
+    date:today(),
+    notes:"Marked paid",
+    createdAt:new Date().toISOString()
+  });
 
   await updateDoc(doc(db,"jobs",id),{
     paid:Number(j.amount || 0)
@@ -997,6 +1061,7 @@ window.viewCustomer = function(id){
   const totals = customerTotals(id);
   const custJobs = jobs.filter(j => j.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
   const custRecurring = recurring.filter(r => r.customerId === id);
+  const custPayments = payments.filter(p => p.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
 
   el("customerDetail").innerHTML = `
     <div class="box">
@@ -1035,6 +1100,11 @@ window.viewCustomer = function(id){
     </div>
 
     <div class="box">
+      <h3>Payment History</h3>
+      ${custPayments.length ? custPayments.map(paymentLineHtml).join("") : "<p class='small'>No payments yet.</p>"}
+    </div>
+
+    <div class="box">
       <h3>Recurring</h3>
       ${custRecurring.length ? custRecurring.map(recurringCardHtml).join("") : "<p class='small'>No recurring jobs yet.</p>"}
     </div>
@@ -1050,17 +1120,37 @@ window.quickJob = function(customerId){
   el("jobCustomer").value = customerId;
 };
 
+function paymentLineHtml(p){
+  const job = jobs.find(j => j.id === p.jobId);
+  return `
+    <div class="paymentLine">
+      <b>${money(p.amount)}</b>
+      <div class="small">${safe(p.date)} | ${safe(job?.title || "Payment")}</div>
+      <div class="small">${safe(p.notes)}</div>
+      <button class="red" onclick="deletePayment('${p.id}')">Delete Payment</button>
+    </div>
+  `;
+}
+
 function jobCardHtml(j){
   const balance = jobBalance(j);
+  const list = jobPayments(j.id);
+
   return `
     <div class="jobCard">
       <h3>${safe(j.title)}</h3>
       <div class="small">${safe(getCustomerName(j.customerId))} | ${safe(j.date)}</div>
       ${jobBadge(j)}
       <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
-      <div class="moneyLine"><span>Paid</span><b>${money(j.paid)}</b></div>
+      <div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>
       <div class="moneyLine"><span>Balance</span><b>${money(balance)}</b></div>
       <p>${safe(j.notes)}</p>
+
+      <details>
+        <summary>Payment history</summary>
+        ${list.length ? list.map(paymentLineHtml).join("") : "<p class='small'>No payment records yet.</p>"}
+      </details>
+
       <div class="row">
         <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
         <button onclick="markPaid('${j.id}')">Mark Paid</button>
@@ -1124,7 +1214,7 @@ window.makeInvoice = function(customerId){
   const issueDate = today();
   const dueDate = el("invoiceDueDate")?.value || today();
   const total = custJobs.reduce((s,j)=>s + Number(j.amount || 0),0);
-  const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const paid = custJobs.reduce((s,j)=>s + jobPaidAmount(j),0);
   const balance = total - paid;
   const invoiceNotes = el("invoiceNotes")?.value || "Payment due upon receipt. Thank you for your business.";
 
@@ -1164,7 +1254,7 @@ window.makeInvoice = function(customerId){
             <td>${safe(j.date)}</td>
             <td>${safe(j.title)}</td>
             <td>${money(j.amount)}</td>
-            <td>${money(j.paid)}</td>
+            <td>${money(jobPaidAmount(j))}</td>
             <td>${money(jobBalance(j))}</td>
           </tr>
         `).join("")}
@@ -1173,6 +1263,29 @@ window.makeInvoice = function(customerId){
       <p class="invoiceTotal">Total: ${money(total)}</p>
       <p class="invoiceTotal">Paid: ${money(paid)}</p>
       <p class="invoiceTotal">Balance Due: ${money(balance)}</p>
+
+      <h3>Payment History</h3>
+      ${payments.filter(p => p.customerId === customerId).length ? `
+        <table>
+          <tr>
+            <th>Date</th>
+            <th>Job</th>
+            <th>Amount</th>
+            <th>Notes</th>
+          </tr>
+          ${payments.filter(p => p.customerId === customerId).map(p=>{
+            const job = jobs.find(j => j.id === p.jobId);
+            return `
+              <tr>
+                <td>${safe(p.date)}</td>
+                <td>${safe(job?.title || "Payment")}</td>
+                <td>${money(p.amount)}</td>
+                <td>${safe(p.notes)}</td>
+              </tr>
+            `;
+          }).join("")}
+        </table>
+      ` : "<p>No payment history yet.</p>"}
 
       <p>${safe(invoiceNotes)}</p>
 
@@ -1189,6 +1302,7 @@ window.exportBackup = function(){
     jobs,
     recurring,
     expenses,
+    payments,
     exportedAt:new Date().toISOString()
   };
 
@@ -1205,7 +1319,7 @@ window.renderAll = renderAll;
 function renderAll(){
   refreshDropdowns();
 
-  const totalPaid = jobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+  const totalPaid = jobs.reduce((s,j)=>s + jobPaidAmount(j),0);
   const totalOwed = jobs.reduce((s,j)=>s + jobBalance(j),0);
   const totalExpenses = expenses.reduce((s,e)=>s + Number(e.amount || 0),0);
   const totalProfit = totalPaid - totalExpenses;
