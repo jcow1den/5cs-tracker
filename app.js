@@ -203,15 +203,16 @@ appRoot.innerHTML = `
   <div class="box noPrint">
     <h2>Quick Navigation</h2>
     <div class="quickAdd">
+      <button onclick="showView('bidsView')">Bids</button>
+      <button onclick="openWorkflow()">Workflow</button>
+      <button onclick="showView('customersView')">Customers</button>
+      <button onclick="openTodaySchedule()">Today</button>
+      <button onclick="openUpcomingSchedule()">Upcoming</button>
       <button onclick="openOwedJobs()">Unpaid Jobs</button>
       <button onclick="openPaidJobs()">Paid Jobs</button>
       <button onclick="openPayments()">Payments</button>
       <button onclick="openProfitBreakdown()">Reports</button>
-      <button onclick="openWorkflow()">Workflow</button>
-      <button onclick="openTodaySchedule()">Today</button>
-      <button onclick="openUpcomingSchedule()">Upcoming</button>
-      <button onclick="openWorkflow()">Workflow</button>
-<button onclick="showView('customersView')">Customers</button>
+      <button onclick="showView('customersView')">Customers</button>
     </div>
   </div>
 
