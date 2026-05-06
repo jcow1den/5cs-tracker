@@ -2073,39 +2073,54 @@ function renderAll(){
           .localeCompare(a.createdAt || "")
       )
       .map(b=>`
-        <div class="box">
+        <div class="jobCard">
 
-          <h3>${safe(b.title)}</h3>
+  <div class="customerHeader">
 
-          <div>
-            ${safe(getCustomerName(b.customerId))}
-          </div>
+    <div>
+      <h3>${safe(b.title)}</h3>
 
-          <span class="badge badgeBlue">
-            ${safe(b.status || "Pending")}
-          </span>
+      <div class="small">
+        ${safe(getCustomerName(b.customerId))}
+      </div>
+    </div>
 
-          <div class="moneyLine">
-            <span>Total</span>
-            <b>${money(b.total)}</b>
-          </div>
+    <span class="badge badgeBlue">
+      ${safe(b.status || "Pending")}
+    </span>
 
-          ${
-            (b.items || [])
-              .map(i=>`
-                <div class="moneyLine">
-                  <span>
-                    ${safe(i.desc)}
-                    x${i.qty}
-                  </span>
+  </div>
 
-                  <b>
-                    ${money(i.qty * i.price)}
-                  </b>
-                </div>
-              `).join("")
-          }
+  <div class="box">
 
+    ${(b.items || []).map(i=>`
+
+      <div class="moneyLine">
+
+        <span>
+          ${safe(i.desc)}
+          • Qty ${i.qty}
+        </span>
+
+        <b>
+          ${money(i.qty * i.price)}
+        </b>
+
+      </div>
+
+    `).join("")}
+
+  </div>
+
+  <div class="moneyLine bigTotal">
+
+    <span>Bid Total</span>
+
+    <b>${money(b.total)}</b>
+
+  </div>
+
+</div>
         </div>
       `).join("")
     :
