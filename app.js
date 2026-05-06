@@ -185,8 +185,8 @@ appRoot.innerHTML = `
   </div>
 
   <div class="box">
-    <h2>Notification Center</h2>
-    <div id="notificationCenter"></div>
+  <h2>Alerts</h2>
+  <div id="notificationCenter"></div>
   </div>
 
   <div class="box">
@@ -195,7 +195,7 @@ appRoot.innerHTML = `
   </div>
 
   <div class="box">
-    <h2>Upcoming Schedule</h2>
+    <h2>Tomorrow Through Next 7 Days</h2>
     <div id="upcomingSchedulePreview"></div>
   </div>
 
@@ -209,6 +209,8 @@ appRoot.innerHTML = `
       <button onclick="openWorkflow()">Workflow</button>
       <button onclick="openTodaySchedule()">Today</button>
       <button onclick="openUpcomingSchedule()">Upcoming</button>
+      <button onclick="openWorkflow()">Workflow</button>
+<button onclick="showView('customersView')">Customers</button>
     </div>
   </div>
 
@@ -222,8 +224,8 @@ appRoot.innerHTML = `
     </div>
   </div>
 
-  <div class="box">
-    <h2>Needs Attention</h2>
+    <div class="box">
+    <h2>Overdue / Unpaid</h2>
     <div id="attentionList"></div>
   </div>
 
@@ -1654,22 +1656,35 @@ function renderAll(){
   const notifications = [];
 
   if(todayJobs.length){
-    notifications.push(`<div class="box"><h3>${todayJobs.length} jobs scheduled today</h3><button onclick="openTodaySchedule()">View Today</button></div>`);
+    notifications.push(`
+      <div class="box">
+        <h3>${todayJobs.length} job${todayJobs.length === 1 ? "" : "s"} scheduled today</h3>
+        <button onclick="openTodaySchedule()">View Today</button>
+      </div>
+    `);
   }
 
   if(unpaidJobs.length){
-    notifications.push(`<div class="box"><h3>${unpaidJobs.length} unpaid or partial jobs</h3><button onclick="openOwedJobs()">View Balances</button></div>`);
+    notifications.push(`
+      <div class="box">
+        <h3>${unpaidJobs.length} unpaid or partial job${unpaidJobs.length === 1 ? "" : "s"}</h3>
+        <button onclick="openOwedJobs()">Collect Balances</button>
+      </div>
+    `);
   }
 
   if(dueRecurring.length){
-    notifications.push(`<div class="box"><h3>${dueRecurring.length} recurring jobs due soon</h3><button onclick="showView('recurringView')">View Recurring</button></div>`);
+    notifications.push(`
+      <div class="box">
+        <h3>${dueRecurring.length} recurring job${dueRecurring.length === 1 ? "" : "s"} due soon</h3>
+        <button onclick="showView('recurringView')">View Recurring</button>
+      </div>
+    `);
   }
 
-  if(customersWithBalances.length){
-    notifications.push(`<div class="box"><h3>${customersWithBalances.length} customers owe money</h3><button onclick="showView('invoicesView')">Open Invoices</button></div>`);
-  }
-
-  el("notificationCenter").innerHTML = notifications.length ? notifications.join("") : "<p class='small'>Nothing urgent right now.</p>";
+  el("notificationCenter").innerHTML = notifications.length
+    ? notifications.join("")
+    : "<p class='small'>No alerts right now.</p>";
 
   el("todaySchedulePreview").innerHTML = todayJobs.length
     ? todayJobs.slice(0,5).sort((a,b)=>(a.time || "").localeCompare(b.time || "")).map(scheduleCardHtml).join("")
@@ -1679,30 +1694,30 @@ function renderAll(){
     ? upcomingJobs.slice(0,5).sort((a,b)=>(a.date || "").localeCompare(b.date || "")).map(scheduleCardHtml).join("")
     : "<p class='small'>No upcoming jobs in the next 7 days.</p>";
 
-  const attentionItems = [
-    ...unpaidJobs.map(j => ({html:`
-      <div class="box">
-        <h3>${safe(j.title)}</h3>
-        <div>${safe(getCustomerName(j.customerId))}</div>
-        ${paymentBadge(j)}
-        ${workflowBadge(j)}
-        <div class="owed">Balance: ${money(jobBalance(j))}</div>
-        <button onclick="viewCustomer('${j.customerId}')">View Customer</button>
-      </div>
-    `})),
-    ...dueRecurring.map(r => ({html:recurringCardHtml(r)}))
-  ];
+  const attentionItems = unpaidJobs
+    .slice()
+    .sort((a,b)=>jobBalance(b)-jobBalance(a))
+    .slice(0,5)
+    .map(j => ({
+      html:`
+        <div class="box">
+          <h3>${safe(j.title)}</h3>
+          <div>${safe(getCustomerName(j.customerId))}</div>
+          ${paymentBadge(j)}
+          ${workflowBadge(j)}
+          <div class="owed">Balance: ${money(jobBalance(j))}</div>
+          <div class="row">
+            <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+            <button onclick="makeInvoice('${j.customerId}')">Invoice</button>
+            <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
+          </div>
+        </div>
+      `
+    }));
 
   el("attentionList").innerHTML = attentionItems.length
-    ? attentionItems.slice(0,8).map(x=>x.html).join("")
-    : "<p class='small'>Nothing urgent right now.</p>";
-
-  el("recentJobs").innerHTML = jobs
-    .slice()
-    .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
-    .slice(0,5)
-    .map(jobCardHtml)
-    .join("") || "<p class='small'>No jobs yet.</p>";
+    ? attentionItems.map(x=>x.html).join("")
+    : "<p class='small'>No unpaid jobs right now.</p>";
 
   const cq = el("customerSearch").value.trim().toLowerCase();
 
