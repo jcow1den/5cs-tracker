@@ -1229,10 +1229,10 @@ function jobCardHtml(j){
         ${list.length ? list.map(paymentLineHtml).join("") : "<p class='small'>No payment records yet.</p>"}
       </details>
 
-            <div class="row">
-        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
-        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
-        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
+                  <div class="row">
+        <button class="blue statusBtn" data-job-id="${j.id}" data-status="Scheduled">Scheduled</button>
+        <button class="gold statusBtn" data-job-id="${j.id}" data-status="In Progress">In Progress</button>
+        <button class="green statusBtn" data-job-id="${j.id}" data-status="Complete">Complete</button>
         <button onclick="markPaid('${j.id}')">Mark Paid</button>
         <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
         <button class="gold" onclick="copyReminder('${j.id}')">Reminder</button>
@@ -1643,4 +1643,29 @@ function renderAll(){
       `;
     }).join("")
     : "<p class='small'>No unpaid balances right now.</p>";
-}
+}document.addEventListener("click", async function(e){
+  const btn = e.target.closest(".statusBtn");
+  if(!btn) return;
+
+  const jobId = btn.dataset.jobId;
+  const status = btn.dataset.status;
+
+  try{
+    await updateDoc(doc(db,"jobs",jobId),{
+      status: status
+    });
+
+    alert("Status changed to " + status);
+
+    renderAll();
+
+    if(typeof activeCustomerDetailId !== "undefined" && activeCustomerDetailId){
+      setTimeout(()=>{
+        viewCustomer(activeCustomerDetailId);
+      },500);
+    }
+
+  }catch(error){
+    alert("Status update failed: " + error.message);
+  }
+});
