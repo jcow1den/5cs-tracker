@@ -1362,6 +1362,12 @@ window.viewCustomer = function(id){
 
   </div>
 
+  <div class="row">
+  <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
+  <button class="green" onclick="convertBidToJob('${b.id}')">Convert To Job</button>
+  <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
+</div>
+
 </div>        </div>
       `).join("") : "<p class='small'>No bids saved for this customer yet.</p>"}
     </div>
@@ -1773,7 +1779,6 @@ function updateBidTotal(){
 }
 
 window.saveBid = async function(){
-
   const customerId = el("bidCustomer").value;
   const title = el("bidTitle").value.trim();
 
@@ -1790,7 +1795,7 @@ window.saveBid = async function(){
     const price = Number(row.querySelector(".bidPrice").value || 0);
 
     if(desc || qty || price){
-      items.push({desc, qty, price});
+      items.push({desc,qty,price});
     }
   });
 
@@ -1802,7 +1807,7 @@ window.saveBid = async function(){
     notes: el("bidNotes").value.trim(),
     items,
     total,
-    status:"Pending",
+    status: editingBidId ? (bids.find(x=>x.id===editingBidId)?.status || "Pending") : "Pending",
     updatedAt:new Date().toISOString()
   };
 
@@ -1857,6 +1862,32 @@ window.deleteBid = async function(id){
   }catch(error){
     alert("Delete bid failed: " + error.message);
   }
+};
+
+window.convertBidToJob = async function(id){
+  const b = bids.find(x => x.id === id);
+  if(!b) return;
+
+  if(!confirm("Convert this bid to a job?")) return;
+
+  await addDoc(collection(db,"jobs"),{
+    customerId:b.customerId,
+    title:b.title,
+    date:today(),
+    time:"",
+    amount:Number(b.total || 0),
+    paid:0,
+    notes:(b.notes || "") + "\\n\\nCreated from bid.",
+    status:"Scheduled",
+    createdAt:new Date().toISOString()
+  });
+
+  await updateDoc(doc(db,"bids",id),{
+    status:"Approved",
+    convertedAt:new Date().toISOString()
+  });
+
+  alert("Bid converted to job");
 };
 
 window.renderAll = renderAll;
@@ -2087,68 +2118,48 @@ function renderAll(){
     .map(recurringCardHtml)
     .join("") || "<p class='small'>No recurring jobs yet.</p>";
 
-  el("bidsList").innerHTML =
+el("bidsList").innerHTML =
   bids.length
-    ?
-    bids
+    ? bids
       .slice()
-      .sort((a,b)=>
-        (b.createdAt || "")
-          .localeCompare(a.createdAt || "")
-      )
+      .sort((a,b)=>(b.createdAt || "").localeCompare(a.createdAt || ""))
       .map(b=>`
         <div class="jobCard">
+          <div class="customerHeader">
+            <div>
+              <h3>${safe(b.title)}</h3>
+              <div class="small">${safe(getCustomerName(b.customerId))}</div>
+            </div>
 
-  <div class="customerHeader">
+            <span class="badge ${b.status === "Approved" ? "badgeGreen" : "badgeBlue"}">
+              ${safe(b.status || "Pending")}
+            </span>
+          </div>
 
-    <div>
-      <h3>${safe(b.title)}</h3>
+          <div class="box">
+            ${(b.items || []).map(i=>`
+              <div class="moneyLine">
+                <span>${safe(i.desc)} • Qty ${i.qty}</span>
+                <b>${money(i.qty * i.price)}</b>
+              </div>
+            `).join("")}
+          </div>
 
-      <div class="small">
-        ${safe(getCustomerName(b.customerId))}
-      </div>
-    </div>
+          <div class="moneyLine bigTotal">
+            <span>Bid Total</span>
+            <b>${money(b.total)}</b>
+          </div>
 
-    <span class="badge badgeBlue">
-      ${safe(b.status || "Pending")}
-    </span>
+          <p>${safe(b.notes)}</p>
 
-  </div>
-
-  <div class="box">
-
-    ${(b.items || []).map(i=>`
-
-      <div class="moneyLine">
-
-        <span>
-          ${safe(i.desc)}
-          • Qty ${i.qty}
-        </span>
-
-        <b>
-          ${money(i.qty * i.price)}
-        </b>
-
-      </div>
-
-    `).join("")}
-
-  </div>
-
-  <div class="moneyLine bigTotal">
-
-    <span>Bid Total</span>
-
-    <b>${money(b.total)}</b>
-
-  </div>
-
-</div>
+          <div class="row">
+            <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
+            <button class="green" onclick="convertBidToJob('${b.id}')">Convert To Job</button>
+            <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
+          </div>
         </div>
       `).join("")
-    :
-    "<p class='small'>No bids saved yet.</p>";
+    : "<p class='small'>No bids saved yet.</p>";
   
   el("expenseList").innerHTML = expenses
     .slice()
