@@ -425,20 +425,23 @@ appRoot.innerHTML = `
     <textarea id="bidNotes"
       placeholder="General notes"></textarea>
 
-    <div id="bidItems"></div>
+ <div id="bidItems"></div>
 
-    <button onclick="addBidItemRow()">
-      Add Line Item
-    </button>
+<button onclick="addBidItemRow()">
+  Add Line Item
+</button>
 
-    <div class="stat">
-      <b>Total</b>
-      <h2 id="bidTotal">$0</h2>
-    </div>
+<div class="box">
+  <h3>Bid Total</h3>
+  <div class="moneyLine">
+    <span>Total</span>
+    <b id="bidTotal">$0</b>
+  </div>
+</div>
 
-    <button class="green" onclick="saveBid()">
-      Save Bid
-    </button>
+<button class="green" onclick="saveBid()">
+  Save Bid
+</button>
 
   </div>
 
@@ -1247,6 +1250,7 @@ window.viewCustomer = function(id){
   const custJobs = jobs.filter(j => j.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
   const custRecurring = recurring.filter(r => r.customerId === id);
   const custPayments = payments.filter(p => p.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
+  const custBids = bids.filter(b => b.customerId === id).sort((a,b)=>(b.createdAt || "").localeCompare(a.createdAt || ""));
   const lastJob = custJobs[0];
 
   el("customerDetail").innerHTML = `
@@ -1305,7 +1309,28 @@ window.viewCustomer = function(id){
       <textarea id="paymentNotes" placeholder="Payment notes"></textarea>
       <button class="green" onclick="savePaymentFromCustomer()">Save Payment</button>
     </div>
-
+       
+         <div class="box">
+      <h3>Bids</h3>
+      ${custBids.length ? custBids.map(b=>`
+        <div class="jobCard">
+          <h3>${safe(b.title)}</h3>
+          <span class="badge badgeBlue">${safe(b.status || "Pending")}</span>
+          <div class="moneyLine">
+            <span>Total</span>
+            <b>${money(b.total)}</b>
+          </div>
+          <p>${safe(b.notes)}</p>
+          ${(b.items || []).map(i=>`
+            <div class="moneyLine">
+              <span>${safe(i.desc)} x${i.qty}</span>
+              <b>${money(i.qty * i.price)}</b>
+            </div>
+          `).join("")}
+        </div>
+      `).join("") : "<p class='small'>No bids saved for this customer yet.</p>"}
+    </div>
+    
     <div class="box">
       <h3>Jobs</h3>
       ${custJobs.length ? custJobs.map(jobCardHtml).join("") : "<p class='small'>No jobs yet.</p>"}
@@ -1648,23 +1673,29 @@ function addBidItemRow(desc="",qty=1,price=0){
   row.className = "bidRow";
 
   row.innerHTML = `
+
+  <div class="box">
+
     <input class="bidDesc"
-      placeholder="Description"
+      placeholder="Item description"
       value="${safe(desc)}">
 
     <input class="bidQty"
       type="number"
-      value="${qty}">
+      placeholder="Quantity"
+      value="${qty || ""}">
 
     <input class="bidPrice"
       type="number"
-      value="${price}">
+      placeholder="Price"
+      value="${price || ""}">
 
     <button class="red removeBidRow">
-      X
+      Remove Item
     </button>
-  `;
 
+  </div>
+`;
   el("bidItems").appendChild(row);
 
   row.querySelector(".removeBidRow")
