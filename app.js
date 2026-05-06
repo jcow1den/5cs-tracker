@@ -49,6 +49,7 @@ let editingCustomerId = null;
 let editingJobId = null;
 let editingRecurringId = null;
 let editingExpenseId = null;
+let editingBidId = null;
 let activeCustomerDetailId = null;
 
 const appRoot = document.getElementById("app");
@@ -1774,9 +1775,7 @@ function updateBidTotal(){
 window.saveBid = async function(){
 
   const customerId = el("bidCustomer").value;
-
-  const title =
-    el("bidTitle").value.trim();
+  const title = el("bidTitle").value.trim();
 
   if(!customerId || !title){
     alert("Select customer and enter title");
@@ -1785,56 +1784,86 @@ window.saveBid = async function(){
 
   const items = [];
 
-  document.querySelectorAll(".bidRow")
-    .forEach(row=>{
+  document.querySelectorAll(".bidRow").forEach(row=>{
+    const desc = row.querySelector(".bidDesc").value.trim();
+    const qty = Number(row.querySelector(".bidQty").value || 0);
+    const price = Number(row.querySelector(".bidPrice").value || 0);
 
-      items.push({
-        desc:
-          row.querySelector(".bidDesc").value.trim(),
-
-        qty:
-          Number(
-            row.querySelector(".bidQty").value || 0
-          ),
-
-        price:
-          Number(
-            row.querySelector(".bidPrice").value || 0
-          )
-      });
-
-    });
-
-  const total =
-    items.reduce((s,i)=>
-      s + (i.qty * i.price),0);
-
-  await addDoc(collection(db,"bids"),{
-
-    customerId,
-
-    title,
-
-    notes:
-      el("bidNotes").value.trim(),
-
-    items,
-
-    total,
-
-    status:"Pending",
-
-    createdAt:new Date().toISOString()
+    if(desc || qty || price){
+      items.push({desc, qty, price});
+      
+      <div class="row">
+  <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
+  <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
+</div>
+    }
   });
 
-  alert("Bid saved");
+  const total = items.reduce((s,i)=>s + (i.qty * i.price),0);
 
+  const data = {
+    customerId,
+    title,
+    notes: el("bidNotes").value.trim(),
+    items,
+    total,
+    status:"Pending",
+    updatedAt:new Date().toISOString()
+  };
+
+  if(editingBidId){
+    await updateDoc(doc(db,"bids",editingBidId),data);
+    alert("Bid updated");
+  }else{
+    data.createdAt = new Date().toISOString();
+    await addDoc(collection(db,"bids"),data);
+    alert("Bid saved");
+  }
+
+  resetBidForm();
+};
+
+window.editBid = function(id){
+  const b = bids.find(x => x.id === id);
+  if(!b) return;
+
+  editingBidId = id;
+
+  showView("bidsView");
+  el("bidFormBox").classList.remove("hidden");
+
+  el("bidCustomer").value = b.customerId || "";
+  el("bidTitle").value = b.title || "";
+  el("bidNotes").value = b.notes || "";
+  el("bidItems").innerHTML = "";
+
+  (b.items || []).forEach(i=>{
+    addBidItemRow(i.desc || "", i.qty || "", i.price || "");
+  });
+
+  updateBidTotal();
+};
+
+window.resetBidForm = function(){
+  editingBidId = null;
+  el("bidCustomer").value = "";
   el("bidTitle").value = "";
   el("bidNotes").value = "";
   el("bidItems").innerHTML = "";
-
-  addBidItemRow();
+  el("bidTotal").innerText = "$0";
 };
+
+window.deleteBid = async function(id){
+  if(!confirm("Delete this bid?")) return;
+
+  try{
+    await deleteDoc(doc(db,"bids",id));
+    alert("Bid deleted");
+  }catch(error){
+    alert("Delete bid failed: " + error.message);
+  }
+};
+
 window.renderAll = renderAll;
 
 function renderAll(){
