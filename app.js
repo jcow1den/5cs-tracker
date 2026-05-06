@@ -60,6 +60,30 @@ const today = () => new Date().toISOString().slice(0,10);
 function el(id){return document.getElementById(id)}
 function safe(v){return String(v || "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 function cleanPhone(phone){return String(phone || "").replace(/\D/g,"")}
+function dateLabel(value){
+  if(!value) return "";
+  const d = new Date(value + "T00:00:00");
+  if(isNaN(d)) return value;
+  return d.toLocaleDateString();
+}
+function timeLabel(value){
+  if(!value) return "";
+  const parts = value.split(":");
+  let hour = Number(parts[0]);
+  const minute = parts[1] || "00";
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${ampm}`;
+}
+function addDays(dateValue,days){
+  const d = new Date((dateValue || today()) + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+function isPastDue(dateValue){
+  if(!dateValue) return false;
+  return new Date(dateValue + "T00:00:00") < new Date(today() + "T00:00:00");
+}
 
 document.body.insertAdjacentHTML("afterbegin",`<div id="syncBadge" class="syncBadge">Online</div>`);
 
@@ -123,9 +147,45 @@ appRoot.innerHTML = `
     </div>
   </div>
 
+  <div class="grid">
+    <div class="stat" onclick="openTodaySchedule()">
+      <b>Today</b>
+      <h2 id="dashTodayJobs">0</h2>
+      <div class="statHint">Tap for today</div>
+    </div>
+
+    <div class="stat" onclick="openUpcomingSchedule()">
+      <b>Upcoming</b>
+      <h2 id="dashUpcomingJobs">0</h2>
+      <div class="statHint">Next 7 days</div>
+    </div>
+
+    <div class="stat" onclick="showView('recurringView')">
+      <b>Recurring</b>
+      <h2 id="dashRecurringJobs">0</h2>
+      <div class="statHint">Tap calendar</div>
+    </div>
+
+    <div class="stat" onclick="showView('invoicesView')">
+      <b>Invoices</b>
+      <h2 id="dashInvoiceCount">0</h2>
+      <div class="statHint">Customers owing</div>
+    </div>
+  </div>
+
   <div class="box">
     <h2>Notification Center</h2>
     <div id="notificationCenter"></div>
+  </div>
+
+  <div class="box">
+    <h2>Today’s Schedule</h2>
+    <div id="todaySchedulePreview"></div>
+  </div>
+
+  <div class="box">
+    <h2>Upcoming Schedule</h2>
+    <div id="upcomingSchedulePreview"></div>
   </div>
 
   <div class="box noPrint">
@@ -135,6 +195,8 @@ appRoot.innerHTML = `
       <button onclick="openPaidJobs()">Paid Jobs</button>
       <button onclick="openPayments()">Payments</button>
       <button onclick="openProfitBreakdown()">Reports</button>
+      <button onclick="openTodaySchedule()">Today</button>
+      <button onclick="openUpcomingSchedule()">Upcoming</button>
     </div>
   </div>
 
@@ -156,6 +218,23 @@ appRoot.innerHTML = `
   <div class="box">
     <h2>Recent Jobs</h2>
     <div id="recentJobs"></div>
+  </div>
+</section>
+
+<section id="scheduleView" class="hidden">
+  <div class="box">
+    <h2>Schedule</h2>
+    <div class="quickAdd noPrint">
+      <button onclick="openTodaySchedule()">Today</button>
+      <button onclick="openUpcomingSchedule()">Next 7 Days</button>
+      <button onclick="showAllSchedule()">All Scheduled</button>
+      <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2 id="scheduleTitle">Scheduled Jobs</h2>
+    <div id="scheduleList"></div>
   </div>
 </section>
 
@@ -184,7 +263,7 @@ appRoot.innerHTML = `
 
 <section id="customersView" class="hidden">
   <div class="searchBar noPrint">
-    <input id="customerSearch" oninput="renderAll()" placeholder="Search customers, phone, address, notes">
+    <input id="customerSearch" oninput="renderAll()" placeholder="Search customers, phone, email, address, notes">
   </div>
 
   <div class="box noPrint">
@@ -196,8 +275,12 @@ appRoot.innerHTML = `
     <input id="customerName" placeholder="Customer name">
     <input id="customerEmail" placeholder="Customer email">
     <input id="customerPhone" placeholder="Phone">
-    <input id="customerAddress" placeholder="Address">
-    <textarea id="customerNotes" placeholder="Notes"></textarea>
+    <input id="customerAddress" placeholder="Property address">
+    <input id="customerGateCode" placeholder="Gate code or access notes">
+    <input id="customerPreferredContact" placeholder="Preferred contact, ex: text, call, email">
+    <input id="customerServiceFrequency" placeholder="Service frequency, ex: weekly, biweekly, monthly">
+    <textarea id="customerPropertyNotes" placeholder="Property notes, pets, parking, gate, special instructions"></textarea>
+    <textarea id="customerNotes" placeholder="General notes"></textarea>
     <button onclick="saveCustomer()">Save Customer</button>
     <button class="secondary" onclick="resetCustomerForm()">Clear</button>
   </div>
@@ -217,6 +300,8 @@ appRoot.innerHTML = `
       <option value="unpaid">Unpaid</option>
       <option value="partial">Partial</option>
       <option value="paid">Paid</option>
+      <option value="today">Today</option>
+      <option value="upcoming">Upcoming</option>
     </select>
   </div>
 
@@ -229,6 +314,7 @@ appRoot.innerHTML = `
     <select id="jobCustomer"></select>
     <input id="jobTitle" placeholder="Job description">
     <input id="jobDate" type="date">
+    <input id="jobTime" type="time">
     <input id="jobAmount" type="number" placeholder="Amount charged">
     <input id="jobPaid" type="number" placeholder="Initial payment amount">
     <textarea id="jobNotes" placeholder="Job notes"></textarea>
@@ -256,10 +342,11 @@ appRoot.innerHTML = `
     <select id="recurringCustomer"></select>
     <input id="recurringTitle" placeholder="Recurring job title">
     <input id="recurringNextDate" type="date">
+    <input id="recurringTime" type="time">
     <input id="recurringAmount" type="number" placeholder="Amount">
     <select id="recurringFrequency">
       <option value="weekly">Weekly</option>
-      <option value="biweekly">Bi-weekly</option>
+      <option value="biweekly">Biweekly</option>
       <option value="monthly">Monthly</option>
     </select>
     <button onclick="saveRecurring()">Save Recurring Job</button>
@@ -315,6 +402,7 @@ appRoot.innerHTML = `
   <div class="box">
     <h2>More</h2>
     <div class="moreGrid">
+      <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
       <button onclick="showView('recurringView')">Recurring</button>
       <button onclick="showView('expensesView')">Expenses</button>
       <button onclick="showView('invoicesView')">Invoices</button>
@@ -347,6 +435,7 @@ fabMenu.innerHTML = `
 <button onclick="toggleFab();showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
 <button onclick="toggleFab();showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
 <button onclick="toggleFab();showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
+<button onclick="toggleFab();showView('scheduleView');showAllSchedule()">Schedule</button>
 `;
 
 fabButton.addEventListener("click",()=>toggleFab());
@@ -431,7 +520,7 @@ function startListeners(){
 }
 
 window.showView = function(id){
-  ["dashboardView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
@@ -442,12 +531,13 @@ window.showView = function(id){
 
   if(id === "dashboardView") el("navDashboard").classList.add("active");
   if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
-  if(id === "jobsView") el("navJobs").classList.add("active");
+  if(id === "jobsView" || id === "scheduleView") el("navJobs").classList.add("active");
   if(id === "invoicesView" || id === "invoiceView") el("navInvoices").classList.add("active");
   if(["settingsView","expensesView","recurringView","profitView","paymentsView"].includes(id)) el("navMore").classList.add("active");
 
   const titles = {
     dashboardView:"Business dashboard",
+    scheduleView:"Schedule",
     profitView:"Reports",
     customersView:"Customers",
     customerDetailView:"Customer detail",
@@ -476,6 +566,21 @@ window.openOwedJobs = function(){
   el("jobStatusFilter").value = "unpaid";
   el("jobSearch").value = "";
   renderAll();
+};
+
+window.openTodaySchedule = function(){
+  showView("scheduleView");
+  renderSchedule("today");
+};
+
+window.openUpcomingSchedule = function(){
+  showView("scheduleView");
+  renderSchedule("upcoming");
+};
+
+window.showAllSchedule = function(){
+  showView("scheduleView");
+  renderSchedule("all");
 };
 
 window.openExpenses = function(){showView("expensesView")};
@@ -558,6 +663,10 @@ window.saveCustomer = async function(){
     email: el("customerEmail").value.trim(),
     phone: el("customerPhone").value.trim(),
     address: el("customerAddress").value.trim(),
+    gateCode: el("customerGateCode").value.trim(),
+    preferredContact: el("customerPreferredContact").value.trim(),
+    serviceFrequency: el("customerServiceFrequency").value.trim(),
+    propertyNotes: el("customerPropertyNotes").value.trim(),
     notes: el("customerNotes").value.trim()
   };
 
@@ -586,6 +695,10 @@ window.editCustomer = function(id){
   el("customerEmail").value = c.email || "";
   el("customerPhone").value = c.phone || "";
   el("customerAddress").value = c.address || "";
+  el("customerGateCode").value = c.gateCode || "";
+  el("customerPreferredContact").value = c.preferredContact || "";
+  el("customerServiceFrequency").value = c.serviceFrequency || "";
+  el("customerPropertyNotes").value = c.propertyNotes || "";
   el("customerNotes").value = c.notes || "";
   showView("customersView");
   el("customerFormBox").classList.remove("hidden");
@@ -598,6 +711,10 @@ window.resetCustomerForm = function(){
   el("customerEmail").value = "";
   el("customerPhone").value = "";
   el("customerAddress").value = "";
+  el("customerGateCode").value = "";
+  el("customerPreferredContact").value = "";
+  el("customerServiceFrequency").value = "";
+  el("customerPropertyNotes").value = "";
   el("customerNotes").value = "";
 };
 
@@ -606,6 +723,7 @@ window.saveJob = async function(){
     customerId: el("jobCustomer").value,
     title: el("jobTitle").value.trim(),
     date: el("jobDate").value || today(),
+    time: el("jobTime").value || "",
     amount: Number(el("jobAmount").value || 0),
     paid: Number(el("jobPaid").value || 0),
     notes: el("jobNotes").value.trim()
@@ -621,6 +739,7 @@ window.saveJob = async function(){
       customerId:data.customerId,
       title:data.title,
       date:data.date,
+      time:data.time,
       amount:data.amount,
       notes:data.notes
     });
@@ -652,6 +771,7 @@ window.editJob = function(id){
   el("jobCustomer").value = j.customerId || "";
   el("jobTitle").value = j.title || "";
   el("jobDate").value = j.date || today();
+  el("jobTime").value = j.time || "";
   el("jobAmount").value = j.amount || 0;
   el("jobPaid").value = jobPaidAmount(j);
   el("jobNotes").value = j.notes || "";
@@ -665,6 +785,7 @@ window.resetJobForm = function(){
   el("jobCustomer").value = "";
   el("jobTitle").value = "";
   el("jobDate").value = today();
+  el("jobTime").value = "";
   el("jobAmount").value = "";
   el("jobPaid").value = "";
   el("jobNotes").value = "";
@@ -731,6 +852,7 @@ window.saveRecurring = async function(){
     customerId: el("recurringCustomer").value,
     title: el("recurringTitle").value.trim(),
     nextDate: el("recurringNextDate").value || today(),
+    time: el("recurringTime").value || "",
     amount: Number(el("recurringAmount").value || 0),
     frequency: el("recurringFrequency").value
   };
@@ -759,6 +881,7 @@ window.editRecurring = function(id){
   el("recurringCustomer").value = r.customerId || "";
   el("recurringTitle").value = r.title || "";
   el("recurringNextDate").value = r.nextDate || today();
+  el("recurringTime").value = r.time || "";
   el("recurringAmount").value = r.amount || 0;
   el("recurringFrequency").value = r.frequency || "weekly";
   showView("recurringView");
@@ -771,6 +894,7 @@ window.resetRecurringForm = function(){
   el("recurringCustomer").value = "";
   el("recurringTitle").value = "";
   el("recurringNextDate").value = today();
+  el("recurringTime").value = "";
   el("recurringAmount").value = "";
   el("recurringFrequency").value = "weekly";
 };
@@ -783,19 +907,23 @@ window.createJobFromRecurring = async function(id){
     customerId:r.customerId,
     title:r.title,
     date:r.nextDate,
+    time:r.time || "",
     amount:Number(r.amount || 0),
     paid:0,
     notes:"Created from recurring job",
     createdAt:new Date().toISOString()
   });
 
-  const d = new Date((r.nextDate || today()) + "T00:00:00");
+  let nextDate = r.nextDate || today();
+  if(r.frequency === "weekly") nextDate = addDays(nextDate,7);
+  if(r.frequency === "biweekly") nextDate = addDays(nextDate,14);
+  if(r.frequency === "monthly"){
+    const d = new Date(nextDate + "T00:00:00");
+    d.setMonth(d.getMonth() + 1);
+    nextDate = d.toISOString().slice(0,10);
+  }
 
-  if(r.frequency === "weekly") d.setDate(d.getDate()+7);
-  if(r.frequency === "biweekly") d.setDate(d.getDate()+14);
-  if(r.frequency === "monthly") d.setMonth(d.getMonth()+1);
-
-  await updateDoc(doc(db,"recurring",id),{nextDate:d.toISOString().slice(0,10)});
+  await updateDoc(doc(db,"recurring",id),{nextDate});
 };
 
 window.saveExpense = async function(){
@@ -900,6 +1028,7 @@ window.viewCustomer = function(id){
   const custJobs = jobs.filter(j => j.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
   const custRecurring = recurring.filter(r => r.customerId === id);
   const custPayments = payments.filter(p => p.customerId === id).sort((a,b)=>(b.date || "").localeCompare(a.date || ""));
+  const lastJob = custJobs[0];
 
   el("customerDetail").innerHTML = `
     <div class="box">
@@ -913,11 +1042,19 @@ window.viewCustomer = function(id){
         <button class="secondary" onclick="showView('customersView')">Back</button>
       </div>
 
-      <p>${safe(c.notes)}</p>
-
       <div class="grid">
-        <div class="stat" onclick="makeInvoice('${c.id}')"><b>Paid</b><h2>${money(totals.paid)}</h2><div class="statHint">Invoice</div></div>
-        <div class="stat" onclick="makeInvoice('${c.id}')"><b>Owed</b><h2>${money(totals.owed)}</h2><div class="statHint">Invoice</div></div>
+        <div class="stat"><b>Paid</b><h2>${money(totals.paid)}</h2></div>
+        <div class="stat"><b>Owed</b><h2>${money(totals.owed)}</h2></div>
+        <div class="stat"><b>Last Service</b><h2>${lastJob ? dateLabel(lastJob.date) : "None"}</h2></div>
+        <div class="stat"><b>Frequency</b><h2>${safe(c.serviceFrequency || "None")}</h2></div>
+      </div>
+
+      <div class="box">
+        <h3>Property Info</h3>
+        <div><b>Gate or Access:</b> ${safe(c.gateCode)}</div>
+        <div><b>Preferred Contact:</b> ${safe(c.preferredContact)}</div>
+        <div><b>Property Notes:</b> ${safe(c.propertyNotes)}</div>
+        <div><b>General Notes:</b> ${safe(c.notes)}</div>
       </div>
 
       <div class="row">
@@ -979,8 +1116,9 @@ function jobCardHtml(j){
   return `
     <div class="jobCard">
       <h3>${safe(j.title)}</h3>
-      <div class="small">${safe(getCustomerName(j.customerId))} | ${safe(j.date)}</div>
+      <div class="small">${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</div>
       ${jobBadge(j)}
+      ${isPastDue(j.date) && balance > 0 ? `<span class="badge badgeRed">Overdue</span>` : ""}
       <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
       <div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>
       <div class="moneyLine"><span>Balance</span><b>${money(balance)}</b></div>
@@ -1009,7 +1147,7 @@ function recurringCardHtml(r){
       <h3>${safe(r.title)}</h3>
       <div class="small">${safe(getCustomerName(r.customerId))}</div>
       <span class="badge ${s.cls}">${s.label}</span>
-      <div>Next: ${safe(r.nextDate)}</div>
+      <div>Next: ${dateLabel(r.nextDate)} ${r.time ? "at " + timeLabel(r.time) : ""}</div>
       <div>Frequency: ${safe(r.frequency)}</div>
       <div>Amount: ${money(r.amount)}</div>
       <div class="row">
@@ -1025,7 +1163,7 @@ function expenseCardHtml(e){
   return `
     <div class="box">
       <h3>${safe(e.category)}</h3>
-      <div class="small">${safe(e.date)}</div>
+      <div class="small">${dateLabel(e.date)}</div>
       <div><b>${money(e.amount)}</b></div>
       <p>${safe(e.notes)}</p>
       <div class="row">
@@ -1034,6 +1172,50 @@ function expenseCardHtml(e){
       </div>
     </div>
   `;
+}
+
+function scheduleCardHtml(j){
+  const c = getCustomer(j.customerId);
+  const phone = cleanPhone(c?.phone);
+  return `
+    <div class="box">
+      <h3>${safe(j.title)}</h3>
+      <div><b>${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</b></div>
+      <div>${safe(getCustomerName(j.customerId))}</div>
+      <div class="small">${safe(c?.address || "")}</div>
+      <div class="small">${safe(c?.gateCode ? "Gate or access: " + c.gateCode : "")}</div>
+      <div class="small">${safe(c?.propertyNotes || "")}</div>
+      ${jobBadge(j)}
+      <div class="row">
+        ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
+        ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
+        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+        <button onclick="editJob('${j.id}')">Edit Job</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSchedule(mode){
+  let list = jobs.slice().sort((a,b)=>{
+    const ad = `${a.date || ""} ${a.time || ""}`;
+    const bd = `${b.date || ""} ${b.time || ""}`;
+    return ad.localeCompare(bd);
+  });
+
+  if(mode === "today"){
+    list = list.filter(j => j.date === today());
+    el("scheduleTitle").innerText = "Today’s Jobs";
+  }else if(mode === "upcoming"){
+    const end = addDays(today(),7);
+    list = list.filter(j => j.date >= today() && j.date <= end);
+    el("scheduleTitle").innerText = "Next 7 Days";
+  }else{
+    list = list.filter(j => j.date);
+    el("scheduleTitle").innerText = "All Scheduled Jobs";
+  }
+
+  el("scheduleList").innerHTML = list.length ? list.map(scheduleCardHtml).join("") : "<p class='small'>No scheduled jobs found.</p>";
 }
 
 window.makeInvoiceFromCenter = function(){
@@ -1057,6 +1239,8 @@ window.makeInvoice = function(customerId){
   const paid = custJobs.reduce((s,j)=>s + jobPaidAmount(j),0);
   const balance = total - paid;
   const invoiceNotes = el("invoiceNotes")?.value || "Payment due upon receipt. Thank you for your business.";
+  const paidStamp = balance <= 0 ? `<span class="badge badgeGreen">Paid In Full</span>` : "";
+  const overdueStamp = balance > 0 && isPastDue(dueDate) ? `<span class="badge badgeRed">Overdue</span>` : "";
 
   el("invoiceArea").innerHTML = `
     <div class="invoice">
@@ -1071,6 +1255,8 @@ window.makeInvoice = function(customerId){
           <p><b>${invoiceNumber}</b></p>
           <p>Issue Date: ${safe(issueDate)}</p>
           <p>Due Date: ${safe(dueDate)}</p>
+          ${paidStamp}
+          ${overdueStamp}
         </div>
       </div>
 
@@ -1135,10 +1321,19 @@ function renderAll(){
   const totalExpenses = expenses.reduce((s,e)=>s + Number(e.amount || 0),0);
   const totalProfit = totalPaid - totalExpenses;
 
+  const todayJobs = jobs.filter(j => j.date === today());
+  const upcomingJobs = jobs.filter(j => j.date >= today() && j.date <= addDays(today(),7));
+  const customersWithBalances = customers.filter(c => customerTotals(c.id).owed > 0);
+
   el("dashPaid").innerText = money(totalPaid);
   el("dashOwed").innerText = money(totalOwed);
   el("dashExpenses").innerText = money(totalExpenses);
   el("dashProfit").innerText = money(totalProfit);
+
+  el("dashTodayJobs").innerText = todayJobs.length;
+  el("dashUpcomingJobs").innerText = upcomingJobs.length;
+  el("dashRecurringJobs").innerText = recurring.length;
+  el("dashInvoiceCount").innerText = customersWithBalances.length;
 
   el("profitPaid").innerText = money(totalPaid);
   el("profitExpenses").innerText = money(totalExpenses);
@@ -1178,6 +1373,10 @@ function renderAll(){
 
   const notifications = [];
 
+  if(todayJobs.length){
+    notifications.push(`<div class="box"><h3>${todayJobs.length} jobs scheduled today</h3><button onclick="openTodaySchedule()">View Today</button></div>`);
+  }
+
   if(unpaidJobs.length){
     notifications.push(`<div class="box"><h3>${unpaidJobs.length} unpaid or partial jobs</h3><button onclick="openOwedJobs()">View Balances</button></div>`);
   }
@@ -1186,12 +1385,19 @@ function renderAll(){
     notifications.push(`<div class="box"><h3>${dueRecurring.length} recurring jobs due soon</h3><button onclick="showView('recurringView')">View Recurring</button></div>`);
   }
 
-  const unpaidCustomers = customers.filter(c => customerTotals(c.id).owed > 0);
-  if(unpaidCustomers.length){
-    notifications.push(`<div class="box"><h3>${unpaidCustomers.length} customers owe money</h3><button onclick="showView('invoicesView')">Open Invoices</button></div>`);
+  if(customersWithBalances.length){
+    notifications.push(`<div class="box"><h3>${customersWithBalances.length} customers owe money</h3><button onclick="showView('invoicesView')">Open Invoices</button></div>`);
   }
 
   el("notificationCenter").innerHTML = notifications.length ? notifications.join("") : "<p class='small'>Nothing urgent right now.</p>";
+
+  el("todaySchedulePreview").innerHTML = todayJobs.length
+    ? todayJobs.slice(0,5).sort((a,b)=>(a.time || "").localeCompare(b.time || "")).map(scheduleCardHtml).join("")
+    : "<p class='small'>No jobs scheduled today.</p>";
+
+  el("upcomingSchedulePreview").innerHTML = upcomingJobs.length
+    ? upcomingJobs.slice(0,5).sort((a,b)=>(a.date || "").localeCompare(b.date || "")).map(scheduleCardHtml).join("")
+    : "<p class='small'>No upcoming jobs in the next 7 days.</p>";
 
   const attentionItems = [
     ...unpaidJobs.map(j => ({html:`
@@ -1224,7 +1430,7 @@ function renderAll(){
     .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
     .filter(c=>{
       const custJobs = jobs.filter(j => j.customerId === c.id);
-      const text = `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.address || ""} ${c.notes || ""} ${custJobs.map(j=>j.title).join(" ")}`.toLowerCase();
+      const text = `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.address || ""} ${c.gateCode || ""} ${c.preferredContact || ""} ${c.serviceFrequency || ""} ${c.propertyNotes || ""} ${c.notes || ""} ${custJobs.map(j=>j.title).join(" ")}`.toLowerCase();
       return !cq || text.includes(cq);
     })
     .map(c=>{
@@ -1239,6 +1445,7 @@ function renderAll(){
               <div class="small">${safe(c.email)}</div>
               <div class="small">${safe(c.phone)}</div>
               <div class="small">${safe(c.address)}</div>
+              <div class="small">${safe(c.serviceFrequency)}</div>
             </div>
             <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">${totals.owed > 0 ? "Owes" : "Paid Up"}</span>
           </div>
@@ -1267,7 +1474,11 @@ function renderAll(){
     .filter(j=>{
       const status = jobStatus(j).toLowerCase();
       const text = `${j.title || ""} ${j.notes || ""} ${getCustomerName(j.customerId)}`.toLowerCase();
-      const statusOk = statusFilter === "all" || status === statusFilter;
+
+      let statusOk = statusFilter === "all" || status === statusFilter;
+      if(statusFilter === "today") statusOk = j.date === today();
+      if(statusFilter === "upcoming") statusOk = j.date >= today() && j.date <= addDays(today(),7);
+
       const searchOk = !jq || text.includes(jq);
       return statusOk && searchOk;
     })
@@ -1283,7 +1494,7 @@ function renderAll(){
         <div class="box">
           <h3>${money(p.amount)}</h3>
           <div>${safe(getCustomerName(p.customerId))}</div>
-          <div class="small">${safe(p.date)} | ${safe(job?.title || "Payment")}</div>
+          <div class="small">${dateLabel(p.date)} | ${safe(job?.title || "Payment")}</div>
           <p>${safe(p.notes)}</p>
           <button class="red" onclick="deletePayment('${p.id}')">Delete Payment</button>
         </div>
@@ -1298,7 +1509,7 @@ function renderAll(){
       const s = recurringStatus(r);
       return `
         <div class="moneyLine">
-          <span>${safe(r.nextDate)} | ${safe(r.title)} | ${safe(getCustomerName(r.customerId))}</span>
+          <span>${dateLabel(r.nextDate)} ${r.time ? timeLabel(r.time) : ""} | ${safe(r.title)} | ${safe(getCustomerName(r.customerId))}</span>
           <b><span class="badge ${s.cls}">${s.label}</span></b>
         </div>
       `;
@@ -1315,11 +1526,6 @@ function renderAll(){
     .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
     .map(expenseCardHtml)
     .join("") || "<p class='small'>No expenses yet.</p>";
-
-  const customersWithBalances = customers
-    .slice()
-    .sort((a,b)=>String(a.name || "").localeCompare(String(b.name || "")))
-    .filter(c => customerTotals(c.id).owed > 0);
 
   el("invoiceCustomerList").innerHTML = customersWithBalances.length
     ? customersWithBalances.map(c=>{
