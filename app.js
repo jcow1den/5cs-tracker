@@ -206,6 +206,7 @@ appRoot.innerHTML = `
       <button onclick="openPaidJobs()">Paid Jobs</button>
       <button onclick="openPayments()">Payments</button>
       <button onclick="openProfitBreakdown()">Reports</button>
+      <button onclick="openWorkflow()">Workflow</button>
       <button onclick="openTodaySchedule()">Today</button>
       <button onclick="openUpcomingSchedule()">Upcoming</button>
     </div>
@@ -635,6 +636,11 @@ window.openPayments = function(){
 window.openProfitBreakdown = function(){
   showView("profitView");
   renderAll();
+};
+
+window.openWorkflow = function(){
+  showView("workflowView");
+  renderWorkflowBoard();
 };
 
 window.toggleBox = function(id,forceOpen){
@@ -1491,6 +1497,95 @@ window.exportBackup = function(){
   a.click();
 };
 
+window.renderWorkflowBoard = renderWorkflowBoard;
+
+function workflowMiniCard(j){
+  return `
+    <div class="jobCard">
+      <h3>${safe(j.title)}</h3>
+      <div class="small">
+        ${safe(getCustomerName(j.customerId))}
+        |
+        ${dateLabel(j.date)}
+      </div>
+
+      ${paymentBadge(j)}
+      ${workflowBadge(j)}
+
+      <div class="moneyLine">
+        <span>Balance</span>
+        <b>${money(jobBalance(j))}</b>
+      </div>
+
+      <div class="row">
+        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+
+        <button class="blue"
+          onclick="setJobStatus('${j.id}','Scheduled')">
+          Scheduled
+        </button>
+
+        <button class="gold"
+          onclick="setJobStatus('${j.id}','In Progress')">
+          In Progress
+        </button>
+
+        <button class="green"
+          onclick="setJobStatus('${j.id}','Complete')">
+          Complete
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWorkflowBoard(){
+
+  const scheduled =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Scheduled"
+    );
+
+  const inProgress =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "In Progress"
+    );
+
+  const waitingPayment =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Complete"
+      &&
+      jobBalance(j) > 0
+    );
+
+  const completedPaid =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Complete"
+      &&
+      jobBalance(j) <= 0
+    );
+
+  el("workflowScheduled").innerHTML =
+    scheduled.length
+      ? scheduled.map(workflowMiniCard).join("")
+      : "<p class='small'>No scheduled jobs.</p>";
+
+  el("workflowInProgress").innerHTML =
+    inProgress.length
+      ? inProgress.map(workflowMiniCard).join("")
+      : "<p class='small'>No jobs in progress.</p>";
+
+  el("workflowWaitingPayment").innerHTML =
+    waitingPayment.length
+      ? waitingPayment.map(workflowMiniCard).join("")
+      : "<p class='small'>No completed jobs waiting on payment.</p>";
+
+  el("workflowCompletedPaid").innerHTML =
+    completedPaid.length
+      ? completedPaid.map(workflowMiniCard).join("")
+      : "<p class='small'>No completed paid jobs.</p>";
+}
+
 window.renderAll = renderAll;
 
 function renderAll(){
@@ -1524,7 +1619,13 @@ function renderAll(){
   expenses.forEach(e=>{
     const key = e.category || "Other";
     expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
-  });
+  if(
+  el("workflowView")
+  &&
+  !el("workflowView").classList.contains("hidden")
+){
+  renderWorkflowBoard();
+}});
 
   el("expenseBreakdown").innerHTML = Object.entries(expenseGroups)
     .sort((a,b)=>b[1]-a[1])
