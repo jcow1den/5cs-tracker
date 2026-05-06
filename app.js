@@ -601,7 +601,12 @@ function startListeners(){
     expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderAll();
   });
-
+  
+onSnapshot(collection(db,"payments"), snap=>{
+  payments = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderAll();
+});
+  
     onSnapshot(collection(db,"bids"), snap=>{
     bids = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderAll();
@@ -609,7 +614,7 @@ function startListeners(){
 }
 
 window.showView = function(id){
-  ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView""bidsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
@@ -771,7 +776,7 @@ function refreshDropdowns(){
   el("jobCustomer").innerHTML = html;
   el("recurringCustomer").innerHTML = html;
   el("invoiceCustomerSelect").innerHTML = html;
-  el("bidCustomer").innerHTML = html;
+  if(el("bidCustomer")) el("bidCustomer").innerHTML = html;
 }
 
 window.saveCustomer = async function(){
@@ -1797,13 +1802,12 @@ function renderAll(){
   expenses.forEach(e=>{
     const key = e.category || "Other";
     expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
-  if(
-  el("workflowView")
-  &&
-  !el("workflowView").classList.contains("hidden")
-){
+  
+});
+
+  if(el("workflowView") && !el("workflowView").classList.contains("hidden")){
   renderWorkflowBoard();
-}});
+}
 
   el("expenseBreakdown").innerHTML = Object.entries(expenseGroups)
     .sort((a,b)=>b[1]-a[1])
