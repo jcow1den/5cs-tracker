@@ -22,7 +22,6 @@ button.gray{background:#555}
 .paid{color:green;font-weight:bold}
 .owed{color:#b42318;font-weight:bold}
 .partial{color:#b7791f;font-weight:bold}
-.job{border-top:1px solid #eee;padding-top:8px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -35,10 +34,10 @@ button.gray{background:#555}
 <main>
 
 <div class="grid">
-<div class="stat"><b>Total Paid This Year</b><h2 id="yearPaid">$0</h2></div>
+<div class="stat"><b>Total Paid</b><h2 id="yearPaid">$0</h2></div>
 <div class="stat"><b>Total Owed</b><h2 id="totalOwed">$0</h2></div>
-<div class="stat"><b>Expenses This Year</b><h2 id="yearExpenses">$0</h2></div>
-<div class="stat"><b>Profit This Year</b><h2 id="yearProfit">$0</h2></div>
+<div class="stat"><b>Total Expenses</b><h2 id="yearExpenses">$0</h2></div>
+<div class="stat"><b>Profit</b><h2 id="yearProfit">$0</h2></div>
 </div>
 
 <div class="tabs">
@@ -95,7 +94,7 @@ button.gray{background:#555}
 <div class="box">
 <h2>Add Expense</h2>
 <input id="expenseDate" type="date">
-<input id="expenseCategory" placeholder="Category, ex: fuel, supplies, dump fee">
+<input id="expenseCategory" placeholder="Category">
 <input id="expenseAmount" type="number" placeholder="Amount">
 <textarea id="expenseNotes" placeholder="Notes"></textarea>
 <button onclick="addExpense()">Add Expense</button>
@@ -106,6 +105,7 @@ button.gray{background:#555}
 </main>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -139,25 +139,30 @@ window.showTab = function(id){
 };
 
 function getCustomerName(id){
-  return customers.find(c => c.id === id)?.name || "Unknown customer";
+  return customers.find(c => c.id === id)?.name || "Unknown";
 }
 
-function refreshCustomerDropdowns(){
-  const html = '<option value="">Select customer</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+function refreshDropdowns(){
+  const html = '<option value="">Select customer</option>' +
+    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+
   document.getElementById("jobCustomer").innerHTML = html;
   document.getElementById("recurringCustomer").innerHTML = html;
 }
 
 window.addCustomer = async function(){
   const name = document.getElementById("customerName").value.trim();
-  if(!name){ alert("Enter a customer name"); return; }
+
+  if(!name){
+    alert("Enter customer name");
+    return;
+  }
 
   await addDoc(collection(db,"customers"),{
     name,
     phone: document.getElementById("customerPhone").value.trim(),
     address: document.getElementById("customerAddress").value.trim(),
-    notes: document.getElementById("customerNotes").value.trim(),
-    createdAt: new Date().toISOString()
+    notes: document.getElementById("customerNotes").value.trim()
   });
 
   document.getElementById("customerName").value = "";
@@ -167,22 +172,22 @@ window.addCustomer = async function(){
 };
 
 window.addJob = async function(){
+
   const customerId = document.getElementById("jobCustomer").value;
   const title = document.getElementById("jobTitle").value.trim();
-  const amount = Number(document.getElementById("jobAmount").value || 0);
-  const paid = Number(document.getElementById("jobPaid").value || 0);
 
-  if(!customerId){ alert("Select a customer"); return; }
-  if(!title){ alert("Enter a job description"); return; }
+  if(!customerId || !title){
+    alert("Complete all job fields");
+    return;
+  }
 
   await addDoc(collection(db,"jobs"),{
     customerId,
     title,
-    date: document.getElementById("jobDate").value || today(),
-    amount,
-    paid,
-    notes: document.getElementById("jobNotes").value.trim(),
-    createdAt: new Date().toISOString()
+    date: document.getElementById("jobDate").value,
+    amount: Number(document.getElementById("jobAmount").value || 0),
+    paid: Number(document.getElementById("jobPaid").value || 0),
+    notes: document.getElementById("jobNotes").value.trim()
   });
 
   document.getElementById("jobTitle").value = "";
@@ -192,20 +197,21 @@ window.addJob = async function(){
 };
 
 window.addRecurring = async function(){
+
   const customerId = document.getElementById("recurringCustomer").value;
   const title = document.getElementById("recurringTitle").value.trim();
-  const amount = Number(document.getElementById("recurringAmount").value || 0);
 
-  if(!customerId){ alert("Select a customer"); return; }
-  if(!title){ alert("Enter recurring job title"); return; }
+  if(!customerId || !title){
+    alert("Complete recurring fields");
+    return;
+  }
 
   await addDoc(collection(db,"recurring"),{
     customerId,
     title,
-    nextDate: document.getElementById("recurringNextDate").value || today(),
-    amount,
-    frequency: document.getElementById("recurringFrequency").value,
-    createdAt: new Date().toISOString()
+    nextDate: document.getElementById("recurringNextDate").value,
+    amount: Number(document.getElementById("recurringAmount").value || 0),
+    frequency: document.getElementById("recurringFrequency").value
   });
 
   document.getElementById("recurringTitle").value = "";
@@ -213,17 +219,19 @@ window.addRecurring = async function(){
 };
 
 window.addExpense = async function(){
-  const category = document.getElementById("expenseCategory").value.trim();
-  const amount = Number(document.getElementById("expenseAmount").value || 0);
 
-  if(!category){ alert("Enter an expense category"); return; }
+  const category = document.getElementById("expenseCategory").value.trim();
+
+  if(!category){
+    alert("Enter expense category");
+    return;
+  }
 
   await addDoc(collection(db,"expenses"),{
-    date: document.getElementById("expenseDate").value || today(),
+    date: document.getElementById("expenseDate").value,
     category,
-    amount,
-    notes: document.getElementById("expenseNotes").value.trim(),
-    createdAt: new Date().toISOString()
+    amount: Number(document.getElementById("expenseAmount").value || 0),
+    notes: document.getElementById("expenseNotes").value.trim()
   });
 
   document.getElementById("expenseCategory").value = "";
@@ -237,59 +245,68 @@ window.deleteItem = async function(collectionName,id){
   }
 };
 
-window.markJobPaid = async function(id,amount){
-  await updateDoc(doc(db,"jobs",id),{paid:Number(amount || 0)});
+window.markPaid = async function(id,amount){
+  await updateDoc(doc(db,"jobs",id),{
+    paid:Number(amount || 0)
+  });
 };
 
 window.createJobFromRecurring = async function(id){
+
   const r = recurring.find(x => x.id === id);
+
   if(!r) return;
 
   await addDoc(collection(db,"jobs"),{
-    customerId: r.customerId,
-    title: r.title,
-    date: r.nextDate,
-    amount: Number(r.amount || 0),
-    paid: 0,
-    notes: "Created from recurring job",
-    createdAt: new Date().toISOString()
+    customerId:r.customerId,
+    title:r.title,
+    date:r.nextDate,
+    amount:Number(r.amount || 0),
+    paid:0,
+    notes:"Created from recurring"
   });
 
   const d = new Date(r.nextDate + "T00:00:00");
-  if(r.frequency === "weekly") d.setDate(d.getDate() + 7);
-  if(r.frequency === "biweekly") d.setDate(d.getDate() + 14);
-  if(r.frequency === "monthly") d.setMonth(d.getMonth() + 1);
+
+  if(r.frequency === "weekly") d.setDate(d.getDate()+7);
+  if(r.frequency === "biweekly") d.setDate(d.getDate()+14);
+  if(r.frequency === "monthly") d.setMonth(d.getMonth()+1);
 
   await updateDoc(doc(db,"recurring",id),{
-    nextDate: d.toISOString().slice(0,10)
+    nextDate:d.toISOString().slice(0,10)
   });
 };
 
 function updateUI(){
-  refreshCustomerDropdowns();
 
-  const year = new Date().getFullYear();
+  refreshDropdowns();
 
-  const yearPaid = jobs
-    .filter(j => new Date(j.date).getFullYear() === year)
-    .reduce((s,j) => s + Number(j.paid || 0), 0);
+  const totalPaid = jobs.reduce((s,j)=>s + Number(j.paid || 0),0);
 
-  const totalOwed = jobs
-    .reduce((s,j) => s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0)), 0);
+  const totalOwed = jobs.reduce((s,j)=>{
+    return s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+  },0);
 
-  const yearExpenses = expenses
-    .filter(e => new Date(e.date).getFullYear() === year)
-    .reduce((s,e) => s + Number(e.amount || 0), 0);
+  const totalExpenses = expenses.reduce((s,e)=>{
+    return s + Number(e.amount || 0);
+  },0);
 
-  document.getElementById("yearPaid").innerText = money(yearPaid);
+  const profit = totalPaid - totalExpenses;
+
+  document.getElementById("yearPaid").innerText = money(totalPaid);
   document.getElementById("totalOwed").innerText = money(totalOwed);
-  document.getElementById("yearExpenses").innerText = money(yearExpenses);
-  document.getElementById("yearProfit").innerText = money(yearPaid - yearExpenses);
+  document.getElementById("yearExpenses").innerText = money(totalExpenses);
+  document.getElementById("yearProfit").innerText = money(profit);
 
-  document.getElementById("customerList").innerHTML = customers.map(c => {
+  document.getElementById("customerList").innerHTML = customers.map(c=>{
+
     const custJobs = jobs.filter(j => j.customerId === c.id);
-    const paid = custJobs.reduce((s,j) => s + Number(j.paid || 0), 0);
-    const owed = custJobs.reduce((s,j) => s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0)), 0);
+
+    const paid = custJobs.reduce((s,j)=>s + Number(j.paid || 0),0);
+
+    const owed = custJobs.reduce((s,j)=>{
+      return s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+    },0);
 
     return `
       <div class="box">
@@ -304,77 +321,71 @@ function updateUI(){
     `;
   }).join("");
 
-  document.getElementById("jobList").innerHTML = jobs
-    .slice()
-    .sort((a,b) => (b.date || "").localeCompare(a.date || ""))
-    .map(j => {
-      const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
-      const status = balance === 0 ? "Paid" : Number(j.paid || 0) > 0 ? "Partial" : "Unpaid";
-      const statusClass = balance === 0 ? "paid" : Number(j.paid || 0) > 0 ? "partial" : "owed";
+  document.getElementById("jobList").innerHTML = jobs.map(j=>{
 
-      return `
-        <div class="box">
-          <h3>${j.title}</h3>
-          <div>${getCustomerName(j.customerId)}</div>
-          <div class="small">${j.date || ""}</div>
-          <div>Charge: ${money(j.amount)}</div>
-          <div>Paid: ${money(j.paid)}</div>
-          <div class="${statusClass}">Balance: ${money(balance)} | ${status}</div>
-          <p>${j.notes || ""}</p>
-          <button onclick="markJobPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
-          <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete Job</button>
+    const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+
+    return `
+      <div class="box">
+        <h3>${j.title}</h3>
+        <div>${getCustomerName(j.customerId)}</div>
+        <div class="small">${j.date || ""}</div>
+        <div>Charge: ${money(j.amount)}</div>
+        <div>Paid: ${money(j.paid)}</div>
+        <div class="${balance === 0 ? 'paid' : 'owed'}">
+          Balance: ${money(balance)}
         </div>
-      `;
-    }).join("");
-
-  document.getElementById("recurringList").innerHTML = recurring
-    .slice()
-    .sort((a,b) => (a.nextDate || "").localeCompare(b.nextDate || ""))
-    .map(r => `
-      <div class="box">
-        <h3>${r.title}</h3>
-        <div>${getCustomerName(r.customerId)}</div>
-        <div>Next: ${r.nextDate}</div>
-        <div>Frequency: ${r.frequency}</div>
-        <div>Amount: ${money(r.amount)}</div>
-        <button onclick="createJobFromRecurring('${r.id}')">Create Job From This</button>
-        <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete Recurring</button>
+        <p>${j.notes || ""}</p>
+        <button onclick="markPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
+        <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete Job</button>
       </div>
-    `).join("");
+    `;
+  }).join("");
 
-  document.getElementById("expenseList").innerHTML = expenses
-    .slice()
-    .sort((a,b) => (b.date || "").localeCompare(a.date || ""))
-    .map(e => `
-      <div class="box">
-        <h3>${e.category}</h3>
-        <div>${e.date}</div>
-        <div>${money(e.amount)}</div>
-        <p>${e.notes || ""}</p>
-        <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete Expense</button>
-      </div>
-    `).join("");
+  document.getElementById("recurringList").innerHTML = recurring.map(r=>`
+    <div class="box">
+      <h3>${r.title}</h3>
+      <div>${getCustomerName(r.customerId)}</div>
+      <div>Next: ${r.nextDate}</div>
+      <div>Frequency: ${r.frequency}</div>
+      <div>Amount: ${money(r.amount)}</div>
+      <button onclick="createJobFromRecurring('${r.id}')">Create Job From This</button>
+      <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete Recurring</button>
+    </div>
+  `).join("");
+
+  document.getElementById("expenseList").innerHTML = expenses.map(e=>`
+    <div class="box">
+      <h3>${e.category}</h3>
+      <div>${e.date}</div>
+      <div>${money(e.amount)}</div>
+      <p>${e.notes || ""}</p>
+      <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete Expense</button>
+    </div>
+  `).join("");
 }
 
-onSnapshot(collection(db,"customers"), snap => {
-  customers = snap.docs.map(d => ({id:d.id,...d.data()}));
+onSnapshot(collection(db,"customers"), snap=>{
+  customers = snap.docs.map(d=>({id:d.id,...d.data()}));
   updateUI();
 });
 
-onSnapshot(collection(db,"jobs"), snap => {
-  jobs = snap.docs.map(d => ({id:d.id,...d.data()}));
+onSnapshot(collection(db,"jobs"), snap=>{
+  jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
   updateUI();
 });
 
-onSnapshot(collection(db,"recurring"), snap => {
-  recurring = snap.docs.map(d => ({id:d.id,...d.data()}));
+onSnapshot(collection(db,"recurring"), snap=>{
+  recurring = snap.docs.map(d=>({id:d.id,...d.data()}));
   updateUI();
 });
 
-onSnapshot(collection(db,"expenses"), snap => {
-  expenses = snap.docs.map(d => ({id:d.id,...d.data()}));
+onSnapshot(collection(db,"expenses"), snap=>{
+  expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
   updateUI();
 });
+
 </script>
+
 </body>
 </html>
