@@ -1597,8 +1597,7 @@ function renderAll(){
   const totalProfit = totalPaid - totalExpenses;
 
   const todayJobs = jobs.filter(j => j.date === today());
-  const upcomingJobs = jobs.filter(j => j.date >= today() && j.date <= addDays(today(),7));
-  const customersWithBalances = customers.filter(c => customerTotals(c.id).owed > 0);
+  const upcomingJobs = jobs.filter(j => j.date > today() && j.date <= addDays(today(),7));  const customersWithBalances = customers.filter(c => customerTotals(c.id).owed > 0);
 
   el("dashPaid").innerText = money(totalPaid);
   el("dashOwed").innerText = money(totalOwed);
@@ -1760,7 +1759,7 @@ function renderAll(){
 
       let statusOk = statusFilter === "all" || payStatus === statusFilter || workflowStatus === statusFilter;
       if(statusFilter === "today") statusOk = j.date === today();
-      if(statusFilter === "upcoming") statusOk = j.date >= today() && j.date <= addDays(today(),7);
+      if(statusFilter === "upcoming") statusOk = j.date > today() && j.date <= addDays(today(),7);
 
       const searchOk = !jq || text.includes(jq);
       return statusOk && searchOk;
