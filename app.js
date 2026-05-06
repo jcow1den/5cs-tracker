@@ -1791,11 +1791,6 @@ window.saveBid = async function(){
 
     if(desc || qty || price){
       items.push({desc, qty, price});
-      
-      <div class="row">
-  <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
-  <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
-</div>
     }
   });
 
