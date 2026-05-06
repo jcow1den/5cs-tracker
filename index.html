@@ -5,53 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>5Cs Tracker</title>
 <style>
-body{font-family:Arial;margin:0;background:#f5f1e8}
+body{font-family:Arial;margin:0;background:#f5f1e8;color:#1f1c18}
 header{background:#17130f;color:white;padding:18px}
-main{padding:16px;max-width:900px;margin:auto}
-.box{background:white;border-radius:12px;padding:14px;margin:10px 0}
-input,button,select{font-size:16px;padding:10px;width:100%;margin:5px 0;box-sizing:border-box}
-button{background:#111;color:white;border:0;border-radius:10px}
-h2{margin-top:0}
-.row{display:flex;gap:10px}
-.stat{background:white;padding:12px;border-radius:10px;flex:1;text-align:center}
+main{padding:16px;max-width:1000px;margin:auto}
+h1,h2,h3{margin-top:0}
+.box,.stat{background:white;border-radius:14px;padding:14px;margin:10px 0;border:1px solid #ddd}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+input,button,select,textarea{font-size:16px;padding:11px;width:100%;margin:5px 0;box-sizing:border-box;border-radius:10px;border:1px solid #ccc}
+button{background:#111;color:white;border:0;font-weight:bold}
+button.danger{background:#b42318}
+button.gray{background:#555}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.tabs button{width:auto;padding:10px 12px}
+.hidden{display:none}
+.small{font-size:13px;color:#666}
+.paid{color:green;font-weight:bold}
+.owed{color:#b42318;font-weight:bold}
+.partial{color:#b7791f;font-weight:bold}
+.job{border-top:1px solid #eee;padding-top:8px;margin-top:8px}
 </style>
 </head>
 <body>
 
 <header>
 <h1>5Cs Tracker</h1>
+<div>Customers, jobs, payments, recurring work, expenses, and yearly totals</div>
 </header>
 
 <main>
 
-<div class="row">
-<div class="stat"><b>Total Paid</b><div id="totalPaid">$0</div></div>
-<div class="stat"><b>Total Owed</b><div id="totalOwed">$0</div></div>
+<div class="grid">
+<div class="stat"><b>Total Paid This Year</b><h2 id="yearPaid">$0</h2></div>
+<div class="stat"><b>Total Owed</b><h2 id="totalOwed">$0</h2></div>
+<div class="stat"><b>Expenses This Year</b><h2 id="yearExpenses">$0</h2></div>
+<div class="stat"><b>Profit This Year</b><h2 id="yearProfit">$0</h2></div>
 </div>
 
+<div class="tabs">
+<button onclick="showTab('customersTab')">Customers</button>
+<button onclick="showTab('jobsTab')">Jobs</button>
+<button onclick="showTab('recurringTab')">Recurring</button>
+<button onclick="showTab('expensesTab')">Expenses</button>
+</div>
+
+<section id="customersTab">
 <div class="box">
 <h2>Add Customer</h2>
-<input id="customerInput" placeholder="Customer name">
+<input id="customerName" placeholder="Customer name">
+<input id="customerPhone" placeholder="Phone">
+<input id="customerAddress" placeholder="Address">
+<textarea id="customerNotes" placeholder="Notes"></textarea>
 <button onclick="addCustomer()">Add Customer</button>
 </div>
+<div id="customerList"></div>
+</section>
 
+<section id="jobsTab" class="hidden">
 <div class="box">
 <h2>Add Job</h2>
-<select id="customerSelect"></select>
+<select id="jobCustomer"></select>
 <input id="jobTitle" placeholder="Job description">
+<input id="jobDate" type="date">
 <input id="jobAmount" type="number" placeholder="Amount charged">
 <input id="jobPaid" type="number" placeholder="Amount paid">
+<textarea id="jobNotes" placeholder="Job notes"></textarea>
 <button onclick="addJob()">Add Job</button>
 </div>
+<div id="jobList"></div>
+</section>
 
-<div id="customerList"></div>
+<section id="recurringTab" class="hidden">
+<div class="box">
+<h2>Add Recurring Job</h2>
+<select id="recurringCustomer"></select>
+<input id="recurringTitle" placeholder="Recurring job title">
+<input id="recurringNextDate" type="date">
+<input id="recurringAmount" type="number" placeholder="Amount">
+<select id="recurringFrequency">
+<option value="weekly">Weekly</option>
+<option value="biweekly">Bi-weekly</option>
+<option value="monthly">Monthly</option>
+</select>
+<button onclick="addRecurring()">Add Recurring Job</button>
+</div>
+<div id="recurringList"></div>
+</section>
+
+<section id="expensesTab" class="hidden">
+<div class="box">
+<h2>Add Expense</h2>
+<input id="expenseDate" type="date">
+<input id="expenseCategory" placeholder="Category, ex: fuel, supplies, dump fee">
+<input id="expenseAmount" type="number" placeholder="Amount">
+<textarea id="expenseNotes" placeholder="Notes"></textarea>
+<button onclick="addExpense()">Add Expense</button>
+</div>
+<div id="expenseList"></div>
+</section>
 
 </main>
 
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAY2Qm46g5CCMiAQsIO4UMM1QMYIMuZMr0",
@@ -67,84 +123,258 @@ const db = getFirestore(app);
 
 let customers = [];
 let jobs = [];
+let recurring = [];
+let expenses = [];
 
-const customerInput = document.getElementById("customerInput");
-const customerSelect = document.getElementById("customerSelect");
-const list = document.getElementById("customerList");
+const money = n => Number(n || 0).toLocaleString(undefined,{style:"currency",currency:"USD"});
+const today = () => new Date().toISOString().slice(0,10);
+
+document.getElementById("jobDate").value = today();
+document.getElementById("recurringNextDate").value = today();
+document.getElementById("expenseDate").value = today();
+
+window.showTab = function(id){
+  document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+};
+
+function getCustomerName(id){
+  return customers.find(c => c.id === id)?.name || "Unknown customer";
+}
+
+function refreshCustomerDropdowns(){
+  const html = '<option value="">Select customer</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  document.getElementById("jobCustomer").innerHTML = html;
+  document.getElementById("recurringCustomer").innerHTML = html;
+}
 
 window.addCustomer = async function(){
-  const name = customerInput.value.trim();
-  if(!name) return;
+  const name = document.getElementById("customerName").value.trim();
+  if(!name){ alert("Enter a customer name"); return; }
 
-  await addDoc(collection(db,"customers"),{name});
-  customerInput.value="";
+  await addDoc(collection(db,"customers"),{
+    name,
+    phone: document.getElementById("customerPhone").value.trim(),
+    address: document.getElementById("customerAddress").value.trim(),
+    notes: document.getElementById("customerNotes").value.trim(),
+    createdAt: new Date().toISOString()
+  });
+
+  document.getElementById("customerName").value = "";
+  document.getElementById("customerPhone").value = "";
+  document.getElementById("customerAddress").value = "";
+  document.getElementById("customerNotes").value = "";
 };
 
 window.addJob = async function(){
-  const customerId = customerSelect.value;
-  const title = document.getElementById("jobTitle").value;
+  const customerId = document.getElementById("jobCustomer").value;
+  const title = document.getElementById("jobTitle").value.trim();
   const amount = Number(document.getElementById("jobAmount").value || 0);
   const paid = Number(document.getElementById("jobPaid").value || 0);
 
-  if(!customerId || !title) return;
+  if(!customerId){ alert("Select a customer"); return; }
+  if(!title){ alert("Enter a job description"); return; }
 
   await addDoc(collection(db,"jobs"),{
     customerId,
     title,
+    date: document.getElementById("jobDate").value || today(),
     amount,
-    paid
+    paid,
+    notes: document.getElementById("jobNotes").value.trim(),
+    createdAt: new Date().toISOString()
   });
 
-  document.getElementById("jobTitle").value="";
-  document.getElementById("jobAmount").value="";
-  document.getElementById("jobPaid").value="";
+  document.getElementById("jobTitle").value = "";
+  document.getElementById("jobAmount").value = "";
+  document.getElementById("jobPaid").value = "";
+  document.getElementById("jobNotes").value = "";
 };
 
-onSnapshot(collection(db,"customers"), snap=>{
-  customers = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
+window.addRecurring = async function(){
+  const customerId = document.getElementById("recurringCustomer").value;
+  const title = document.getElementById("recurringTitle").value.trim();
+  const amount = Number(document.getElementById("recurringAmount").value || 0);
 
-onSnapshot(collection(db,"jobs"), snap=>{
-  jobs = snap.docs.map(d=>({id:d.id,...d.data()}));
-  updateUI();
-});
+  if(!customerId){ alert("Select a customer"); return; }
+  if(!title){ alert("Enter recurring job title"); return; }
+
+  await addDoc(collection(db,"recurring"),{
+    customerId,
+    title,
+    nextDate: document.getElementById("recurringNextDate").value || today(),
+    amount,
+    frequency: document.getElementById("recurringFrequency").value,
+    createdAt: new Date().toISOString()
+  });
+
+  document.getElementById("recurringTitle").value = "";
+  document.getElementById("recurringAmount").value = "";
+};
+
+window.addExpense = async function(){
+  const category = document.getElementById("expenseCategory").value.trim();
+  const amount = Number(document.getElementById("expenseAmount").value || 0);
+
+  if(!category){ alert("Enter an expense category"); return; }
+
+  await addDoc(collection(db,"expenses"),{
+    date: document.getElementById("expenseDate").value || today(),
+    category,
+    amount,
+    notes: document.getElementById("expenseNotes").value.trim(),
+    createdAt: new Date().toISOString()
+  });
+
+  document.getElementById("expenseCategory").value = "";
+  document.getElementById("expenseAmount").value = "";
+  document.getElementById("expenseNotes").value = "";
+};
+
+window.deleteItem = async function(collectionName,id){
+  if(confirm("Delete this item?")){
+    await deleteDoc(doc(db,collectionName,id));
+  }
+};
+
+window.markJobPaid = async function(id,amount){
+  await updateDoc(doc(db,"jobs",id),{paid:Number(amount || 0)});
+};
+
+window.createJobFromRecurring = async function(id){
+  const r = recurring.find(x => x.id === id);
+  if(!r) return;
+
+  await addDoc(collection(db,"jobs"),{
+    customerId: r.customerId,
+    title: r.title,
+    date: r.nextDate,
+    amount: Number(r.amount || 0),
+    paid: 0,
+    notes: "Created from recurring job",
+    createdAt: new Date().toISOString()
+  });
+
+  const d = new Date(r.nextDate + "T00:00:00");
+  if(r.frequency === "weekly") d.setDate(d.getDate() + 7);
+  if(r.frequency === "biweekly") d.setDate(d.getDate() + 14);
+  if(r.frequency === "monthly") d.setMonth(d.getMonth() + 1);
+
+  await updateDoc(doc(db,"recurring",id),{
+    nextDate: d.toISOString().slice(0,10)
+  });
+};
 
 function updateUI(){
-  customerSelect.innerHTML = '<option value="">Select customer</option>' +
-    customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  refreshCustomerDropdowns();
 
-  let totalPaid = 0;
-  let totalOwed = 0;
+  const year = new Date().getFullYear();
 
-  list.innerHTML = customers.map(c=>{
-    const custJobs = jobs.filter(j=>j.customerId===c.id);
+  const yearPaid = jobs
+    .filter(j => new Date(j.date).getFullYear() === year)
+    .reduce((s,j) => s + Number(j.paid || 0), 0);
 
-    let paid = custJobs.reduce((s,j)=>s+j.paid,0);
-    let owed = custJobs.reduce((s,j)=>s+(j.amount-j.paid),0);
+  const totalOwed = jobs
+    .reduce((s,j) => s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0)), 0);
 
-    totalPaid += paid;
-    totalOwed += owed;
+  const yearExpenses = expenses
+    .filter(e => new Date(e.date).getFullYear() === year)
+    .reduce((s,e) => s + Number(e.amount || 0), 0);
+
+  document.getElementById("yearPaid").innerText = money(yearPaid);
+  document.getElementById("totalOwed").innerText = money(totalOwed);
+  document.getElementById("yearExpenses").innerText = money(yearExpenses);
+  document.getElementById("yearProfit").innerText = money(yearPaid - yearExpenses);
+
+  document.getElementById("customerList").innerHTML = customers.map(c => {
+    const custJobs = jobs.filter(j => j.customerId === c.id);
+    const paid = custJobs.reduce((s,j) => s + Number(j.paid || 0), 0);
+    const owed = custJobs.reduce((s,j) => s + Math.max(0, Number(j.amount || 0) - Number(j.paid || 0)), 0);
 
     return `
       <div class="box">
         <h3>${c.name}</h3>
-        <div>Paid: $${paid}</div>
-        <div>Owes: $${owed}</div>
-        ${custJobs.map(j=>`
-          <div>
-            ${j.title} - $${j.amount} / Paid $${j.paid}
-          </div>
-        `).join("")}
+        <div class="small">${c.phone || ""}</div>
+        <div class="small">${c.address || ""}</div>
+        <p>${c.notes || ""}</p>
+        <div class="paid">Paid: ${money(paid)}</div>
+        <div class="owed">Owes: ${money(owed)}</div>
+        <button class="danger" onclick="deleteItem('customers','${c.id}')">Delete Customer</button>
       </div>
     `;
   }).join("");
 
-  document.getElementById("totalPaid").innerText = "$"+totalPaid;
-  document.getElementById("totalOwed").innerText = "$"+totalOwed;
+  document.getElementById("jobList").innerHTML = jobs
+    .slice()
+    .sort((a,b) => (b.date || "").localeCompare(a.date || ""))
+    .map(j => {
+      const balance = Math.max(0, Number(j.amount || 0) - Number(j.paid || 0));
+      const status = balance === 0 ? "Paid" : Number(j.paid || 0) > 0 ? "Partial" : "Unpaid";
+      const statusClass = balance === 0 ? "paid" : Number(j.paid || 0) > 0 ? "partial" : "owed";
+
+      return `
+        <div class="box">
+          <h3>${j.title}</h3>
+          <div>${getCustomerName(j.customerId)}</div>
+          <div class="small">${j.date || ""}</div>
+          <div>Charge: ${money(j.amount)}</div>
+          <div>Paid: ${money(j.paid)}</div>
+          <div class="${statusClass}">Balance: ${money(balance)} | ${status}</div>
+          <p>${j.notes || ""}</p>
+          <button onclick="markJobPaid('${j.id}',${Number(j.amount || 0)})">Mark Paid</button>
+          <button class="danger" onclick="deleteItem('jobs','${j.id}')">Delete Job</button>
+        </div>
+      `;
+    }).join("");
+
+  document.getElementById("recurringList").innerHTML = recurring
+    .slice()
+    .sort((a,b) => (a.nextDate || "").localeCompare(b.nextDate || ""))
+    .map(r => `
+      <div class="box">
+        <h3>${r.title}</h3>
+        <div>${getCustomerName(r.customerId)}</div>
+        <div>Next: ${r.nextDate}</div>
+        <div>Frequency: ${r.frequency}</div>
+        <div>Amount: ${money(r.amount)}</div>
+        <button onclick="createJobFromRecurring('${r.id}')">Create Job From This</button>
+        <button class="danger" onclick="deleteItem('recurring','${r.id}')">Delete Recurring</button>
+      </div>
+    `).join("");
+
+  document.getElementById("expenseList").innerHTML = expenses
+    .slice()
+    .sort((a,b) => (b.date || "").localeCompare(a.date || ""))
+    .map(e => `
+      <div class="box">
+        <h3>${e.category}</h3>
+        <div>${e.date}</div>
+        <div>${money(e.amount)}</div>
+        <p>${e.notes || ""}</p>
+        <button class="danger" onclick="deleteItem('expenses','${e.id}')">Delete Expense</button>
+      </div>
+    `).join("");
 }
 
-</script>
+onSnapshot(collection(db,"customers"), snap => {
+  customers = snap.docs.map(d => ({id:d.id,...d.data()}));
+  updateUI();
+});
 
+onSnapshot(collection(db,"jobs"), snap => {
+  jobs = snap.docs.map(d => ({id:d.id,...d.data()}));
+  updateUI();
+});
+
+onSnapshot(collection(db,"recurring"), snap => {
+  recurring = snap.docs.map(d => ({id:d.id,...d.data()}));
+  updateUI();
+});
+
+onSnapshot(collection(db,"expenses"), snap => {
+  expenses = snap.docs.map(d => ({id:d.id,...d.data()}));
+  updateUI();
+});
+</script>
 </body>
 </html>
