@@ -1314,21 +1314,54 @@ window.viewCustomer = function(id){
          <div class="box">
       <h3>Bids</h3>
       ${custBids.length ? custBids.map(b=>`
-        <div class="jobCard">
-          <h3>${safe(b.title)}</h3>
-          <span class="badge badgeBlue">${safe(b.status || "Pending")}</span>
-          <div class="moneyLine">
-            <span>Total</span>
-            <b>${money(b.total)}</b>
-          </div>
-          <p>${safe(b.notes)}</p>
-          ${(b.items || []).map(i=>`
-            <div class="moneyLine">
-              <span>${safe(i.desc)} x${i.qty}</span>
-              <b>${money(i.qty * i.price)}</b>
-            </div>
-          `).join("")}
-        </div>
+       <div class="jobCard">
+
+  <div class="customerHeader">
+
+    <div>
+      <h3>${safe(b.title)}</h3>
+
+      <div class="small">
+        ${safe(getCustomerName(b.customerId))}
+      </div>
+    </div>
+
+    <span class="badge badgeBlue">
+      ${safe(b.status || "Pending")}
+    </span>
+
+  </div>
+
+  <div class="box">
+
+    ${(b.items || []).map(i=>`
+
+      <div class="moneyLine">
+
+        <span>
+          ${safe(i.desc)}
+          • Qty ${i.qty}
+        </span>
+
+        <b>
+          ${money(i.qty * i.price)}
+        </b>
+
+      </div>
+
+    `).join("")}
+
+  </div>
+
+  <div class="moneyLine bigTotal">
+
+    <span>Bid Total</span>
+
+    <b>${money(b.total)}</b>
+
+  </div>
+
+</div>        </div>
       `).join("") : "<p class='small'>No bids saved for this customer yet.</p>"}
     </div>
     
