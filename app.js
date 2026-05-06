@@ -249,6 +249,33 @@ appRoot.innerHTML = `
   </div>
 </section>
 
+<section id="workflowView" class="hidden">
+  <div class="box">
+    <h2>Workflow Board</h2>
+    <p class="small">Jobs grouped by workflow stage.</p>
+  </div>
+
+  <div class="box">
+    <h2>Scheduled</h2>
+    <div id="workflowScheduled"></div>
+  </div>
+
+  <div class="box">
+    <h2>In Progress</h2>
+    <div id="workflowInProgress"></div>
+  </div>
+
+  <div class="box">
+    <h2>Complete, Waiting Payment</h2>
+    <div id="workflowWaitingPayment"></div>
+  </div>
+
+  <div class="box">
+    <h2>Completed and Paid</h2>
+    <div id="workflowCompletedPaid"></div>
+  </div>
+</section>
+
 <section id="profitView" class="hidden">
   <div class="box">
     <h2>Profit Breakdown</h2>
