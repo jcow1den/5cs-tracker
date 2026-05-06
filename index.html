@@ -88,6 +88,15 @@ h2,h3{
   gap:10px;
 }
 
+.stat{
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.stat:active{
+  transform:scale(.98);
+}
+
 .stat b{
   color:var(--muted);
   font-size:13px;
@@ -96,6 +105,12 @@ h2,h3{
 .stat h2{
   margin:8px 0 0;
   font-size:22px;
+}
+
+.statHint{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:5px;
 }
 
 input,button,select,textarea{
@@ -297,6 +312,12 @@ button.blue{background:var(--blue)}
   margin-top:8px;
 }
 
+.clickNote{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:8px;
+}
+
 @media(min-width:800px){
   .grid{grid-template-columns:repeat(4,1fr)}
   .cardsGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -343,10 +364,39 @@ button.blue{background:var(--blue)}
 </div>
 
 <div class="grid">
-<div class="stat"><b>Paid</b><h2 id="dashPaid">$0</h2></div>
-<div class="stat"><b>Owed</b><h2 id="dashOwed">$0</h2></div>
-<div class="stat"><b>Expenses</b><h2 id="dashExpenses">$0</h2></div>
-<div class="stat"><b>Profit</b><h2 id="dashProfit">$0</h2></div>
+<div class="stat" onclick="openPaidJobs()">
+<b>Paid</b>
+<h2 id="dashPaid">$0</h2>
+<div class="statHint">Tap to see paid jobs</div>
+</div>
+
+<div class="stat" onclick="openOwedJobs()">
+<b>Owed</b>
+<h2 id="dashOwed">$0</h2>
+<div class="statHint">Tap to chase balances</div>
+</div>
+
+<div class="stat" onclick="openExpenses()">
+<b>Expenses</b>
+<h2 id="dashExpenses">$0</h2>
+<div class="statHint">Tap to review costs</div>
+</div>
+
+<div class="stat" onclick="openProfitBreakdown()">
+<b>Profit</b>
+<h2 id="dashProfit">$0</h2>
+<div class="statHint">Tap for breakdown</div>
+</div>
+</div>
+
+<div class="box noPrint">
+<h2>Quick Navigation</h2>
+<div class="quickAdd">
+<button onclick="openOwedJobs()">Unpaid Jobs</button>
+<button onclick="openPaidJobs()">Paid Jobs</button>
+<button onclick="showView('invoicesView')">Invoices</button>
+<button onclick="openProfitBreakdown()">Profit Breakdown</button>
+</div>
 </div>
 
 <div class="box noPrint">
@@ -369,6 +419,29 @@ button.blue{background:var(--blue)}
 <div id="recentJobs"></div>
 </div>
 
+</section>
+
+<section id="profitView" class="hidden">
+<div class="box">
+<h2>Profit Breakdown</h2>
+<div class="grid">
+<div class="stat"><b>Total Collected</b><h2 id="profitPaid">$0</h2></div>
+<div class="stat"><b>Total Expenses</b><h2 id="profitExpenses">$0</h2></div>
+<div class="stat"><b>Estimated Profit</b><h2 id="profitNet">$0</h2></div>
+<div class="stat"><b>Outstanding</b><h2 id="profitOutstanding">$0</h2></div>
+</div>
+<p class="small">Profit is based on money collected minus expenses. Outstanding balances are not counted as profit until paid.</p>
+</div>
+
+<div class="box">
+<h2>Expense Breakdown</h2>
+<div id="expenseBreakdown"></div>
+</div>
+
+<div class="box">
+<h2>Top Customers By Paid Amount</h2>
+<div id="topCustomers"></div>
+</div>
 </section>
 
 <section id="customersView" class="hidden">
@@ -501,6 +574,7 @@ button.blue{background:var(--blue)}
 <button onclick="showView('recurringView')">Recurring</button>
 <button onclick="showView('expensesView')">Expenses</button>
 <button onclick="showView('invoicesView')">Invoices</button>
+<button onclick="openProfitBreakdown()">Profit</button>
 <button onclick="exportBackup()">Export Backup</button>
 <button class="secondary" onclick="logout()">Logout</button>
 </div>
@@ -508,7 +582,7 @@ button.blue{background:var(--blue)}
 
 <div class="box">
 <h2>Settings</h2>
-<p class="small">Payment history is now tracked separately. Invoices use actual payment records when available.</p>
+<p class="small">Payment history is tracked separately. Invoices use actual payment records when available.</p>
 </div>
 
 </section>
@@ -633,7 +707,7 @@ function startListeners(){
 }
 
 window.showView = function(id){
-  ["dashboardView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","profitView","customersView","customerDetailView","jobsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
@@ -645,10 +719,11 @@ window.showView = function(id){
   if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
   if(id === "jobsView") el("navJobs").classList.add("active");
   if(id === "invoicesView" || id === "invoiceView") el("navInvoices").classList.add("active");
-  if(id === "settingsView" || id === "expensesView" || id === "recurringView") el("navMore").classList.add("active");
+  if(id === "settingsView" || id === "expensesView" || id === "recurringView" || id === "profitView") el("navMore").classList.add("active");
 
   const titles = {
     dashboardView:"Business dashboard",
+    profitView:"Profit breakdown",
     customersView:"Customers",
     customerDetailView:"Customer detail",
     jobsView:"Jobs",
@@ -661,6 +736,29 @@ window.showView = function(id){
 
   el("headerSub").innerText = titles[id] || "Business dashboard";
   window.scrollTo(0,0);
+};
+
+window.openPaidJobs = function(){
+  showView("jobsView");
+  el("jobStatusFilter").value = "paid";
+  el("jobSearch").value = "";
+  renderAll();
+};
+
+window.openOwedJobs = function(){
+  showView("jobsView");
+  el("jobStatusFilter").value = "unpaid";
+  el("jobSearch").value = "";
+  renderAll();
+};
+
+window.openExpenses = function(){
+  showView("expensesView");
+};
+
+window.openProfitBreakdown = function(){
+  showView("profitView");
+  renderAll();
 };
 
 window.toggleBox = function(id,forceOpen){
@@ -1077,8 +1175,8 @@ window.viewCustomer = function(id){
       <p>${safe(c.notes)}</p>
 
       <div class="grid">
-        <div class="stat"><b>Paid</b><h2>${money(totals.paid)}</h2></div>
-        <div class="stat"><b>Owed</b><h2>${money(totals.owed)}</h2></div>
+        <div class="stat" onclick="makeInvoice('${c.id}')"><b>Paid</b><h2>${money(totals.paid)}</h2><div class="statHint">Invoice</div></div>
+        <div class="stat" onclick="makeInvoice('${c.id}')"><b>Owed</b><h2>${money(totals.owed)}</h2><div class="statHint">Invoice</div></div>
       </div>
 
       <div class="row">
@@ -1328,6 +1426,43 @@ function renderAll(){
   el("dashOwed").innerText = money(totalOwed);
   el("dashExpenses").innerText = money(totalExpenses);
   el("dashProfit").innerText = money(totalProfit);
+
+  el("profitPaid").innerText = money(totalPaid);
+  el("profitExpenses").innerText = money(totalExpenses);
+  el("profitNet").innerText = money(totalProfit);
+  el("profitOutstanding").innerText = money(totalOwed);
+
+  const expenseGroups = {};
+  expenses.forEach(e=>{
+    const key = e.category || "Other";
+    expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
+  });
+
+  const expenseRows = Object.entries(expenseGroups)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([cat,total])=>`
+      <div class="moneyLine">
+        <span>${safe(cat)}</span>
+        <b>${money(total)}</b>
+      </div>
+    `).join("");
+
+  el("expenseBreakdown").innerHTML = expenseRows || "<p class='small'>No expenses yet.</p>";
+
+  const topCustomerRows = customers
+    .map(c=>({customer:c,total:customerTotals(c.id)}))
+    .sort((a,b)=>b.total.paid-a.total.paid)
+    .slice(0,5)
+    .map(x=>`
+      <div class="box">
+        <h3>${safe(x.customer.name)}</h3>
+        <div>Paid: ${money(x.total.paid)}</div>
+        <div>Owed: ${money(x.total.owed)}</div>
+        <button onclick="viewCustomer('${x.customer.id}')">View Customer</button>
+      </div>
+    `).join("");
+
+  el("topCustomers").innerHTML = topCustomerRows || "<p class='small'>No customer payments yet.</p>";
 
   const unpaidJobs = jobs.filter(j => jobStatus(j) !== "Paid");
   const dueRecurring = recurring.filter(r => ["Past Due","Due Today","Upcoming"].includes(recurringStatus(r).label));
