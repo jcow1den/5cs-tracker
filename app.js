@@ -869,14 +869,22 @@ window.deletePayment = async function(id){
 window.markPaid = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
-  window.setJobStatus = async function(id,status){
+ window.setJobStatus = async function(id,status){
   try{
-    await updateDoc(doc(db,"jobs",id),{status});
+    await updateDoc(doc(db,"jobs",id),{
+      status: status
+    });
+
     renderAll();
 
-    if(activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")){
-      setTimeout(()=>viewCustomer(activeCustomerDetailId),400);
+    if(activeCustomerDetailId){
+      setTimeout(()=>{
+        viewCustomer(activeCustomerDetailId);
+      },500);
     }
+
+    alert("Status changed to " + status);
+
   }catch(error){
     alert("Status update failed: " + error.message);
   }
