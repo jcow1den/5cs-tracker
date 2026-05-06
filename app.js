@@ -43,6 +43,7 @@ let jobs = [];
 let recurring = [];
 let expenses = [];
 let payments = [];
+let bids = [];
 
 let editingCustomerId = null;
 let editingJobId = null;
@@ -405,6 +406,49 @@ appRoot.innerHTML = `
   <div id="recurringList"></div>
 </section>
 
+<section id="bidsView" class="hidden">
+
+  <div class="box noPrint">
+    <button onclick="toggleBox('bidFormBox')">
+      Create Bid
+    </button>
+  </div>
+
+  <div id="bidFormBox" class="box hidden">
+
+    <h2>Create Bid</h2>
+
+    <select id="bidCustomer"></select>
+
+    <input id="bidTitle" placeholder="Bid title">
+
+    <textarea id="bidNotes"
+      placeholder="General notes"></textarea>
+
+    <div id="bidItems"></div>
+
+    <button onclick="addBidItemRow()">
+      Add Line Item
+    </button>
+
+    <div class="stat">
+      <b>Total</b>
+      <h2 id="bidTotal">$0</h2>
+    </div>
+
+    <button class="green" onclick="saveBid()">
+      Save Bid
+    </button>
+
+  </div>
+
+  <div class="box">
+    <h2>Saved Bids</h2>
+    <div id="bidsList"></div>
+  </div>
+
+</section>
+
 <section id="expensesView" class="hidden">
   <div class="box noPrint">
     <button onclick="toggleBox('expenseFormBox')">Add or Edit Expense</button>
@@ -447,6 +491,7 @@ appRoot.innerHTML = `
     <h2>More</h2>
     <div class="moreGrid">
       <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
+      <button onclick="showView('bidsView')">Bids</button>
       <button onclick="showView('recurringView')">Recurring</button>
       <button onclick="showView('expensesView')">Expenses</button>
       <button onclick="showView('invoicesView')">Invoices</button>
@@ -557,14 +602,14 @@ function startListeners(){
     renderAll();
   });
 
-  onSnapshot(collection(db,"payments"), snap=>{
-    payments = snap.docs.map(d=>({id:d.id,...d.data()}));
+    onSnapshot(collection(db,"bids"), snap=>{
+    bids = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderAll();
   });
 }
 
 window.showView = function(id){
-  ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
+  ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView""bidsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"].forEach(v=>{
     el(v).classList.add("hidden");
   });
 
@@ -577,11 +622,12 @@ window.showView = function(id){
   if(id === "customersView" || id === "customerDetailView") el("navCustomers").classList.add("active");
   if(id === "jobsView" || id === "scheduleView") el("navJobs").classList.add("active");
   if(id === "invoicesView" || id === "invoiceView") el("navInvoices").classList.add("active");
-  if(["settingsView","expensesView","recurringView","profitView","paymentsView"].includes(id)) el("navMore").classList.add("active");
+  if(["settingsView","bidsView","expensesView","recurringView","profitView","paymentsView"].includes(id)) el("navMore").classList.add("active");
 
   const titles = {
     dashboardView:"Business dashboard",
     scheduleView:"Schedule",
+    bidsView:"Bids",
     profitView:"Reports",
     customersView:"Customers",
     customerDetailView:"Customer detail",
@@ -725,6 +771,7 @@ function refreshDropdowns(){
   el("jobCustomer").innerHTML = html;
   el("recurringCustomer").innerHTML = html;
   el("invoiceCustomerSelect").innerHTML = html;
+  el("bidCustomer").innerHTML = html;
 }
 
 window.saveCustomer = async function(){
@@ -1587,7 +1634,137 @@ function renderWorkflowBoard(){
       ? completedPaid.map(workflowMiniCard).join("")
       : "<p class='small'>No completed paid jobs.</p>";
 }
+window.addBidItemRow = addBidItemRow;
 
+function addBidItemRow(desc="",qty=1,price=0){
+
+  const row = document.createElement("div");
+
+  row.className = "bidRow";
+
+  row.innerHTML = `
+    <input class="bidDesc"
+      placeholder="Description"
+      value="${safe(desc)}">
+
+    <input class="bidQty"
+      type="number"
+      value="${qty}">
+
+    <input class="bidPrice"
+      type="number"
+      value="${price}">
+
+    <button class="red removeBidRow">
+      X
+    </button>
+  `;
+
+  el("bidItems").appendChild(row);
+
+  row.querySelector(".removeBidRow")
+    .onclick = ()=>{
+      row.remove();
+      updateBidTotal();
+    };
+
+  row.querySelectorAll("input")
+    .forEach(i=>{
+      i.addEventListener("input",updateBidTotal);
+    });
+
+  updateBidTotal();
+}
+
+window.updateBidTotal = updateBidTotal;
+
+function updateBidTotal(){
+
+  let total = 0;
+
+  document.querySelectorAll(".bidRow")
+    .forEach(row=>{
+
+      const qty =
+        Number(
+          row.querySelector(".bidQty").value || 0
+        );
+
+      const price =
+        Number(
+          row.querySelector(".bidPrice").value || 0
+        );
+
+      total += qty * price;
+    });
+
+  el("bidTotal").innerText = money(total);
+}
+
+window.saveBid = async function(){
+
+  const customerId = el("bidCustomer").value;
+
+  const title =
+    el("bidTitle").value.trim();
+
+  if(!customerId || !title){
+    alert("Select customer and enter title");
+    return;
+  }
+
+  const items = [];
+
+  document.querySelectorAll(".bidRow")
+    .forEach(row=>{
+
+      items.push({
+        desc:
+          row.querySelector(".bidDesc").value.trim(),
+
+        qty:
+          Number(
+            row.querySelector(".bidQty").value || 0
+          ),
+
+        price:
+          Number(
+            row.querySelector(".bidPrice").value || 0
+          )
+      });
+
+    });
+
+  const total =
+    items.reduce((s,i)=>
+      s + (i.qty * i.price),0);
+
+  await addDoc(collection(db,"bids"),{
+
+    customerId,
+
+    title,
+
+    notes:
+      el("bidNotes").value.trim(),
+
+    items,
+
+    total,
+
+    status:"Pending",
+
+    createdAt:new Date().toISOString()
+  });
+
+  alert("Bid saved");
+
+  el("bidTitle").value = "";
+  el("bidNotes").value = "";
+  el("bidItems").innerHTML = "";
+
+  addBidItemRow();
+};
 window.renderAll = renderAll;
 
 function renderAll(){
@@ -1818,6 +1995,54 @@ function renderAll(){
     .map(recurringCardHtml)
     .join("") || "<p class='small'>No recurring jobs yet.</p>";
 
+  el("bidsList").innerHTML =
+  bids.length
+    ?
+    bids
+      .slice()
+      .sort((a,b)=>
+        (b.createdAt || "")
+          .localeCompare(a.createdAt || "")
+      )
+      .map(b=>`
+        <div class="box">
+
+          <h3>${safe(b.title)}</h3>
+
+          <div>
+            ${safe(getCustomerName(b.customerId))}
+          </div>
+
+          <span class="badge badgeBlue">
+            ${safe(b.status || "Pending")}
+          </span>
+
+          <div class="moneyLine">
+            <span>Total</span>
+            <b>${money(b.total)}</b>
+          </div>
+
+          ${
+            (b.items || [])
+              .map(i=>`
+                <div class="moneyLine">
+                  <span>
+                    ${safe(i.desc)}
+                    x${i.qty}
+                  </span>
+
+                  <b>
+                    ${money(i.qty * i.price)}
+                  </b>
+                </div>
+              `).join("")
+          }
+
+        </div>
+      `).join("")
+    :
+    "<p class='small'>No bids saved yet.</p>";
+  
   el("expenseList").innerHTML = expenses
     .slice()
     .sort((a,b)=>(b.date || "").localeCompare(a.date || ""))
