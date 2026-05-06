@@ -727,7 +727,8 @@ window.saveJob = async function(){
     time: el("jobTime").value || "",
     amount: Number(el("jobAmount").value || 0),
     paid: Number(el("jobPaid").value || 0),
-    notes: el("jobNotes").value.trim()
+    notes: el("jobNotes").value.trim(),
+status: "Scheduled"
   };
 
   if(!data.customerId || !data.title){
@@ -742,8 +743,9 @@ window.saveJob = async function(){
       date:data.date,
       time:data.time,
       amount:data.amount,
-      notes:data.notes
-    });
+      notes:data.notes,
+status: jobs.find(x => x.id === editingJobId)?.status || "Scheduled"
+});
   }else{
     data.createdAt = new Date().toISOString();
     const jobRef = await addDoc(collection(db,"jobs"),data);
@@ -867,6 +869,18 @@ window.deletePayment = async function(id){
 window.markPaid = async function(id){
   const j = jobs.find(x => x.id === id);
   if(!j) return;
+  window.setJobStatus = async function(id,status){
+  try{
+    await updateDoc(doc(db,"jobs",id),{status});
+    renderAll();
+
+    if(activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")){
+      setTimeout(()=>viewCustomer(activeCustomerDetailId),400);
+    }
+  }catch(error){
+    alert("Status update failed: " + error.message);
+  }
+};
 
   const balance = jobBalance(j);
 
@@ -1195,6 +1209,7 @@ function jobCardHtml(j){
       <h3>${safe(j.title)}</h3>
       <div class="small">${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</div>
       ${jobBadge(j)}
+            <span class="badge badgeBlue">${safe(j.status || "Scheduled")}</span>
       ${isPastDue(j.date) && balance > 0 ? `<span class="badge badgeRed">Overdue</span>` : ""}
       <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
       <div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>
@@ -1206,14 +1221,16 @@ function jobCardHtml(j){
         ${list.length ? list.map(paymentLineHtml).join("") : "<p class='small'>No payment records yet.</p>"}
       </details>
 
-      <div class="row">
-        <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
+            <div class="row">
+        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
+        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
+        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
         <button onclick="markPaid('${j.id}')">Mark Paid</button>
+        <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
         <button class="gold" onclick="copyReminder('${j.id}')">Reminder</button>
         <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
         <button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button>
       </div>
-    </div>
   `;
 }
 
