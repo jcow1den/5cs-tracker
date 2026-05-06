@@ -1802,7 +1802,6 @@ function renderAll(){
   expenses.forEach(e=>{
     const key = e.category || "Other";
     expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
-  
 });
 
   if(el("workflowView") && !el("workflowView").classList.contains("hidden")){
