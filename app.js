@@ -48,6 +48,7 @@ let editingCustomerId = null;
 let editingJobId = null;
 let editingRecurringId = null;
 let editingExpenseId = null;
+let activeCustomerDetailId = null;
 
 const appRoot = document.getElementById("app");
 const bottomNav = document.getElementById("bottomNav");
@@ -973,7 +974,30 @@ window.resetExpenseForm = function(){
 };
 
 window.deleteItem = async function(collectionName,id){
-  if(confirm("Delete this item?")) await deleteDoc(doc(db,collectionName,id));
+  if(!confirm("Delete this item?")) return;
+
+  try{
+    if(collectionName === "jobs"){
+      const attachedPayments = payments.filter(p => p.jobId === id);
+
+      for(const p of attachedPayments){
+        await deleteDoc(doc(db,"payments",p.id));
+      }
+    }
+
+    await deleteDoc(doc(db,collectionName,id));
+
+    setTimeout(()=>{
+      renderAll();
+
+      if(activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")){
+        viewCustomer(activeCustomerDetailId);
+      }
+    },700);
+
+  }catch(error){
+    alert("Delete failed: " + error.message);
+  }
 };
 
 window.copyReminder = function(jobId){
@@ -1020,8 +1044,8 @@ Thank you for your business.
 };
 
 window.viewCustomer = function(id){
+  activeCustomerDetailId = id;
   const c = getCustomer(id);
-  if(!c) return;
 
   const phone = cleanPhone(c.phone);
   const totals = customerTotals(id);
