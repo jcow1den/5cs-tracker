@@ -1201,7 +1201,7 @@ function renderAll(){
 
   const expGrp={};fExps.forEach(e=>{const k=e.category||"Other";expGrp[k]=(expGrp[k]||0)+Number(e.amount||0);});
   el("expenseBreakdown").innerHTML=Object.entries(expGrp).sort((a,b)=>b[1]-a[1]).map(([cat,t])=>`<div class="moneyLine"><span>${safe(cat)}</span><b>${money(t)}</b></div>`).join("")||"<p class='small'>No expenses yet.</p>";
-  el("topCustomers").innerHTML=customers.map(c=>({customer:c,total:customerTotals(c.id)})).sort((a,b)=>b.total.paid-a.total.paid).slice(0,5).map(x=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(x.customer.name,"sm")}<div style="flex:1"><h3 style="margin:0">${safe(x.customer.name)}</h3><div class="small">Paid: ${money(x.total.paid)} &bull; Owed: ${money(x.total.owed)}</div></div><button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")||"<p class='small'>No customer payments yet.</p>";
+  el("topCustomers").innerHTML=customers.map(c=>({customer:c,total:customerTotals(c.id)})).filter(x=>x.total.paid>0).sort((a,b)=>b.total.paid-a.total.paid).slice(0,5).map(x=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(x.customer.name,"sm")}<div style="flex:1"><h3 style="margin:0">${safe(x.customer.name)}</h3><div class="small">Paid: ${money(x.total.paid)} &bull; Owed: ${money(x.total.owed)}</div></div><button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")||"<p class='small'>No payments collected yet.</p>";
 
   if(!el("workflowView").classList.contains("hidden"))renderWorkflowBoard();
 
