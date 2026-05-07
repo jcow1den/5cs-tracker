@@ -626,7 +626,7 @@ function renderPriceList(){
       html+=`<div style="padding:8px 0;border-bottom:0.5px solid var(--border)">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
           <input type="checkbox" id="plCheck_${svc.id}" style="width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#087443" onchange="togglePlSvc('${svc.id}')">
-          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small">${ph}</div></div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small" id="plHint_${svc.id}">${ph}</div></div>
         </label>
         <div id="plSize_${svc.id}" style="display:none;padding:8px 0 0 30px">
           ${svc.hasSizes?`<select id="plSel_${svc.id}" style="margin:0">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:""}
@@ -638,7 +638,20 @@ function renderPriceList(){
   plFirstVisit=false;const fcb=el("plFirstCheck");if(fcb)fcb.checked=false;
 }
 window.togglePlSvc=function(id){const c=el(`plCheck_${id}`)?.checked;const s=el(`plSize_${id}`);if(s)s.style.display=c?"block":"none";};
-window.togglePlFirst=function(){plFirstVisit=el("plFirstCheck")?.checked||false;};
+window.togglePlFirst=function(){
+  plFirstVisit=el("plFirstCheck")?.checked||false;
+  PRICE_LIST.forEach(svc=>{
+    const hint=el(`plHint_${svc.id}`);if(!hint)return;
+    if(svc.hasSizes){
+      const sel=el(`plSel_${svc.id}`);const szKey=sel?.value||"sm";
+      const base=svc.prices[szKey];
+      hint.textContent=money(plFirstVisit?Math.round(base*1.6):base);
+    }else{
+      const p=plFirstVisit?Math.round(svc.flat*1.6):svc.flat;
+      hint.textContent=money(p)+(svc.unit?"/"+svc.unit:"");
+    }
+  });
+};
 window.addPriceListToBid=function(){
   const selected=PRICE_LIST.filter(svc=>el(`plCheck_${svc.id}`)?.checked);
   if(!selected.length){alert("Select at least one service");return;}
