@@ -1671,36 +1671,58 @@ function renderWorkflowBoard(){
       jobBalance(j) <= 0
     );
 
-  function renderWorkflowBoard(){
+  window.renderWorkflowBoard = renderWorkflowBoard;
 
-  const scheduled =
-    jobs.filter(j =>
-      (j.status || "Scheduled") === "Scheduled"
-    );
+function workflowMiniCard(j){
+  return `
+    <div class="jobCard draggableJob" draggable="true" data-job-id="${j.id}">
+      <h3>${safe(j.title)}</h3>
+      <div class="small">
+        ${safe(getCustomerName(j.customerId))}
+        |
+        ${dateLabel(j.date)}
+      </div>
 
-  const inProgress =
-    jobs.filter(j =>
-      (j.status || "Scheduled") === "In Progress"
-    );
+      ${paymentBadge(j)}
+      ${workflowBadge(j)}
 
-  const waitingPayment =
-    jobs.filter(j =>
-      (j.status || "Scheduled") === "Complete"
-      &&
-      jobBalance(j) > 0
-    );
+      <div class="moneyLine">
+        <span>Balance</span>
+        <b>${money(jobBalance(j))}</b>
+      </div>
 
-  const completedPaid =
-    jobs.filter(j =>
-      (j.status || "Scheduled") === "Complete"
-      &&
-      jobBalance(j) <= 0
-    );
+      <div class="row">
+        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
+        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
+        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
+      </div>
+    </div>
+  `;
+}
 
-  el("workflowScheduled").classList.add("workflowColumn");
-  el("workflowInProgress").classList.add("workflowColumn");
-  el("workflowWaitingPayment").classList.add("workflowColumn");
-  el("workflowCompletedPaid").classList.add("workflowColumn");
+function renderWorkflowBoard(){
+  const scheduled = jobs.filter(j => (j.status || "Scheduled") === "Scheduled");
+  const inProgress = jobs.filter(j => (j.status || "Scheduled") === "In Progress");
+
+  const waitingPayment = jobs.filter(j =>
+    (j.status || "Scheduled") === "Complete" &&
+    jobBalance(j) > 0
+  );
+
+  const completedPaid = jobs.filter(j =>
+    (j.status || "Scheduled") === "Complete" &&
+    jobBalance(j) <= 0
+  );
+
+  const cols = [
+    el("workflowScheduled"),
+    el("workflowInProgress"),
+    el("workflowWaitingPayment"),
+    el("workflowCompletedPaid")
+  ];
+
+  cols.forEach(c => c.classList.add("workflowColumn"));
 
   el("workflowScheduled").dataset.workflowStatus = "Scheduled";
   el("workflowInProgress").dataset.workflowStatus = "In Progress";
@@ -1708,27 +1730,57 @@ function renderWorkflowBoard(){
   el("workflowCompletedPaid").dataset.workflowStatus = "Complete";
 
   el("workflowScheduled").innerHTML =
-    scheduled.length
-      ? scheduled.map(workflowMiniCard).join("")
-      : "<p class='small'>No scheduled jobs.</p>";
+    scheduled.length ? scheduled.map(workflowMiniCard).join("") : "<p class='small'>No scheduled jobs.</p>";
 
   el("workflowInProgress").innerHTML =
-    inProgress.length
-      ? inProgress.map(workflowMiniCard).join("")
-      : "<p class='small'>No jobs in progress.</p>";
+    inProgress.length ? inProgress.map(workflowMiniCard).join("") : "<p class='small'>No jobs in progress.</p>";
 
   el("workflowWaitingPayment").innerHTML =
-    waitingPayment.length
-      ? waitingPayment.map(workflowMiniCard).join("")
-      : "<p class='small'>No completed jobs waiting on payment.</p>";
+    waitingPayment.length ? waitingPayment.map(workflowMiniCard).join("") : "<p class='small'>No completed jobs waiting on payment.</p>";
 
   el("workflowCompletedPaid").innerHTML =
-    completedPaid.length
-      ? completedPaid.map(workflowMiniCard).join("")
-      : "<p class='small'>No completed paid jobs.</p>";
+    completedPaid.length ? completedPaid.map(workflowMiniCard).join("") : "<p class='small'>No completed paid jobs.</p>";
 
   setupWorkflowDragAndDrop();
 }
+
+function setupWorkflowDragAndDrop(){
+  document.querySelectorAll(".draggableJob").forEach(card=>{
+    card.addEventListener("dragstart",e=>{
+      e.dataTransfer.setData("text/plain",card.dataset.jobId);
+    });
+  });
+
+  document.querySelectorAll(".workflowColumn").forEach(column=>{
+    column.addEventListener("dragover",e=>{
+      e.preventDefault();
+      column.classList.add("dragOver");
+    });
+
+    column.addEventListener("dragleave",()=>{
+      column.classList.remove("dragOver");
+    });
+
+    column.addEventListener("drop",async e=>{
+      e.preventDefault();
+      column.classList.remove("dragOver");
+
+      const jobId = e.dataTransfer.getData("text/plain");
+      const status = column.dataset.workflowStatus;
+
+      if(!jobId || !status) return;
+
+      try{
+        await updateDoc(doc(db,"jobs",jobId),{status});
+        renderAll();
+        renderWorkflowBoard();
+      }catch(error){
+        alert("Workflow update failed: " + error.message);
+      }
+    });
+  });
+}
+
 window.addBidItemRow = addBidItemRow;
 
 function addBidItemRow(desc="",qty=1,price=0){
@@ -1951,13 +2003,6 @@ function renderAll(){
   if(el("workflowView") && !el("workflowView").classList.contains("hidden")){
   renderWorkflowBoard();
 }
-
-  function setupWorkflowDragAndDrop(){
-  document.querySelectorAll(".draggableJob").forEach(card=>{
-    card.addEventListener("dragstart",e=>{
-      e.dataTransfer.setData("text/plain",card.dataset.jobId);
-    });
-  });
 
   document.querySelectorAll(".workflowColumn").forEach(column=>{
     column.addEventListener("dragover",e=>{
