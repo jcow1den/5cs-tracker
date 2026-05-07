@@ -33,7 +33,7 @@ const fabMenu=document.getElementById("fabMenu");
 const money=n=>Number(n||0).toLocaleString(undefined,{style:"currency",currency:"USD"});
 const today=()=>new Date().toISOString().slice(0,10);
 const el=id=>document.getElementById(id);
-function safe(v){return String(v||"").replace(/[&<>"']/g,m=({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m]);}
+function safe(v){const _m={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"};return String(v||"").replace(/[&<>"']/g,c=>_m[c]);}
 function cleanPhone(p){return String(p||"").replace(/\D/g,"");}
 function dateLabel(v){if(!v)return"";const d=new Date(v+"T00:00:00");return isNaN(d)?v:d.toLocaleDateString();}
 function timeLabel(v){if(!v)return"";const[h,m]=v.split(":");let hr=Number(h);const ap=hr>=12?"PM":"AM";hr=hr%12||12;return`${hr}:${m||"00"} ${ap}`;}
