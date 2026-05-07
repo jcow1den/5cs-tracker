@@ -23,7 +23,41 @@ const auth = getAuth(app);
 let customers=[],jobs=[],recurring=[],expenses=[],payments=[],bids=[],partners=[];
 let editingCustomerId=null,editingJobId=null,editingRecurringId=null;
 let editingExpenseId=null,editingBidId=null,editingPartnerId=null;
-let activeCustomerDetailId=null,plFirstVisit=false;
+let activeCustomerDetailId=null,plFirstVisit=false,_referralMatchId=null,_referralMatchName=null;
+
+window.checkReferralMatch=function(){
+  const text=el("customerReferredBy")?.value.trim()||"";
+  const sugg=el("referralSuggestion");
+  if(!sugg)return;
+  _referralMatchId=null;_referralMatchName=null;
+  if(text.length<2){sugg.style.display="none";return;}
+  const tl=text.toLowerCase();
+  const match=customers.find(c=>{
+    if(!c.name)return false;
+    if(c.id===editingCustomerId)return false;
+    const nl=(c.name||"").toLowerCase();
+    return nl===tl||nl.includes(tl)||tl.includes(nl);
+  });
+  if(match){
+    _referralMatchId=match.id;_referralMatchName=match.name;
+    el("referralSuggestionText").innerHTML=`Did you mean <b>${safe(match.name)}</b> from your customer list?`;
+    sugg.style.display="block";
+  }else{sugg.style.display="none";}
+};
+
+window.confirmReferralMatch=function(){
+  if(!_referralMatchId)return;
+  el("customerReferredBy").value=_referralMatchName;
+  el("referralSuggestion").style.display="none";
+  el("customerReferredBy").dataset.linkedId=_referralMatchId;
+  showToast("Referral linked to "+_referralMatchName);
+};
+
+window.dismissReferralMatch=function(){
+  el("referralSuggestion").style.display="none";
+  el("customerReferredBy").dataset.linkedId="";
+  _referralMatchId=null;_referralMatchName=null;
+};
 
 const appRoot=document.getElementById("app");
 const bottomNav=document.getElementById("bottomNav");
@@ -215,7 +249,14 @@ appRoot.innerHTML=`
       <input id="customerServiceFrequency" placeholder="Service frequency">
       <div class="formSection">Notes</div>
       <textarea id="customerNotes" placeholder="General notes"></textarea>
-      <input id="customerReferredBy" placeholder="Referred by (optional)">
+      <input id="customerReferredBy" placeholder="Referred by (optional)" oninput="checkReferralMatch()">
+      <div id="referralSuggestion" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;margin-top:-8px">
+        <div id="referralSuggestionText" style="font-size:13px;color:#166534"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="referralYesBtn" style="width:auto;padding:6px 14px;font-size:13px" onclick="confirmReferralMatch()">Yes, link them</button>
+          <button class="secondary" style="width:auto;padding:6px 14px;font-size:13px" onclick="dismissReferralMatch()">No, different person</button>
+        </div>
+      </div>
       <button onclick="saveCustomer()" style="margin-top:12px">Save Customer</button>
       <button class="secondary" onclick="resetCustomerForm()">Clear</button>
     </div>
@@ -572,7 +613,7 @@ function refreshDropdowns(){
 }
 
 window.saveCustomer=async function(){
-  const data={name:el("customerName").value.trim(),email:el("customerEmail").value.trim(),phone:el("customerPhone").value.trim(),address:el("customerAddress").value.trim(),gateCode:el("customerGateCode").value.trim(),preferredContact:el("customerPreferredContact").value.trim(),serviceFrequency:el("customerServiceFrequency").value.trim(),propertyNotes:el("customerPropertyNotes").value.trim(),notes:el("customerNotes").value.trim(),referredBy:el("customerReferredBy").value.trim()};
+  const data={name:el("customerName").value.trim(),email:el("customerEmail").value.trim(),phone:el("customerPhone").value.trim(),address:el("customerAddress").value.trim(),gateCode:el("customerGateCode").value.trim(),preferredContact:el("customerPreferredContact").value.trim(),serviceFrequency:el("customerServiceFrequency").value.trim(),propertyNotes:el("customerPropertyNotes").value.trim(),notes:el("customerNotes").value.trim(),referredBy:el("customerReferredBy").value.trim(),referredById:el("customerReferredBy").dataset.linkedId||""};
   if(!data.name){alert("Enter customer name");return;}
   if(editingCustomerId){await updateDoc(doc(db,"customers",editingCustomerId),data);}
   else{data.createdAt=new Date().toISOString();await addDoc(collection(db,"customers"),data);}
@@ -583,12 +624,18 @@ window.editCustomer=function(id){
   el("customerName").value=c.name||"";el("customerEmail").value=c.email||"";el("customerPhone").value=c.phone||"";
   el("customerAddress").value=c.address||"";el("customerGateCode").value=c.gateCode||"";
   el("customerPreferredContact").value=c.preferredContact||"";el("customerServiceFrequency").value=c.serviceFrequency||"";
-  el("customerPropertyNotes").value=c.propertyNotes||"";el("customerNotes").value=c.notes||"";el("customerReferredBy").value=c.referredBy||"";
+  el("customerPropertyNotes").value=c.propertyNotes||"";el("customerNotes").value=c.notes||"";
+  el("customerReferredBy").value=c.referredBy||"";
+  el("customerReferredBy").dataset.linkedId=c.referredById||"";
+  el("referralSuggestion").style.display="none";
   showView("customersView");el("customerFormBox").classList.remove("hidden");
 };
 window.resetCustomerForm=function(){
   editingCustomerId=null;el("customerFormTitle").innerText="Add Customer";
   ["customerName","customerEmail","customerPhone","customerAddress","customerGateCode","customerPreferredContact","customerServiceFrequency","customerPropertyNotes","customerNotes","customerReferredBy"].forEach(id=>el(id).value="");
+  el("customerReferredBy").dataset.linkedId="";
+  el("referralSuggestion").style.display="none";
+  _referralMatchId=null;_referralMatchName=null;
 };
 window.deleteCustomer=async function(id){
   const custJobs=jobs.filter(j=>j.customerId===id);
@@ -1075,7 +1122,7 @@ window.viewCustomer=function(id){
         ${c.propertyNotes?`<div style="margin-top:6px"><div class="small">Property Notes</div><div>${safe(c.propertyNotes)}</div></div>`:""}
         ${c.notes?`<div style="margin-top:6px"><div class="small">General Notes</div><div>${safe(c.notes)}</div></div>`:""}
         ${!c.gateCode&&!c.preferredContact&&!c.propertyNotes&&!c.notes?`<p class="small">No property info saved.</p>`:""}
-        ${c.referredBy?`<div style="margin-top:6px"><div class="small">Referred By</div><div>${safe(c.referredBy)}</div></div>`:""}
+        ${(()=>{const refs=customers.filter(x=>x.referredById===c.id);return refs.length?`<div style="margin-top:6px"><div class="small">Referrals Made</div><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:600;color:#087443">${refs.length} customer${refs.length===1?"":"s"} referred</span></div></div>`:""})()}${c.referredBy?`<div style="margin-top:6px"><div class="small">Referred By</div><div>${safe(c.referredBy)}${c.referredById&&getCustomer(c.referredById)?`<button style=\"width:auto;padding:3px 10px;font-size:12px\" onclick=\"viewCustomer('${c.referredById}')\"  >View</button>`:""}</div></div>`:""}
       </div>
       <div class="row">
         ${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}
