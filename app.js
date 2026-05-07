@@ -270,9 +270,14 @@ appRoot.innerHTML=`
       <div id="priceListPanel" class="box hidden" style="background:var(--s2);padding:12px">
         <h3 style="margin-bottom:8px">Select Services</h3>
         <div id="priceListContent"></div>
-        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:0.5px solid var(--border)">
-          <div><div style="font-size:14px;font-weight:500">First Visit / Neglected Property</div><div class="small">1.6x multiplier on applicable services</div></div>
-          <div class="toggle" id="plFirstToggle" onclick="togglePlFirst()"></div>
+        <div style="margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;border:1px solid #d0cbbf">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="plFirstCheck" style="width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#087443" onchange="togglePlFirst()">
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--text)">First Visit / Neglected Property</div>
+              <div class="small">Apply 1.6x multiplier to all selected services</div>
+            </div>
+          </label>
         </div>
         <div class="row" style="margin-top:8px">
           <button class="green" onclick="addPriceListToBid()">Add to Bid</button>
@@ -630,10 +635,10 @@ function renderPriceList(){
     }
   }
   el("priceListContent").innerHTML=html;
-  plFirstVisit=false;el("plFirstToggle")?.classList.remove("on");
+  plFirstVisit=false;const fcb=el("plFirstCheck");if(fcb)fcb.checked=false;
 }
 window.togglePlSvc=function(id){const c=el(`plCheck_${id}`)?.checked;const s=el(`plSize_${id}`);if(s)s.style.display=c?"block":"none";};
-window.togglePlFirst=function(){plFirstVisit=!plFirstVisit;el("plFirstToggle")?.classList.toggle("on",plFirstVisit);};
+window.togglePlFirst=function(){plFirstVisit=el("plFirstCheck")?.checked||false;};
 window.addPriceListToBid=function(){
   const selected=PRICE_LIST.filter(svc=>el(`plCheck_${svc.id}`)?.checked);
   if(!selected.length){alert("Select at least one service");return;}
@@ -641,11 +646,11 @@ window.addPriceListToBid=function(){
     let price,desc;
     if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";price=svc.prices[szKey];const sizes=svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;}
     else{price=svc.flat;desc=svc.name;}
-    if(plFirstVisit&&svc.firstOk)price=Math.round(price*1.6);
+    if(plFirstVisit)price=Math.round(price*1.6);
     addBidItemRow(desc,1,price);
   }
   selected.forEach(svc=>{const cb=el(`plCheck_${svc.id}`);if(cb)cb.checked=false;const sd=el(`plSize_${svc.id}`);if(sd)sd.style.display="none";});
-  plFirstVisit=false;el("plFirstToggle")?.classList.remove("on");el("priceListPanel").classList.add("hidden");
+  plFirstVisit=false;const cb2=el("plFirstCheck");if(cb2)cb2.checked=false;el("priceListPanel").classList.add("hidden");
   showToast(`${selected.length} service${selected.length===1?"":"s"} added to bid`);
 };
 
