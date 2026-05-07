@@ -360,3 +360,25 @@ button.blue{background:var(--blue)}
   main{max-width:none}
   .invoice{border:0;box-shadow:none}
 }
+
+.workflowColumn{
+  min-height:90px;
+  padding:8px;
+  border:2px dashed #ddd3c4;
+  border-radius:18px;
+  background:#faf7ef;
+}
+
+.workflowColumn.dragOver{
+  border-color:#087443;
+  background:#ecfdf3;
+}
+
+.draggableJob{
+  cursor:grab;
+}
+
+.draggableJob:active{
+  cursor:grabbing;
+  opacity:.75;
+}
