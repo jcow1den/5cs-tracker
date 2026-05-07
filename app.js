@@ -192,6 +192,7 @@ appRoot.innerHTML=`
       </div>
     </div>
     <div class="box"><h2>Last 6 Months</h2><div id="revenueChart"></div></div>
+    <div class="box"><h2>Customer Tiers</h2><div id="tierBreakdown"></div></div>
     <div class="box"><h2>Expense Breakdown</h2><div id="expenseBreakdown"></div></div>
     <div class="box"><h2>Top Customers By Paid Amount</h2><div id="topCustomers"></div></div>
   </section>
@@ -214,6 +215,7 @@ appRoot.innerHTML=`
       <input id="customerServiceFrequency" placeholder="Service frequency">
       <div class="formSection">Notes</div>
       <textarea id="customerNotes" placeholder="General notes"></textarea>
+      <input id="customerReferredBy" placeholder="Referred by (optional)">
       <button onclick="saveCustomer()" style="margin-top:12px">Save Customer</button>
       <button class="secondary" onclick="resetCustomerForm()">Clear</button>
     </div>
@@ -537,6 +539,29 @@ function paymentStatus(j){const b=jobBalance(j);if(b===0)return"Paid";if(jobPaid
 function paymentBadge(j){const s=paymentStatus(j);if(s==="Paid")return`<span class="badge badgeGreen">Paid</span>`;if(s==="Partial")return`<span class="badge badgeGold">Partial</span>`;return`<span class="badge badgeRed">Unpaid</span>`;}
 function workflowBadge(j){const s=j.status||"Scheduled";if(s==="Complete")return`<span class="badge badgeGreen">Complete</span>`;if(s==="In Progress")return`<span class="badge badgeGold">In Progress</span>`;return`<span class="badge badgeBlue">${safe(s)}</span>`;}
 function customerTotals(cid){const l=jobs.filter(j=>j.customerId===cid);return{charged:l.reduce((s,j)=>s+Number(j.amount||0),0),paid:l.reduce((s,j)=>s+jobPaidAmount(j),0),owed:l.reduce((s,j)=>s+jobBalance(j),0)};}
+
+function customerTier(paid){
+  if(paid>=3000)return{name:"Platinum",color:"#7c3aed",bg:"rgba(124,58,237,0.1)",border:"rgba(124,58,237,0.3)",next:null,   nextAt:null,prevAt:3000};
+  if(paid>=1500)return{name:"Gold",    color:"#b7791f",bg:"rgba(183,121,31,0.1)",border:"rgba(183,121,31,0.3)",next:"Platinum",nextAt:3000,prevAt:1500};
+  if(paid>=500) return{name:"Silver",  color:"#64748b",bg:"rgba(100,116,139,0.1)",border:"rgba(100,116,139,0.3)",next:"Gold",  nextAt:1500,prevAt:500};
+  return        {name:"Bronze",        color:"#9a6340",bg:"rgba(154,99,64,0.1)",  border:"rgba(154,99,64,0.3)",  next:"Silver",nextAt:500, prevAt:0};
+}
+
+function tierBadgeHtml(paid){
+  if(paid<=0)return"";
+  const t=customerTier(paid);
+  const icons={Platinum:"\u2726",Gold:"\u2605",Silver:"\u25c8",Bronze:"\u25c6"};
+  return`<span style="background:${t.bg};color:${t.color};border:1px solid ${t.border};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600;white-space:nowrap">${icons[t.name]} ${t.name}</span>`;
+}
+
+function tierProgressHtml(paid){
+  if(paid<=0)return"";
+  const t=customerTier(paid);
+  if(!t.next)return`<div style="font-size:12px;color:${t.color};font-weight:600;margin-top:4px">\u2726 Top tier customer</div>`;
+  const range=t.nextAt-t.prevAt;
+  const progress=Math.min(100,Math.round((paid-t.prevAt)/range*100));
+  return`<div style="margin-top:6px"><div style="font-size:12px;color:var(--text-secondary)">${money(t.nextAt-paid)} away from ${t.next}</div><div style="background:#e8e4dc;border-radius:999px;height:6px;margin-top:4px;overflow:hidden"><div style="background:${t.color};height:6px;border-radius:999px;width:${progress}%"></div></div></div>`;
+}
 function recurringStatus(r){const diff=Math.ceil((new Date((r.nextDate||today())+"T00:00:00")-new Date(today()+"T00:00:00"))/86400000);if(diff<0)return{label:"Past Due",cls:"badgeRed"};if(diff===0)return{label:"Due Today",cls:"badgeGold"};if(diff<=7)return{label:"Upcoming",cls:"badgeBlue"};return{label:"Scheduled",cls:"badgeGreen"};}
 function partnerFollowUpStatus(p){if(!p.followUpDate)return null;const diff=Math.ceil((new Date(p.followUpDate+"T00:00:00")-new Date(today()+"T00:00:00"))/86400000);if(diff<0)return{label:"Follow up now",cls:"badgeRed"};if(diff===0)return{label:"Follow up today",cls:"badgeGold"};if(diff<=7)return{label:"Follow up soon",cls:"badgeBlue"};return{label:"Scheduled",cls:"badgeGreen"};}
 
@@ -547,7 +572,7 @@ function refreshDropdowns(){
 }
 
 window.saveCustomer=async function(){
-  const data={name:el("customerName").value.trim(),email:el("customerEmail").value.trim(),phone:el("customerPhone").value.trim(),address:el("customerAddress").value.trim(),gateCode:el("customerGateCode").value.trim(),preferredContact:el("customerPreferredContact").value.trim(),serviceFrequency:el("customerServiceFrequency").value.trim(),propertyNotes:el("customerPropertyNotes").value.trim(),notes:el("customerNotes").value.trim()};
+  const data={name:el("customerName").value.trim(),email:el("customerEmail").value.trim(),phone:el("customerPhone").value.trim(),address:el("customerAddress").value.trim(),gateCode:el("customerGateCode").value.trim(),preferredContact:el("customerPreferredContact").value.trim(),serviceFrequency:el("customerServiceFrequency").value.trim(),propertyNotes:el("customerPropertyNotes").value.trim(),notes:el("customerNotes").value.trim(),referredBy:el("customerReferredBy").value.trim()};
   if(!data.name){alert("Enter customer name");return;}
   if(editingCustomerId){await updateDoc(doc(db,"customers",editingCustomerId),data);}
   else{data.createdAt=new Date().toISOString();await addDoc(collection(db,"customers"),data);}
@@ -558,12 +583,12 @@ window.editCustomer=function(id){
   el("customerName").value=c.name||"";el("customerEmail").value=c.email||"";el("customerPhone").value=c.phone||"";
   el("customerAddress").value=c.address||"";el("customerGateCode").value=c.gateCode||"";
   el("customerPreferredContact").value=c.preferredContact||"";el("customerServiceFrequency").value=c.serviceFrequency||"";
-  el("customerPropertyNotes").value=c.propertyNotes||"";el("customerNotes").value=c.notes||"";
+  el("customerPropertyNotes").value=c.propertyNotes||"";el("customerNotes").value=c.notes||"";el("customerReferredBy").value=c.referredBy||"";
   showView("customersView");el("customerFormBox").classList.remove("hidden");
 };
 window.resetCustomerForm=function(){
   editingCustomerId=null;el("customerFormTitle").innerText="Add Customer";
-  ["customerName","customerEmail","customerPhone","customerAddress","customerGateCode","customerPreferredContact","customerServiceFrequency","customerPropertyNotes","customerNotes"].forEach(id=>el(id).value="");
+  ["customerName","customerEmail","customerPhone","customerAddress","customerGateCode","customerPreferredContact","customerServiceFrequency","customerPropertyNotes","customerNotes","customerReferredBy"].forEach(id=>el(id).value="");
 };
 window.deleteCustomer=async function(id){
   const custJobs=jobs.filter(j=>j.customerId===id);
@@ -1043,12 +1068,14 @@ window.viewCustomer=function(id){
         <div class="stat"><b>Last Service</b><h2 style="font-size:16px">${lastJob?dateLabel(lastJob.date):"None"}</h2></div>
         <div class="stat"><b>Frequency</b><h2 style="font-size:16px">${safe(c.serviceFrequency||"None")}</h2></div>
       </div>
+      ${totals.paid>0?`<div style="padding:12px 0;border-top:0.5px solid var(--border-light);margin-top:4px"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;font-weight:500">Customer Status</div>${tierBadgeHtml(totals.paid)}</div><div style="font-size:13px;color:var(--text-secondary)">${money(totals.paid)} lifetime</div></div>${tierProgressHtml(totals.paid)}</div>`:""}
       <div class="box" style="background:var(--s2)"><h3>Property Info</h3>
         ${c.gateCode?`<div style="margin-top:6px"><div class="small">Gate / Access</div><div>${safe(c.gateCode)}</div></div>`:""}
         ${c.preferredContact?`<div style="margin-top:6px"><div class="small">Preferred Contact</div><div>${safe(c.preferredContact)}</div></div>`:""}
         ${c.propertyNotes?`<div style="margin-top:6px"><div class="small">Property Notes</div><div>${safe(c.propertyNotes)}</div></div>`:""}
         ${c.notes?`<div style="margin-top:6px"><div class="small">General Notes</div><div>${safe(c.notes)}</div></div>`:""}
         ${!c.gateCode&&!c.preferredContact&&!c.propertyNotes&&!c.notes?`<p class="small">No property info saved.</p>`:""}
+        ${c.referredBy?`<div style="margin-top:6px"><div class="small">Referred By</div><div>${safe(c.referredBy)}</div></div>`:""}
       </div>
       <div class="row">
         ${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}
@@ -1199,6 +1226,19 @@ function renderAll(){
 
   renderRevenueChart();
 
+  const tierCounts={Platinum:[],Gold:[],Silver:[],Bronze:[]};
+  customers.forEach(c=>{const p=customerTotals(c.id).paid;if(p>0)tierCounts[customerTier(p).name].push({customer:c,paid:p});});
+  const tierDefs=[{name:"Platinum",color:"#7c3aed"},{name:"Gold",color:"#b7791f"},{name:"Silver",color:"#64748b"},{name:"Bronze",color:"#9a6340"}];
+  const tierEl=el("tierBreakdown");
+  if(tierEl){
+    const anyTier=tierDefs.some(t=>tierCounts[t.name].length>0);
+    tierEl.innerHTML=anyTier?tierDefs.map(t=>{
+      const list=tierCounts[t.name];if(!list.length)return"";
+      const icons={Platinum:"\u2726",Gold:"\u2605",Silver:"\u25c8",Bronze:"\u25c6"};
+      return`<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:14px;font-weight:600;color:${t.color}">${icons[t.name]} ${t.name}</span><span class="small">${list.length} customer${list.length===1?"":"s"}</span></div>${list.sort((a,b)=>b.paid-a.paid).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #f0ece4"><div style="font-size:13px">${safe(x.customer.name)}</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:600;color:${t.color}">${money(x.paid)}</span><button style="width:auto;padding:4px 10px;font-size:12px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")}</div>`;
+    }).join(""):"<p class='small'>No customers with paid status yet. Tiers unlock once payments are collected.</p>";
+  }
+
   const expGrp={};fExps.forEach(e=>{const k=e.category||"Other";expGrp[k]=(expGrp[k]||0)+Number(e.amount||0);});
   el("expenseBreakdown").innerHTML=Object.entries(expGrp).sort((a,b)=>b[1]-a[1]).map(([cat,t])=>`<div class="moneyLine"><span>${safe(cat)}</span><b>${money(t)}</b></div>`).join("")||"<p class='small'>No expenses yet.</p>";
   el("topCustomers").innerHTML=customers.map(c=>({customer:c,total:customerTotals(c.id)})).filter(x=>x.total.paid>0).sort((a,b)=>b.total.paid-a.total.paid).slice(0,5).map(x=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(x.customer.name,"sm")}<div style="flex:1"><h3 style="margin:0">${safe(x.customer.name)}</h3><div class="small">Paid: ${money(x.total.paid)} &bull; Owed: ${money(x.total.owed)}</div></div><button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")||"<p class='small'>No payments collected yet.</p>";
@@ -1223,7 +1263,7 @@ function renderAll(){
   el("recentJobs").innerHTML=jobs.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,5).map(j=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(getCustomerName(j.customerId),"sm")}<div style="flex:1"><h3 style="margin:0">${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)}</div></div>${paymentBadge(j)}</div><div class="row" style="margin-top:8px"><button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="editJob('${j.id}')">Edit</button></div></div>`).join("")||"<p class='small'>No jobs yet.</p>";
 
   const cq=el("customerSearch").value.trim().toLowerCase();
-  el("customerList").innerHTML=customers.slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))).filter(c=>{const t=`${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.gateCode||""} ${c.preferredContact||""} ${c.serviceFrequency||""} ${c.propertyNotes||""} ${c.notes||""} ${jobs.filter(j=>j.customerId===c.id).map(j=>j.title).join(" ")}`.toLowerCase();return !cq||t.includes(cq);}).map(c=>{const totals=customerTotals(c.id),phone=cleanPhone(c.phone);return`<div class="customerCard"><div class="customerHeader"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(c.name,"md")}<div><h3 style="margin:0">${safe(c.name)}</h3><div class="small">${safe(c.phone)}</div><div class="small">${safe(c.address)}</div>${c.serviceFrequency?`<div class="small">${safe(c.serviceFrequency)}</div>`:""}</div></div><span class="badge ${totals.owed>0?"badgeRed":"badgeGreen"}">${totals.owed>0?"Owes":"Paid Up"}</span></div><div class="moneyLine"><span>Paid</span><b style="color:var(--green)">${money(totals.paid)}</b></div><div class="moneyLine"><span>Owed</span><b style="color:${totals.owed>0?"var(--red-text)":"var(--text)"}">${money(totals.owed)}</b></div><div class="row"><button onclick="viewCustomer('${c.id}')">View</button><button onclick="makeInvoice('${c.id}')">Invoice</button>${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}${phone?`<a class="actionLink" href="sms:${phone}">Text</a>`:""}<button class="secondary" onclick="editCustomer('${c.id}')">Edit</button><button class="red" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`;}).join("")||"<p class='small'>No customers found.</p>";
+  el("customerList").innerHTML=customers.slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))).filter(c=>{const t=`${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.gateCode||""} ${c.preferredContact||""} ${c.serviceFrequency||""} ${c.propertyNotes||""} ${c.notes||""} ${jobs.filter(j=>j.customerId===c.id).map(j=>j.title).join(" ")}`.toLowerCase();return !cq||t.includes(cq);}).map(c=>{const totals=customerTotals(c.id),phone=cleanPhone(c.phone);return`<div class="customerCard"><div class="customerHeader"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(c.name,"md")}<div><h3 style="margin:0">${safe(c.name)}</h3><div class="small">${safe(c.phone)}</div><div class="small">${safe(c.address)}</div>${c.serviceFrequency?`<div class="small">${safe(c.serviceFrequency)}</div>`:""}</div></div><span class="badge ${totals.owed>0?"badgeRed":"badgeGreen"}">${totals.owed>0?"Owes":"Paid Up"}</span></div>${totals.paid>0?`<div style="display:flex;align-items:center;gap:8px;margin:4px 0">${tierBadgeHtml(totals.paid)}${tierProgressHtml(totals.paid)}</div>`:"" }<div class="moneyLine"><span>Paid</span><b style="color:var(--green)">${money(totals.paid)}</b></div><div class="moneyLine"><span>Owed</span><b style="color:${totals.owed>0?"var(--red-text)":"var(--text)"}">${money(totals.owed)}</b></div><div class="row"><button onclick="viewCustomer('${c.id}')">View</button><button onclick="makeInvoice('${c.id}')">Invoice</button>${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}${phone?`<a class="actionLink" href="sms:${phone}">Text</a>`:""}<button class="secondary" onclick="editCustomer('${c.id}')">Edit</button><button class="red" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`;}).join("")||"<p class='small'>No customers found.</p>";
 
   const jq=el("jobSearch").value.trim().toLowerCase(),sf=el("jobStatusFilter").value;
   el("jobList").innerHTML=jobs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).filter(j=>{const ps=paymentStatus(j).toLowerCase(),ws=String(j.status||"Scheduled").toLowerCase(),t=`${j.title||""} ${j.notes||""} ${getCustomerName(j.customerId)}`.toLowerCase();let ok=sf==="all"||ps===sf||ws===sf;if(sf==="today")ok=j.date===today();if(sf==="upcoming")ok=j.date>today()&&j.date<=addDays(today(),7);return ok&&(!jq||t.includes(jq));}).map(jobCardHtml).join("")||"<p class='small'>No jobs found.</p>";
