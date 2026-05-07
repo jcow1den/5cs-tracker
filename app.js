@@ -6,7 +6,9 @@ import {
   collection,
   onSnapshot,
   doc,
-  updateDoc
+  updateDoc,
+  addDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
   getAuth,
@@ -15,7 +17,7 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-// ── Firebase Config ────────────────────────────────────────────────────────────
+// ── Firebase ───────────────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyAY2Qm46g5CCMiAQsIO4UMM1QMYIMuZMr0",
   authDomain: "cs-tracker-23ef9.firebaseapp.com",
@@ -31,16 +33,19 @@ const db  = initializeFirestore(app, {
 });
 const auth = getAuth(app);
 
-// ── App State ──────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────
 let customers = [];
 let jobs = [];
 let payments = [];
+let expenses = [];
+let bids = [];
 let activeView = "dashboardView";
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 const el = id => document.getElementById(id);
 const money = n => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const safe = v => String(v || "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+const today = () => new Date().toISOString().slice(0, 10);
 
 function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -55,27 +60,21 @@ function getAvatarColor(name) {
   return colors[Math.abs(hash) % colors.length];
 }
 
-// ── UI Navigation Controller ──────────────────────────────────────────────────
+// ── Controller ─────────────────────────────────────────────────────────────────
 window.showView = function(viewId) {
   activeView = viewId;
-  renderAll();
-  
-  // Update Header Subtitle
   const titles = {
-    dashboardView: "Business Dashboard",
-    customersView: "Client Directory",
-    jobsView: "Active Jobs",
-    invoicesView: "Invoicing"
+    dashboardView: "Dashboard",
+    customersView: "Clients",
+    jobsView: "Job Schedule",
+    invoicesView: "Invoices",
+    settingsView: "Settings"
   };
   el("headerSub").innerText = titles[viewId] || "5Cs Tracker";
-
-  // Update Active Nav State
-  document.querySelectorAll('.bottomNav button').forEach(btn => btn.classList.remove('active'));
-  // Trigger Lucide icons
-  if (window.lucide) lucide.createIcons();
+  renderAll();
 };
 
-// ── Auth Logic ─────────────────────────────────────────────────────────────────
+// ── Auth ───────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
   if (user) {
     el("bottomNav").classList.remove("hidden");
@@ -84,6 +83,7 @@ onAuthStateChanged(auth, user => {
       <button onclick="showView('customersView')" class="${activeView === 'customersView' ? 'active' : ''}"><i data-lucide="users"></i><span>Clients</span></button>
       <button onclick="showView('jobsView')"><i data-lucide="briefcase"></i><span>Jobs</span></button>
       <button onclick="showView('invoicesView')"><i data-lucide="file-text"></i><span>Invoices</span></button>
+      <button onclick="showView('settingsView')"><i data-lucide="more-horizontal"></i><span>More</span></button>
     `;
     startListeners();
   } else {
@@ -97,19 +97,79 @@ function startListeners() {
   onSnapshot(collection(db, "payments"), s => { payments = s.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); });
 }
 
-// ── Rendering Engine ───────────────────────────────────────────────────────────
+// ── Rendering ──────────────────────────────────────────────────────────────────
 function renderAll() {
-  const app = el("app");
-  if (activeView === "dashboardView") app.innerHTML = renderDashboard();
-  if (activeView === "customersView") app.innerHTML = renderCustomers();
+  const container = el("app");
+  if (activeView === "dashboardView") container.innerHTML = renderDashboard();
+  if (activeView === "customersView") container.innerHTML = renderCustomers();
+  if (activeView === "jobsView") container.innerHTML = renderJobs();
+  if (activeView === "invoicesView") container.innerHTML = renderInvoices();
+  if (activeView === "settingsView") container.innerHTML = renderSettings();
   
   if (window.lucide) lucide.createIcons();
+}
+
+function renderDashboard() {
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  return `
+    <div class="grid">
+      <div class="stat"><b>Total Paid</b><h2>${money(totalPaid)}</h2></div>
+      <div class="stat" style="border-left-color: var(--warning)"><b>Open Jobs</b><h2>${jobs.length}</h2></div>
+    </div>
+    <div class="box"><h3>Today's Focus</h3><p class="small">Check the Jobs tab for your schedule.</p></div>
+  `;
+}
+
+function renderCustomers() {
+  return `
+    <div class="box"><input placeholder="Search clients..." oninput="/* filter */"></div>
+    ${customers.map(c => `
+      <div class="box" style="padding:0; overflow:hidden">
+        <div style="padding:16px; display:flex; align-items:center; gap:16px">
+          <div class="avatar" style="background:${getAvatarColor(c.name)}">${getInitials(c.name)}</div>
+          <div><h3>${safe(c.name)}</h3><div class="small">${safe(c.address)}</div></div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderJobs() {
+  return `
+    <div class="box"><h2>Schedule</h2><button class="secondary" style="width:100%">+ Add New Job</button></div>
+    ${jobs.map(j => `
+      <div class="box">
+        <div style="display:flex; justify-content:space-between">
+          <h3>${safe(j.title)}</h3>
+          <span class="badge ${j.status === 'Complete' ? 'badgeGreen' : 'badgeGold'}">${j.status || 'Scheduled'}</span>
+        </div>
+        <div class="small" style="margin-top:8px">${safe(j.date)}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderInvoices() {
+  return `
+    <div class="box"><h2>Invoice Center</h2><p class="small">Create and manage your billing.</p></div>
+    <div class="box"><h3>Pending Invoices</h3><div class="small">Select a customer below to bill.</div></div>
+  `;
+}
+
+function renderSettings() {
+  return `
+    <div class="box">
+      <h2>Settings</h2>
+      <button class="secondary" style="width:100%; margin-top:15px;" onclick="location.reload()">Refresh App</button>
+      <button class="red" style="width:100%; margin-top:10px;" onclick="signOut(auth)">Logout</button>
+    </div>
+  `;
 }
 
 function renderLogin() {
   el("app").innerHTML = `
     <div class="box">
-      <h2>Welcome Back</h2>
+      <h2>5Cs Tracker</h2>
       <input id="email" placeholder="Email">
       <input id="pass" type="password" placeholder="Password">
       <button onclick="login()" style="width:100%">Login</button>
@@ -122,42 +182,4 @@ window.login = async () => {
   catch (e) { alert(e.message); }
 };
 
-function renderDashboard() {
-  const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-  return `
-    <div class="grid">
-      <div class="stat"><b>Collected</b><h2>${money(totalPaid)}</h2></div>
-      <div class="stat" style="border-left-color: var(--error)"><b>Outstanding</b><h2>$0.00</h2></div>
-    </div>
-    <div class="box">
-      <h3>Recent Notifications</h3>
-      <p class="small">Everything is up to date.</p>
-    </div>
-  `;
-}
-
-function renderCustomers() {
-  return `
-    <div class="box">
-      <input id="custSearch" placeholder="Search clients..." oninput="/* filter logic here */">
-    </div>
-    <div id="customerList">
-      ${customers.map(c => `
-        <div class="box" style="padding:0; overflow:hidden">
-          <div style="padding:16px; display:flex; align-items:center; gap:16px">
-            <div class="avatar" style="background:${getAvatarColor(c.name)}">${getInitials(c.name)}</div>
-            <div style="flex:1">
-              <h3 style="margin:0">${safe(c.name)}</h3>
-              <div class="small">${safe(c.address || 'No address')}</div>
-            </div>
-            <i data-lucide="chevron-right" style="color:var(--text-muted)"></i>
-          </div>
-          <div class="card-footer">
-             <button class="secondary">View Profile</button>
-             <button class="secondary">Invoice</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
+window.logout = () => signOut(auth);
