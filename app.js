@@ -213,7 +213,6 @@ appRoot.innerHTML = `
       <button onclick="openPaidJobs()">Paid Jobs</button>
       <button onclick="openPayments()">Payments</button>
       <button onclick="openProfitBreakdown()">Reports</button>
-      <button onclick="showView('customersView')">Customers</button>
     </div>
   </div>
 
@@ -1621,7 +1620,7 @@ window.renderWorkflowBoard = renderWorkflowBoard;
 
 function workflowMiniCard(j){
   return `
-    <div class="jobCard">
+    <div class="jobCard draggableJob" draggable="true" data-job-id="${j.id}">
       <h3>${safe(j.title)}</h3>
       <div class="small">
         ${safe(getCustomerName(j.customerId))}
@@ -1639,26 +1638,13 @@ function workflowMiniCard(j){
 
       <div class="row">
         <button onclick="viewCustomer('${j.customerId}')">Customer</button>
-
-        <button class="blue"
-          onclick="setJobStatus('${j.id}','Scheduled')">
-          Scheduled
-        </button>
-
-        <button class="gold"
-          onclick="setJobStatus('${j.id}','In Progress')">
-          In Progress
-        </button>
-
-        <button class="green"
-          onclick="setJobStatus('${j.id}','Complete')">
-          Complete
-        </button>
+        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
+        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
+        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
       </div>
     </div>
   `;
 }
-
 function renderWorkflowBoard(){
 
   const scheduled =
@@ -1685,6 +1671,42 @@ function renderWorkflowBoard(){
       jobBalance(j) <= 0
     );
 
+  function renderWorkflowBoard(){
+
+  const scheduled =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Scheduled"
+    );
+
+  const inProgress =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "In Progress"
+    );
+
+  const waitingPayment =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Complete"
+      &&
+      jobBalance(j) > 0
+    );
+
+  const completedPaid =
+    jobs.filter(j =>
+      (j.status || "Scheduled") === "Complete"
+      &&
+      jobBalance(j) <= 0
+    );
+
+  el("workflowScheduled").classList.add("workflowColumn");
+  el("workflowInProgress").classList.add("workflowColumn");
+  el("workflowWaitingPayment").classList.add("workflowColumn");
+  el("workflowCompletedPaid").classList.add("workflowColumn");
+
+  el("workflowScheduled").dataset.workflowStatus = "Scheduled";
+  el("workflowInProgress").dataset.workflowStatus = "In Progress";
+  el("workflowWaitingPayment").dataset.workflowStatus = "Complete";
+  el("workflowCompletedPaid").dataset.workflowStatus = "Complete";
+
   el("workflowScheduled").innerHTML =
     scheduled.length
       ? scheduled.map(workflowMiniCard).join("")
@@ -1704,6 +1726,8 @@ function renderWorkflowBoard(){
     completedPaid.length
       ? completedPaid.map(workflowMiniCard).join("")
       : "<p class='small'>No completed paid jobs.</p>";
+
+  setupWorkflowDragAndDrop();
 }
 window.addBidItemRow = addBidItemRow;
 
@@ -1926,6 +1950,47 @@ function renderAll(){
 
   if(el("workflowView") && !el("workflowView").classList.contains("hidden")){
   renderWorkflowBoard();
+}
+
+  function setupWorkflowDragAndDrop(){
+  document.querySelectorAll(".draggableJob").forEach(card=>{
+    card.addEventListener("dragstart",e=>{
+      e.dataTransfer.setData("text/plain",card.dataset.jobId);
+    });
+  });
+
+  document.querySelectorAll(".workflowColumn").forEach(column=>{
+    column.addEventListener("dragover",e=>{
+      e.preventDefault();
+      column.classList.add("dragOver");
+    });
+
+    column.addEventListener("dragleave",()=>{
+      column.classList.remove("dragOver");
+    });
+
+    column.addEventListener("drop",async e=>{
+      e.preventDefault();
+      column.classList.remove("dragOver");
+
+      const jobId = e.dataTransfer.getData("text/plain");
+      const status = column.dataset.workflowStatus;
+
+      if(!jobId || !status) return;
+
+      try{
+        await updateDoc(doc(db,"jobs",jobId),{
+          status:status
+        });
+
+        renderAll();
+        renderWorkflowBoard();
+
+      }catch(error){
+        alert("Workflow update failed: " + error.message);
+      }
+    });
+  });
 }
 
   el("expenseBreakdown").innerHTML = Object.entries(expenseGroups)
