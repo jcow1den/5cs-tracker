@@ -1,68 +1,93 @@
 :root {
+  /* Color Palette - Professional & High Contrast */
   --primary: #175cd3;
   --primary-light: #eff4ff;
   --success: #079455;
+  --success-bg: #ecfdf3;
   --error: #d92d20;
+  --error-bg: #fef3f2;
+  --warning: #f79009;
+  --warning-bg: #fffaeb;
+  
+  /* Grays & Neutrals */
   --bg: #f9fafb;
   --card: #ffffff;
   --text-main: #101828;
   --text-muted: #667085;
   --border: #eaecf0;
+  
+  /* UI Constants */
   --radius: 16px;
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(16, 24, 40, 0.1);
+  --nav-height: 75px;
+}
+
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent; 
 }
 
 body {
   background-color: var(--bg);
   color: var(--text-main);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  padding-bottom: 90px;
+  margin: 0;
+  padding-bottom: calc(var(--nav-height) + 20px); /* Ensures content isn't hidden by nav */
+  line-height: 1.5;
 }
 
-/* Glassmorphism Navigation */
-.bottomNav {
-  position: fixed;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 5px;
-  z-index: 1000;
-}
+/* Headers & Typography */
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+.small { font-size: 0.85rem; color: var(--text-muted); }
 
-.bottomNav button {
-  background: none;
-  border: none;
-  color: var(--text-muted);
+/* Layout Components */
+.headerWrap {
+  padding: 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  gap: 4px;
+  gap: 12px;
 }
 
-.bottomNav button.active { color: var(--primary); }
-.bottomNav i { width: 22px; height: 22px; }
+.logoHero img {
+  max-width: 120px;
+  display: block;
+  margin: 0 auto;
+}
 
-/* Modern Cards */
+/* Dashboard Stats Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+
+.stat {
+  background: var(--card);
+  padding: 16px;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--primary);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.stat b { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; }
+.stat h2 { font-size: 1.4rem; margin-top: 4px; }
+
+/* The Modern Card (Box) */
 .box {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  padding: 16px;
   margin: 12px;
-  transition: transform 0.2s;
+  box-shadow: var(--shadow-sm);
 }
 
-.card-actionable:active {
-  transform: scale(0.98);
-}
-
+/* Avatar System */
 .avatar {
   width: 48px;
   height: 48px;
@@ -73,32 +98,144 @@ body {
   color: white;
   font-weight: 700;
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
+/* Action Footer for Cards */
 .card-footer {
   background: #fcfcfd;
   border-top: 1px solid var(--border);
-  padding: 8px 16px;
+  padding: 12px 16px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
-/* Floating Action Button (iOS style) */
-.fab {
+/* Navigation - Glassmorphism iPhone Style */
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom); /* For iPhone notch/bar */
+}
+
+.bottomNav button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  padding: 8px 0;
+  font-weight: 600;
+}
+
+.bottomNav button i {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5px;
+}
+
+.bottomNav button span {
+  font-size: 10px;
+}
+
+.bottomNav button.active {
+  color: var(--primary);
+}
+
+/* Badges */
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badgeGreen { background: var(--success-bg); color: var(--success); }
+.badgeRed { background: var(--error-bg); color: var(--error); }
+.badgeGold { background: var(--warning-bg); color: var(--warning); }
+
+/* Buttons */
+button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.1s;
   background: var(--primary);
+  color: white;
+}
+
+button:active { opacity: 0.7; }
+button.secondary { background: var(--primary-light); color: var(--primary); }
+button.red { background: var(--error); }
+
+/* Forms */
+input, select, textarea {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fff;
+  -webkit-appearance: none;
+}
+
+/* Workflow Drag & Drop */
+.workflowColumn {
+  min-height: 150px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  margin-top: 10px;
+  padding: 10px;
+  transition: background 0.2s;
+}
+.workflowColumn.dragOver {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 95px;
+  right: 20px;
   width: 60px;
   height: 60px;
   border-radius: 30px;
-  box-shadow: 0 8px 24px rgba(23, 92, 211, 0.3);
-  font-size: 30px;
-  bottom: 85px;
-  right: 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-size: 28px;
+  box-shadow: 0 8px 24px rgba(23, 92, 211, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
 }
 
-/* Action Link Buttons */
-.btn-icon {
-  color: var(--text-muted);
-  padding: 8px;
-  display: flex;
+.hidden { display: none !important; }
+.syncBadge {
+  font-size: 10px;
+  text-align: center;
+  padding: 4px;
+  background: var(--success-bg);
+  color: var(--success);
 }
+.syncBadge.offline { background: var(--error-bg); color: var(--error); }
