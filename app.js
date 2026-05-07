@@ -455,6 +455,7 @@ bottomNav.innerHTML=`
 fabMenu.innerHTML=`
   <button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
   <button onclick="toggleFab();showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+  <button onclick="toggleFab();showView('bidsView');toggleBox('bidFormBox',true)">Create Bid</button>
   <button onclick="toggleFab();showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
   <button onclick="toggleFab();showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
   <button onclick="toggleFab();showView('scheduleView');showAllSchedule()">Schedule</button>`;
