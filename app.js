@@ -364,6 +364,14 @@ appRoot.innerHTML = `
 
   <section id="invoiceView" class="hidden"><div id="invoiceArea"></div></section>
 
+  <section id="globalSearchView" class="hidden">
+    <div class="box">
+      <h2>Search Everything</h2>
+      <input id="globalSearchInput" placeholder="Search customers, jobs, payments, expenses, bids..." oninput="runGlobalSearch()">
+    </div>
+    <div id="globalSearchResults"><p class="small" style="padding:0 4px">Start typing to search across all your data.</p></div>
+  </section>
+
   <section id="settingsView" class="hidden">
     <div class="box">
       <h2>More</h2>
@@ -449,8 +457,7 @@ function startListeners() {
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────────
-const ALL_VIEWS = ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","settingsView"];
-
+const ALL_VIEWS = ["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","settingsView","globalSearchView"];
 window.showView = function (id) {
   ALL_VIEWS.forEach(v => el(v).classList.add("hidden"));
   el(id).classList.remove("hidden");
@@ -461,7 +468,7 @@ window.showView = function (id) {
   if (id === "jobsView"      || id === "scheduleView")                    el("navJobs").classList.add("active");
   if (id === "invoicesView"  || id === "invoiceView")                     el("navInvoices").classList.add("active");
   if (["settingsView","bidsView","expensesView","recurringView","profitView","paymentsView","workflowView"].includes(id)) el("navMore").classList.add("active");
-  const titles = { dashboardView:"Business dashboard", scheduleView:"Schedule", workflowView:"Workflow board", bidsView:"Bids", profitView:"Reports", customersView:"Customers", customerDetailView:"Customer detail", jobsView:"Jobs", paymentsView:"Payments", recurringView:"Recurring calendar", expensesView:"Expense ledger", invoicesView:"Invoice center", invoiceView:"Invoice preview", settingsView:"More" };
+  const titles = { dashboardView:"Business dashboard", scheduleView:"Schedule", workflowView:"Workflow board", bidsView:"Bids", profitView:"Reports", customersView:"Customers", customerDetailView:"Customer detail", jobsView:"Jobs", paymentsView:"Payments", recurringView:"Recurring calendar", expensesView:"Expense ledger", invoicesView:"Invoice center", invoiceView:"Invoice preview", settingsView:"More", globalSearchView:"Search" };
   document.getElementById("headerSub").innerText = titles[id] || "Business dashboard";
   window.scrollTo(0, 0);
 };
@@ -1230,3 +1237,154 @@ function renderAll() {
 }
 
 window.renderAll = renderAll;
+window.openGlobalSearch = function () {
+  showView("globalSearchView");
+  setTimeout(() => { const inp = el("globalSearchInput"); if (inp) { inp.focus(); inp.value = ""; runGlobalSearch(); } }, 100);
+};
+
+function runGlobalSearch() {
+  const q   = (el("globalSearchInput")?.value || "").trim().toLowerCase();
+  const out = el("globalSearchResults");
+  if (!q || q.length < 2) {
+    out.innerHTML = "<p class='small' style='padding:0 4px'>Type at least 2 characters to search.</p>";
+    return;
+  }
+
+  const sections = [];
+
+  // Customers
+  const matchedCustomers = customers.filter(c =>
+    `${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.notes||""} ${c.propertyNotes||""}`.toLowerCase().includes(q)
+  );
+  if (matchedCustomers.length) sections.push(`
+    <div class="box">
+      <h3>Customers (${matchedCustomers.length})</h3>
+      ${matchedCustomers.map(c => {
+        const t = customerTotals(c.id);
+        return `<div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;align-items:center;gap:12px">
+            ${avatarHtml(c.name,"sm")}
+            <div style="flex:1">
+              <div style="font-weight:600">${safe(c.name)}</div>
+              <div class="small">${safe(c.phone)} &bull; ${safe(c.address)}</div>
+              <div class="small">Paid: ${money(t.paid)} &bull; Owed: ${money(t.owed)}</div>
+            </div>
+            <button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${c.id}')">View</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`);
+
+  // Jobs
+  const matchedJobs = jobs.filter(j =>
+    `${j.title||""} ${j.notes||""} ${getCustomerName(j.customerId)} ${j.date||""}`.toLowerCase().includes(q)
+  );
+  if (matchedJobs.length) sections.push(`
+    <div class="box">
+      <h3>Jobs (${matchedJobs.length})</h3>
+      ${matchedJobs.map(j => `
+        <div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:600">${safe(j.title)}</div>
+              <div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)}</div>
+            </div>
+            <div style="text-align:right">${paymentBadge(j)}<div style="font-size:13px;font-weight:600;color:var(--gold)">${money(jobBalance(j))} owed</div></div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+            <button onclick="editJob('${j.id}')">Edit Job</button>
+          </div>
+        </div>`).join("")}
+    </div>`);
+
+  // Bids
+  const matchedBids = bids.filter(b =>
+    `${b.title||""} ${b.notes||""} ${getCustomerName(b.customerId)}`.toLowerCase().includes(q)
+  );
+  if (matchedBids.length) sections.push(`
+    <div class="box">
+      <h3>Bids (${matchedBids.length})</h3>
+      ${matchedBids.map(b => `
+        <div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600">${safe(b.title)}</div>
+              <div class="small">${safe(getCustomerName(b.customerId))}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:var(--green)">${money(b.total)}</div>
+              <span class="badge badgeBlue">${safe(b.status||"Pending")}</span>
+            </div>
+          </div>
+          <button style="margin-top:8px" onclick="editBid('${b.id}')">Edit Bid</button>
+        </div>`).join("")}
+    </div>`);
+
+  // Expenses
+  const matchedExpenses = expenses.filter(e =>
+    `${e.category||""} ${e.notes||""} ${e.date||""}`.toLowerCase().includes(q)
+  );
+  if (matchedExpenses.length) sections.push(`
+    <div class="box">
+      <h3>Expenses (${matchedExpenses.length})</h3>
+      ${matchedExpenses.map(e => `
+        <div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600">${safe(e.category)}</div>
+              <div class="small">${dateLabel(e.date)}${e.notes ? " &bull; " + safe(e.notes) : ""}</div>
+            </div>
+            <b style="color:var(--red-text)">${money(e.amount)}</b>
+          </div>
+          <button style="margin-top:8px" onclick="editExpense('${e.id}')">Edit Expense</button>
+        </div>`).join("")}
+    </div>`);
+
+  // Payments
+  const matchedPayments = payments.filter(p =>
+    `${getCustomerName(p.customerId)} ${p.notes||""} ${p.date||""} ${jobs.find(j=>j.id===p.jobId)?.title||""}`.toLowerCase().includes(q)
+  );
+  if (matchedPayments.length) sections.push(`
+    <div class="box">
+      <h3>Payments (${matchedPayments.length})</h3>
+      ${matchedPayments.map(p => {
+        const job = jobs.find(j => j.id === p.jobId);
+        return `<div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <b style="color:var(--green)">${money(p.amount)}</b>
+              <div class="small">${safe(getCustomerName(p.customerId))} &bull; ${dateLabel(p.date)}</div>
+              <div class="small">${safe(job?.title||"")}${p.notes ? " &bull; " + safe(p.notes) : ""}</div>
+            </div>
+            <button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${p.customerId}')">Customer</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`);
+
+  // Recurring
+  const matchedRecurring = recurring.filter(r =>
+    `${r.title||""} ${getCustomerName(r.customerId)}`.toLowerCase().includes(q)
+  );
+  if (matchedRecurring.length) sections.push(`
+    <div class="box">
+      <h3>Recurring Jobs (${matchedRecurring.length})</h3>
+      ${matchedRecurring.map(r => {
+        const s = recurringStatus(r);
+        return `<div class="box" style="background:var(--s2);margin:6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600">${safe(r.title)}</div>
+              <div class="small">${safe(getCustomerName(r.customerId))} &bull; ${safe(r.frequency)} &bull; Next: ${dateLabel(r.nextDate)}</div>
+            </div>
+            <span class="badge ${s.cls}">${s.label}</span>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`);
+
+  out.innerHTML = sections.length
+    ? sections.join("")
+    : `<div class="box"><p class="small">No results found for "${safe(q)}".</p></div>`;
+}
