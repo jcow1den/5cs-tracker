@@ -411,7 +411,7 @@ section:not(.hidden) { animation: viewIn 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
 /* ── Sync badge ────────────────────────────────────────────────────────────── */
 .syncBadge {
   position: fixed;
-  top: 10px; right: 12px;
+  top: 68px; right: 12px;
   z-index: 100;
   padding: 4px 10px;
   border-radius: 999px;
