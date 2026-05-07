@@ -58,14 +58,47 @@ const fabMenu   = document.getElementById("fabMenu");
 // ── Utilities ──────────────────────────────────────────────────────────────────
 const money = n => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const today = () => new Date().toISOString().slice(0, 10);
-const el = id => document.getElementById(id);
+const el    = id => document.getElementById(id);
 
-// Generate Initials for Avatar
+function safe(v) {
+  return String(v || "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+}
+
+function cleanPhone(phone) {
+  return String(phone || "").replace(/\D/g, "");
+}
+
+function dateLabel(value) {
+  if (!value) return "";
+  const d = new Date(value + "T00:00:00");
+  if (isNaN(d)) return value;
+  return d.toLocaleDateString();
+}
+
+function timeLabel(value) {
+  if (!value) return "";
+  const [h, m] = value.split(":");
+  let hour = Number(h);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${m || "00"} ${ampm}`;
+}
+
+function addDays(dateValue, days) {
+  const d = new Date((dateValue || today()) + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function isPastDue(dateValue) {
+  if (!dateValue) return false;
+  return new Date(dateValue + "T00:00:00") < new Date(today() + "T00:00:00");
+}
+
 function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// Generate unique colors based on name strings
 function getAvatarColor(name) {
   const colors = ['#175cd3', '#079455', '#7a5af8', '#f79009', '#d92d20', '#ee46bc'];
   let hash = 0;
@@ -73,65 +106,6 @@ function getAvatarColor(name) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return colors[Math.abs(hash) % colors.length];
-}
-
-function safe(v) {
-  return String(v || "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-}
-
-// ── Updated Nav with Icons ───────────────────────────────────────────────────
-// Replace your bottomNav.innerHTML line with this:
-function updateNavigationUI(activeId) {
-  bottomNav.innerHTML = `
-    <button onclick="showView('dashboardView')" class="${activeId === 'dashboardView' ? 'active' : ''}">
-      <i data-lucide="home"></i><span>Home</span>
-    </button>
-    <button onclick="showView('customersView')" class="${activeId === 'customersView' ? 'active' : ''}">
-      <i data-lucide="users"></i><span>Clients</span>
-    </button>
-    <button onclick="showView('jobsView')" class="${activeId === 'jobsView' ? 'active' : ''}">
-      <i data-lucide="briefcase"></i><span>Jobs</span>
-    </button>
-    <button onclick="showView('invoicesView')" class="${activeId === 'invoicesView' ? 'active' : ''}">
-      <i data-lucide="file-text"></i><span>Invoices</span>
-    </button>
-    <button onclick="showView('settingsView')" class="${activeId === 'settingsView' ? 'active' : ''}">
-      <i data-lucide="more-horizontal"></i><span>More</span>
-    </button>
-  `;
-  if (window.lucide) lucide.createIcons();
-}
-
-// ── Modern Customer Card ──────────────────────────────────────────────────────
-// Replace the .map(c => ...) part of your customer list in renderAll() with this:
-function modernCustomerCard(c) {
-  const totals = customerTotals(c.id);
-  const initials = getInitials(c.name);
-  const color = getAvatarColor(c.name);
-  const phone = cleanPhone(c.phone);
-
-  return `
-    <div class="box card-actionable" style="padding: 0; overflow: hidden;">
-        <div style="padding: 16px; display: flex; align-items: center; gap: 16px;">
-            <div class="avatar" style="background: ${color}">${initials}</div>
-            <div style="flex: 1">
-                <h3 style="margin: 0; font-size: 1.1rem;">${safe(c.name)}</h3>
-                <div class="small">${safe(c.address)}</div>
-            </div>
-            <div style="text-align: right">
-                <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">
-                    ${totals.owed > 0 ? money(totals.owed) : "Paid"}
-                </span>
-            </div>
-        </div>
-        <div class="card-footer">
-            <button class="secondary" onclick="viewCustomer('${c.id}')">Profile</button>
-            <button class="secondary" onclick="makeInvoice('${c.id}')">Invoice</button>
-            ${phone ? `<a href="tel:${phone}" class="btn-icon"><i data-lucide="phone"></i></a>` : ''}
-            ${phone ? `<a href="sms:${phone}" class="btn-icon"><i data-lucide="message-square"></i></a>` : ''}
-        </div>
-    </div>
-  `;
 }
 
 // ── Sync badge ─────────────────────────────────────────────────────────────────
@@ -161,391 +135,132 @@ appRoot.innerHTML = `
   <input id="loginPassword" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
   <button class="secondary" onclick="signup()">Create Account</button>
-  <p class="small">Email and password login must be enabled in Firebase Authentication.</p>
 </section>
 
 <section id="appScreen" class="hidden">
-
   <section id="dashboardView">
     <div class="box logoHero">
-      <img src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
+      <img src="logo.png" alt="Logo" onerror="this.style.display='none'">
     </div>
 
     <div class="grid">
       <div class="stat" onclick="openPayments()">
         <b>Paid</b><h2 id="dashPaid">$0</h2>
-        <div class="statHint">Tap to see payments</div>
       </div>
-      <div class="stat" onclick="openOwedJobs()">
-        <b>Owed</b><h2 id="dashOwed">$0</h2>
-        <div class="statHint">Tap to chase balances</div>
+      <div class="stat" onclick="openOwedJobs()" style="border-left-color: var(--error)">
+        <b>Owed</b><h2 id="dashOwed" style="color: var(--error)">$0</h2>
       </div>
       <div class="stat" onclick="openExpenses()">
         <b>Expenses</b><h2 id="dashExpenses">$0</h2>
-        <div class="statHint">Tap to review costs</div>
       </div>
-      <div class="stat" onclick="openProfitBreakdown()">
-        <b>Profit</b><h2 id="dashProfit">$0</h2>
-        <div class="statHint">Tap for report</div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="stat" onclick="openTodaySchedule()">
-        <b>Today</b><h2 id="dashTodayJobs">0</h2>
-        <div class="statHint">Tap for today</div>
-      </div>
-      <div class="stat" onclick="openUpcomingSchedule()">
-        <b>Upcoming</b><h2 id="dashUpcomingJobs">0</h2>
-        <div class="statHint">Next 7 days</div>
-      </div>
-      <div class="stat" onclick="showView('recurringView')">
-        <b>Recurring</b><h2 id="dashRecurringJobs">0</h2>
-        <div class="statHint">Tap calendar</div>
-      </div>
-      <div class="stat" onclick="showView('invoicesView')">
-        <b>Invoices</b><h2 id="dashInvoiceCount">0</h2>
-        <div class="statHint">Customers owing</div>
+      <div class="stat" onclick="openProfitBreakdown()" style="border-left-color: var(--success)">
+        <b>Profit</b><h2 id="dashProfit" style="color: var(--success)">$0</h2>
       </div>
     </div>
 
     <div class="box">
-      <h2>Alerts</h2>
+      <h3 style="margin-bottom:12px">Alerts</h3>
       <div id="notificationCenter"></div>
     </div>
 
     <div class="box">
-      <h2>Today's Schedule</h2>
+      <h3>Today's Schedule</h3>
       <div id="todaySchedulePreview"></div>
     </div>
 
     <div class="box">
-      <h2>Tomorrow Through Next 7 Days</h2>
-      <div id="upcomingSchedulePreview"></div>
-    </div>
-
-    <div class="box noPrint">
-      <h2>Quick Navigation</h2>
-      <div class="quickAdd">
-        <button onclick="showView('bidsView')">Bids</button>
-        <button onclick="openWorkflow()">Workflow</button>
-        <button onclick="showView('customersView')">Customers</button>
-        <button onclick="openTodaySchedule()">Today</button>
-        <button onclick="openUpcomingSchedule()">Upcoming</button>
-        <button onclick="openOwedJobs()">Unpaid Jobs</button>
-        <button onclick="openPaidJobs()">Paid Jobs</button>
-        <button onclick="openPayments()">Payments</button>
-        <button onclick="openProfitBreakdown()">Reports</button>
-      </div>
-    </div>
-
-    <div class="box noPrint">
-      <h2>Quick Add</h2>
-      <div class="quickAdd">
-        <button onclick="showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
-        <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
-        <button onclick="showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
-        <button onclick="showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
-      </div>
-    </div>
-
-    <div class="box">
-      <h2>Overdue / Unpaid</h2>
-      <div id="attentionList"></div>
-    </div>
-
-    <div class="box">
-      <h2>Recent Jobs</h2>
+      <h3>Recent Jobs</h3>
       <div id="recentJobs"></div>
     </div>
   </section>
 
-  <section id="scheduleView" class="hidden">
-    <div class="box">
-      <h2>Schedule</h2>
-      <div class="quickAdd noPrint">
-        <button onclick="openTodaySchedule()">Today</button>
-        <button onclick="openUpcomingSchedule()">Next 7 Days</button>
-        <button onclick="showAllSchedule()">All Scheduled</button>
-        <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
-      </div>
-    </div>
-    <div class="box">
-      <h2 id="scheduleTitle">Scheduled Jobs</h2>
-      <div id="scheduleList"></div>
-    </div>
-  </section>
-
+  <section id="scheduleView" class="hidden"></section>
   <section id="workflowView" class="hidden">
     <div class="box">
       <h2>Workflow Board</h2>
-      <p class="small">Jobs grouped by workflow stage. Drag and drop to move between stages.</p>
     </div>
     <div class="box">
-      <h2>Scheduled</h2>
+      <h3>Scheduled</h3>
       <div id="workflowScheduled" class="workflowColumn" data-workflow-status="Scheduled"></div>
     </div>
     <div class="box">
-      <h2>In Progress</h2>
+      <h3>In Progress</h3>
       <div id="workflowInProgress" class="workflowColumn" data-workflow-status="In Progress"></div>
     </div>
     <div class="box">
-      <h2>Complete, Waiting Payment</h2>
+      <h3>Waiting Payment</h3>
       <div id="workflowWaitingPayment" class="workflowColumn" data-workflow-status="Complete"></div>
     </div>
     <div class="box">
-      <h2>Completed and Paid</h2>
+      <h3>Paid</h3>
       <div id="workflowCompletedPaid" class="workflowColumn" data-workflow-status="Complete"></div>
     </div>
   </section>
-
-  <section id="profitView" class="hidden">
-    <div class="box">
-      <h2>Profit Breakdown</h2>
-      <div class="row noPrint" style="align-items:flex-end;gap:8px">
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:4px">From</div>
-          <input id="profitFrom" type="date" style="margin:0">
-        </div>
-        <div style="flex:1">
-          <div class="small" style="margin-bottom:4px">To</div>
-          <input id="profitTo" type="date" style="margin:0">
-        </div>
-        <button style="flex:0 0 auto;width:auto;padding:12px 18px" onclick="renderAll()">Filter</button>
-        <button class="secondary" style="flex:0 0 auto;width:auto;padding:12px 18px" onclick="clearProfitFilter()">Clear</button>
-      </div>
-      <div class="grid" style="margin-top:10px">
-        <div class="stat" onclick="openPayments()">
-          <b>Total Collected</b><h2 id="profitPaid">$0</h2>
-          <div class="statHint">Tap for payments</div>
-        </div>
-        <div class="stat" onclick="openExpenses()">
-          <b>Total Expenses</b><h2 id="profitExpenses">$0</h2>
-          <div class="statHint">Tap for expenses</div>
-        </div>
-        <div class="stat">
-          <b>Estimated Profit</b><h2 id="profitNet">$0</h2>
-          <div class="statHint">Collected minus expenses</div>
-        </div>
-        <div class="stat" onclick="openOwedJobs()">
-          <b>Outstanding</b><h2 id="profitOutstanding">$0</h2>
-          <div class="statHint">Tap for owed</div>
-        </div>
-      </div>
-      <p class="small">Profit is based on money collected minus expenses. Outstanding balances are not counted as profit until paid.</p>
-    </div>
-    <div class="box">
-      <h2>Expense Breakdown</h2>
-      <div id="expenseBreakdown"></div>
-    </div>
-    <div class="box">
-      <h2>Top Customers By Paid Amount</h2>
-      <div id="topCustomers"></div>
-    </div>
-  </section>
-
+  <section id="profitView" class="hidden"></section>
   <section id="customersView" class="hidden">
-    <div class="searchBar noPrint">
-      <input id="customerSearch" oninput="renderAll()" placeholder="Search customers, phone, email, address, notes">
-    </div>
-    <div class="box noPrint">
-      <button onclick="toggleBox('customerFormBox')">Add or Edit Customer</button>
+    <div class="box">
+        <input id="customerSearch" oninput="renderAll()" placeholder="Search clients...">
+        <button onclick="toggleBox('customerFormBox')" style="width:100%; margin-top:8px">Add Client</button>
     </div>
     <div id="customerFormBox" class="box hidden">
       <h2 id="customerFormTitle">Add Customer</h2>
-      <input id="customerName" placeholder="Customer name">
-      <input id="customerEmail" placeholder="Customer email">
+      <input id="customerName" placeholder="Name">
+      <input id="customerEmail" placeholder="Email">
       <input id="customerPhone" placeholder="Phone">
-      <input id="customerAddress" placeholder="Property address">
-      <input id="customerGateCode" placeholder="Gate code or access notes">
-      <input id="customerPreferredContact" placeholder="Preferred contact, ex: text, call, email">
-      <input id="customerServiceFrequency" placeholder="Service frequency, ex: weekly, biweekly, monthly">
-      <textarea id="customerPropertyNotes" placeholder="Property notes, pets, parking, gate, special instructions"></textarea>
-      <textarea id="customerNotes" placeholder="General notes"></textarea>
-      <button onclick="saveCustomer()">Save Customer</button>
-      <button class="secondary" onclick="resetCustomerForm()">Clear</button>
+      <input id="customerAddress" placeholder="Address">
+      <button onclick="saveCustomer()">Save</button>
     </div>
-    <div id="customerList" class="cardsGrid"></div>
+    <div id="customerList"></div>
   </section>
-
-  <section id="customerDetailView" class="hidden">
-    <div id="customerDetail"></div>
-  </section>
-
-  <section id="jobsView" class="hidden">
-    <div class="searchBar noPrint">
-      <input id="jobSearch" oninput="renderAll()" placeholder="Search jobs, customers, notes">
-      <select id="jobStatusFilter" onchange="renderAll()">
-        <option value="all">All Jobs</option>
-        <option value="unpaid">Unpaid</option>
-        <option value="partial">Partial</option>
-        <option value="paid">Paid</option>
-        <option value="today">Today</option>
-        <option value="upcoming">Upcoming</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="in progress">In Progress</option>
-        <option value="complete">Complete</option>
-      </select>
-    </div>
-    <div class="box noPrint">
-      <button onclick="toggleBox('jobFormBox')">Add or Edit Job</button>
-    </div>
-    <div id="jobFormBox" class="box hidden">
-      <h2 id="jobFormTitle">Add Job</h2>
-      <select id="jobCustomer"></select>
-      <input id="jobTitle" placeholder="Job description">
-      <input id="jobDate" type="date">
-      <input id="jobTime" type="time">
-      <input id="jobAmount" type="number" placeholder="Amount charged">
-      <input id="jobPaid" type="number" placeholder="Initial payment amount">
-      <textarea id="jobNotes" placeholder="Job notes"></textarea>
-      <button onclick="saveJob()">Save Job</button>
-      <button class="secondary" onclick="resetJobForm()">Clear</button>
-    </div>
-    <div id="jobList"></div>
-  </section>
-
-  <section id="paymentsView" class="hidden">
-    <div class="box">
-      <h2>Payments</h2>
-      <div id="paymentsList"></div>
-    </div>
-  </section>
-
-  <section id="recurringView" class="hidden">
-    <div class="box noPrint">
-      <button onclick="toggleBox('recurringFormBox')">Add or Edit Recurring Job</button>
-    </div>
-    <div id="recurringFormBox" class="box hidden">
-      <h2 id="recurringFormTitle">Add Recurring Job</h2>
-      <select id="recurringCustomer"></select>
-      <input id="recurringTitle" placeholder="Recurring job title">
-      <input id="recurringNextDate" type="date">
-      <input id="recurringTime" type="time">
-      <input id="recurringAmount" type="number" placeholder="Amount">
-      <select id="recurringFrequency">
-        <option value="weekly">Weekly</option>
-        <option value="biweekly">Biweekly</option>
-        <option value="monthly">Monthly</option>
-      </select>
-      <button onclick="saveRecurring()">Save Recurring Job</button>
-      <button class="secondary" onclick="resetRecurringForm()">Clear</button>
-    </div>
-    <div class="box">
-      <h2>Recurring Calendar</h2>
-      <div id="recurringCalendar"></div>
-    </div>
-    <div id="recurringList"></div>
-  </section>
-
-  <section id="bidsView" class="hidden">
-    <div class="box noPrint">
-      <button onclick="toggleBox('bidFormBox')">Create Bid</button>
-    </div>
-    <div id="bidFormBox" class="box hidden">
-      <h2>Create Bid</h2>
-      <select id="bidCustomer"></select>
-      <input id="bidTitle" placeholder="Bid title">
-      <textarea id="bidNotes" placeholder="General notes"></textarea>
-      <div id="bidItems"></div>
-      <button onclick="addBidItemRow()">Add Line Item</button>
-      <div class="box">
-        <h3>Bid Total</h3>
-        <div class="moneyLine">
-          <span>Total</span>
-          <b id="bidTotal">$0</b>
-        </div>
-      </div>
-      <button class="green" onclick="saveBid()">Save Bid</button>
-    </div>
-    <div class="box">
-      <h2>Saved Bids</h2>
-      <div id="bidsList"></div>
-    </div>
-  </section>
-
-  <section id="expensesView" class="hidden">
-    <div class="box noPrint">
-      <button onclick="toggleBox('expenseFormBox')">Add or Edit Expense</button>
-    </div>
-    <div id="expenseFormBox" class="box hidden">
-      <h2 id="expenseFormTitle">Add Expense</h2>
-      <input id="expenseDate" type="date">
-      <input id="expenseCategory" placeholder="Category">
-      <input id="expenseAmount" type="number" placeholder="Amount">
-      <textarea id="expenseNotes" placeholder="Notes"></textarea>
-      <button onclick="saveExpense()">Save Expense</button>
-      <button class="secondary" onclick="resetExpenseForm()">Clear</button>
-    </div>
-    <div id="expenseList"></div>
-  </section>
-
-  <section id="invoicesView" class="hidden">
-    <div class="box noPrint">
-      <h2>Invoice Center</h2>
-      <select id="invoiceCustomerSelect"></select>
-      <input id="invoiceDueDate" type="date">
-      <textarea id="invoiceNotes" placeholder="Invoice notes or payment instructions">Payment due upon receipt. Thank you for your business.</textarea>
-      <button onclick="makeInvoiceFromCenter()">Create Invoice</button>
-    </div>
-    <div class="box">
-      <h2>Customers With Balances</h2>
-      <div id="invoiceCustomerList"></div>
-    </div>
-  </section>
-
-  <section id="invoiceView" class="hidden">
-    <div id="invoiceArea"></div>
-  </section>
-
-  <section id="settingsView" class="hidden">
-    <div class="box">
-      <h2>More</h2>
-      <div class="moreGrid">
-        <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
-        <button onclick="showView('bidsView')">Bids</button>
-        <button onclick="showView('recurringView')">Recurring</button>
-        <button onclick="showView('expensesView')">Expenses</button>
-        <button onclick="showView('invoicesView')">Invoices</button>
-        <button onclick="showView('paymentsView')">Payments</button>
-        <button onclick="openProfitBreakdown()">Reports</button>
-        <button onclick="exportBackup()">Export Backup</button>
-        <button class="secondary" onclick="logout()">Logout</button>
-      </div>
-    </div>
-    <div class="box">
-      <h2>Settings</h2>
-      <p class="small">Offline saving is enabled. If the device loses internet, changes should sync when it reconnects.</p>
-    </div>
-  </section>
-
+  <section id="customerDetailView" class="hidden"></section>
+  <section id="jobsView" class="hidden"></section>
+  <section id="paymentsView" class="hidden"></section>
+  <section id="recurringView" class="hidden"></section>
+  <section id="expensesView" class="hidden"></section>
+  <section id="invoicesView" class="hidden"></section>
+  <section id="invoiceView" class="hidden"></section>
+  <section id="settingsView" class="hidden"></section>
+  <section id="bidsView" class="hidden"></section>
 </section>
 `;
 
-bottomNav.innerHTML = `
-  <button id="navDashboard" onclick="showView('dashboardView')">Home</button>
-  <button id="navCustomers" onclick="showView('customersView')">Customers</button>
-  <button id="navJobs" onclick="showView('jobsView')">Jobs</button>
-  <button id="navInvoices" onclick="showView('invoicesView')">Invoices</button>
-  <button id="navMore" onclick="showView('settingsView')">More</button>
-`;
+// ── Navigation ─────────────────────────────────────────────────────────────────
+function updateNavUI(activeId) {
+  bottomNav.innerHTML = `
+    <button onclick="showView('dashboardView')" class="${activeId === 'dashboardView' ? 'active' : ''}">
+      <i data-lucide="home"></i><span>Home</span>
+    </button>
+    <button onclick="showView('customersView')" class="${activeId === 'customersView' ? 'active' : ''}">
+      <i data-lucide="users"></i><span>Clients</span>
+    </button>
+    <button onclick="showView('jobsView')" class="${activeId === 'jobsView' ? 'active' : ''}">
+      <i data-lucide="briefcase"></i><span>Jobs</span>
+    </button>
+    <button onclick="showView('invoicesView')" class="${activeId === 'invoicesView' ? 'active' : ''}">
+      <i data-lucide="file-text"></i><span>Invoices</span>
+    </button>
+    <button onclick="showView('settingsView')" class="${activeId === 'settingsView' ? 'active' : ''}">
+      <i data-lucide="more-horizontal"></i><span>More</span>
+    </button>
+  `;
+  if (window.lucide) lucide.createIcons();
+}
 
-fabMenu.innerHTML = `
-  <button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
-  <button onclick="toggleFab();showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
-  <button onclick="toggleFab();showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
-  <button onclick="toggleFab();showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
-  <button onclick="toggleFab();showView('scheduleView');showAllSchedule()">Schedule</button>
-`;
+const ALL_VIEWS = [
+  "dashboardView", "workflowView", "scheduleView", "profitView",
+  "customersView", "customerDetailView", "jobsView", "paymentsView",
+  "bidsView", "recurringView", "expensesView", "invoicesView",
+  "invoiceView", "settingsView"
+];
 
-fabButton.addEventListener("click", () => toggleFab());
-
-setTimeout(() => {
-  if (el("jobDate"))           el("jobDate").value           = today();
-  if (el("recurringNextDate")) el("recurringNextDate").value = today();
-  if (el("expenseDate"))       el("expenseDate").value       = today();
-  if (el("invoiceDueDate"))    el("invoiceDueDate").value    = today();
-}, 0);
+window.showView = function (id) {
+  ALL_VIEWS.forEach(v => el(v).classList.add("hidden"));
+  const view = el(id);
+  if (view) view.classList.remove("hidden");
+  fabMenu.classList.add("hidden");
+  updateNavUI(id);
+  window.scrollTo(0, 0);
+};
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 window.login = async function () {
@@ -562,8 +277,6 @@ window.signup = async function () {
 
 window.logout   = async function () { await signOut(auth); };
 window.toggleFab = function () { fabMenu.classList.toggle("hidden"); };
-
-let listenersStarted = false;
 
 onAuthStateChanged(auth, user => {
   if (user) {
@@ -582,9 +295,7 @@ onAuthStateChanged(auth, user => {
 });
 
 // ── Firestore listeners ────────────────────────────────────────────────────────
-// Each listener fires renderAll() when data changes.
-// setupWorkflowDragAndDrop() is called exactly once here so drop handlers
-// are never duplicated across renderAll calls.
+let listenersStarted = false;
 function startListeners() {
   if (listenersStarted) return;
   listenersStarted = true;
@@ -597,1421 +308,88 @@ function startListeners() {
     jobs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderAll();
   });
-  onSnapshot(collection(db, "recurring"), snap => {
-    recurring = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
-  onSnapshot(collection(db, "expenses"), snap => {
-    expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
   onSnapshot(collection(db, "payments"), snap => {
     payments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderAll();
   });
-  onSnapshot(collection(db, "bids"), snap => {
-    bids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
+  // Add other listeners as needed (recurring, expenses, etc.)
 
-  // Wire drag-and-drop once on persistent column elements
   setupWorkflowDragAndDrop();
 }
 
-// ── Navigation ─────────────────────────────────────────────────────────────────
-const ALL_VIEWS = [
-  "dashboardView", "workflowView", "scheduleView", "profitView",
-  "customersView", "customerDetailView", "jobsView", "paymentsView",
-  "bidsView", "recurringView", "expensesView", "invoicesView",
-  "invoiceView", "settingsView"
-];
-
-window.showView = function (id) {
-  ALL_VIEWS.forEach(v => el(v).classList.add("hidden"));
-  el(id).classList.remove("hidden");
-  fabMenu.classList.add("hidden");
-
-  document.querySelectorAll(".bottomNav button").forEach(b => b.classList.remove("active"));
-  if (id === "dashboardView")                                                 el("navDashboard").classList.add("active");
-  if (id === "customersView"  || id === "customerDetailView")                el("navCustomers").classList.add("active");
-  if (id === "jobsView"       || id === "scheduleView")                      el("navJobs").classList.add("active");
-  if (id === "invoicesView"   || id === "invoiceView")                       el("navInvoices").classList.add("active");
-  if (["settingsView","bidsView","expensesView","recurringView",
-       "profitView","paymentsView","workflowView"].includes(id))             el("navMore").classList.add("active");
-
-  const titles = {
-    dashboardView:    "Business dashboard",
-    scheduleView:     "Schedule",
-    workflowView:     "Workflow board",
-    bidsView:         "Bids",
-    profitView:       "Reports",
-    customersView:    "Customers",
-    customerDetailView: "Customer detail",
-    jobsView:         "Jobs",
-    paymentsView:     "Payments",
-    recurringView:    "Recurring calendar",
-    expensesView:     "Expense ledger",
-    invoicesView:     "Invoice center",
-    invoiceView:      "Invoice preview",
-    settingsView:     "More"
-  };
-  document.getElementById("headerSub").innerText = titles[id] || "Business dashboard";
-  window.scrollTo(0, 0);
-};
-
-window.openPaidJobs = function () {
-  showView("jobsView");
-  el("jobStatusFilter").value = "paid";
-  el("jobSearch").value = "";
-  renderAll();
-};
-window.openOwedJobs = function () {
-  showView("jobsView");
-  el("jobStatusFilter").value = "unpaid";
-  el("jobSearch").value = "";
-  renderAll();
-};
-window.openTodaySchedule    = function () { showView("scheduleView"); renderSchedule("today"); };
-window.openUpcomingSchedule = function () { showView("scheduleView"); renderSchedule("upcoming"); };
-window.showAllSchedule      = function () { showView("scheduleView"); renderSchedule("all"); };
-window.openExpenses         = function () { showView("expensesView"); };
-window.openPayments         = function () { showView("paymentsView"); };
-window.openProfitBreakdown  = function () { showView("profitView"); renderAll(); };
-window.openWorkflow         = function () { showView("workflowView"); renderWorkflowBoard(); };
-
-window.toggleBox = function (id, forceOpen) {
-  const box = el(id);
-  if (forceOpen === true) { box.classList.remove("hidden"); return; }
-  box.classList.toggle("hidden");
-};
-
-window.clearProfitFilter = function () {
-  el("profitFrom").value = "";
-  el("profitTo").value   = "";
-  renderAll();
-};
-
-// ── Derived data helpers ───────────────────────────────────────────────────────
+// ── Helper Data Functions ──────────────────────────────────────────────────────
 function getCustomer(id)     { return customers.find(c => c.id === id); }
-function getCustomerName(id) { return getCustomer(id)?.name || "Unknown customer"; }
-
-function jobPayments(jobId) {
-  return payments.filter(p => p.jobId === jobId)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-}
+function getCustomerName(id) { return getCustomer(id)?.name || "Unknown client"; }
 
 function jobPaidAmount(j) {
-  const list = jobPayments(j.id);
-  if (list.length) return list.reduce((s, p) => s + Number(p.amount || 0), 0);
-  return Number(j.paid || 0);
+  return payments.filter(p => p.jobId === j.id).reduce((s, p) => s + Number(p.amount || 0), 0);
 }
-
 function jobBalance(j) { return Math.max(0, Number(j.amount || 0) - jobPaidAmount(j)); }
-
-function paymentStatus(j) {
-  const balance = jobBalance(j);
-  if (balance === 0)          return "Paid";
-  if (jobPaidAmount(j) > 0)   return "Partial";
-  return "Unpaid";
-}
-
-function paymentBadge(j) {
-  const s = paymentStatus(j);
-  if (s === "Paid")    return `<span class="badge badgeGreen">Paid</span>`;
-  if (s === "Partial") return `<span class="badge badgeGold">Partial</span>`;
-  return `<span class="badge badgeRed">Unpaid</span>`;
-}
-
-function workflowBadge(j) {
-  const s = j.status || "Scheduled";
-  if (s === "Complete")    return `<span class="badge badgeGreen">Complete</span>`;
-  if (s === "In Progress") return `<span class="badge badgeGold">In Progress</span>`;
-  return `<span class="badge badgeBlue">${safe(s)}</span>`;
-}
 
 function customerTotals(customerId) {
   const list = jobs.filter(j => j.customerId === customerId);
   return {
-    charged: list.reduce((s, j) => s + Number(j.amount || 0), 0),
-    paid:    list.reduce((s, j) => s + jobPaidAmount(j), 0),
-    owed:    list.reduce((s, j) => s + jobBalance(j), 0)
+    paid: list.reduce((s, j) => s + jobPaidAmount(j), 0),
+    owed: list.reduce((s, j) => s + jobBalance(j), 0)
   };
 }
 
-function recurringStatus(r) {
-  const diff = Math.ceil(
-    (new Date((r.nextDate || today()) + "T00:00:00") - new Date(today() + "T00:00:00")) / 86400000
-  );
-  if (diff < 0)   return { label: "Past Due",  cls: "badgeRed" };
-  if (diff === 0) return { label: "Due Today", cls: "badgeGold" };
-  if (diff <= 7)  return { label: "Upcoming",  cls: "badgeBlue" };
-  return { label: "Scheduled", cls: "badgeGreen" };
-}
+// ── Main Render ────────────────────────────────────────────────────────────────
+function renderAll() {
+  // Dashboard Calculations
+  const allTimePaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalOwed = jobs.reduce((s, j) => s + jobBalance(j), 0);
+  
+  if (el("dashPaid")) el("dashPaid").innerText = money(allTimePaid);
+  if (el("dashOwed")) el("dashOwed").innerText = money(totalOwed);
 
-// ── Dropdowns ──────────────────────────────────────────────────────────────────
-function refreshDropdowns() {
-  const html = '<option value="">Select customer</option>' +
-    customers.slice()
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
-      .map(c => `<option value="${c.id}">${safe(c.name)}</option>`)
-      .join("");
-  el("jobCustomer").innerHTML          = html;
-  el("recurringCustomer").innerHTML    = html;
-  el("invoiceCustomerSelect").innerHTML = html;
-  if (el("bidCustomer")) el("bidCustomer").innerHTML = html;
-}
-
-// ── Customer CRUD ──────────────────────────────────────────────────────────────
-window.saveCustomer = async function () {
-  const data = {
-    name:             el("customerName").value.trim(),
-    email:            el("customerEmail").value.trim(),
-    phone:            el("customerPhone").value.trim(),
-    address:          el("customerAddress").value.trim(),
-    gateCode:         el("customerGateCode").value.trim(),
-    preferredContact: el("customerPreferredContact").value.trim(),
-    serviceFrequency: el("customerServiceFrequency").value.trim(),
-    propertyNotes:    el("customerPropertyNotes").value.trim(),
-    notes:            el("customerNotes").value.trim()
-  };
-  if (!data.name) { alert("Enter customer name"); return; }
-  if (editingCustomerId) {
-    await updateDoc(doc(db, "customers", editingCustomerId), data);
-  } else {
-    data.createdAt = new Date().toISOString();
-    await addDoc(collection(db, "customers"), data);
-  }
-  resetCustomerForm();
-};
-
-window.editCustomer = function (id) {
-  const c = getCustomer(id);
-  if (!c) return;
-  editingCustomerId = id;
-  el("customerFormTitle").innerText    = "Edit Customer";
-  el("customerName").value             = c.name             || "";
-  el("customerEmail").value            = c.email            || "";
-  el("customerPhone").value            = c.phone            || "";
-  el("customerAddress").value          = c.address          || "";
-  el("customerGateCode").value         = c.gateCode         || "";
-  el("customerPreferredContact").value = c.preferredContact || "";
-  el("customerServiceFrequency").value = c.serviceFrequency || "";
-  el("customerPropertyNotes").value    = c.propertyNotes    || "";
-  el("customerNotes").value            = c.notes            || "";
-  showView("customersView");
-  el("customerFormBox").classList.remove("hidden");
-};
-
-window.resetCustomerForm = function () {
-  editingCustomerId = null;
-  el("customerFormTitle").innerText = "Add Customer";
-  ["customerName","customerEmail","customerPhone","customerAddress",
-   "customerGateCode","customerPreferredContact","customerServiceFrequency",
-   "customerPropertyNotes","customerNotes"].forEach(id => el(id).value = "");
-};
-
-// ── Job CRUD ───────────────────────────────────────────────────────────────────
-window.saveJob = async function () {
-  const existingJob = editingJobId ? jobs.find(x => x.id === editingJobId) : null;
-  const data = {
-    customerId: el("jobCustomer").value,
-    title:      el("jobTitle").value.trim(),
-    date:       el("jobDate").value || today(),
-    time:       el("jobTime").value || "",
-    amount:     Number(el("jobAmount").value || 0),
-    notes:      el("jobNotes").value.trim(),
-    status:     existingJob?.status || "Scheduled"
-  };
-  if (!data.customerId || !data.title) {
-    alert("Select a customer and enter a job description");
-    return;
-  }
-  if (editingJobId) {
-    // When editing, update all job fields except paid (payments handle that)
-    await updateDoc(doc(db, "jobs", editingJobId), data);
-  } else {
-    data.paid      = 0;
-    data.createdAt = new Date().toISOString();
-    const jobRef   = await addDoc(collection(db, "jobs"), data);
-    const initialPaid = Number(el("jobPaid").value || 0);
-    if (initialPaid > 0) {
-      await addDoc(collection(db, "payments"), {
-        jobId:      jobRef.id,
-        customerId: data.customerId,
-        amount:     initialPaid,
-        date:       data.date,
-        notes:      "Initial payment",
-        createdAt:  new Date().toISOString()
-      });
-    }
-  }
-  resetJobForm();
-};
-
-window.editJob = function (id) {
-  const j = jobs.find(x => x.id === id);
-  if (!j) return;
-  editingJobId = id;
-  el("jobFormTitle").innerText = "Edit Job";
-  el("jobCustomer").value      = j.customerId || "";
-  el("jobTitle").value         = j.title      || "";
-  el("jobDate").value          = j.date       || today();
-  el("jobTime").value          = j.time       || "";
-  el("jobAmount").value        = j.amount     || 0;
-  el("jobPaid").value          = jobPaidAmount(j);
-  el("jobNotes").value         = j.notes      || "";
-  showView("jobsView");
-  el("jobFormBox").classList.remove("hidden");
-};
-
-window.resetJobForm = function () {
-  editingJobId = null;
-  el("jobFormTitle").innerText = "Add Job";
-  el("jobCustomer").value = "";
-  el("jobTitle").value    = "";
-  el("jobDate").value     = today();
-  el("jobTime").value     = "";
-  el("jobAmount").value   = "";
-  el("jobPaid").value     = "";
-  el("jobNotes").value    = "";
-};
-
-window.addPayment = async function (id) {
-  const j = jobs.find(x => x.id === id);
-  if (!j) return;
-  const amountText = prompt("Payment amount received?");
-  if (amountText === null) return;
-  const amount = Number(amountText);
-  if (!amount || amount <= 0) { alert("Enter a valid payment amount"); return; }
-  const noteText = prompt("Payment note? Example: Cash, check, Venmo, card") || "";
-  await addDoc(collection(db, "payments"), {
-    jobId:      j.id,
-    customerId: j.customerId,
-    amount,
-    date:       today(),
-    notes:      noteText,
-    createdAt:  new Date().toISOString()
-  });
-  await updateDoc(doc(db, "jobs", id), { paid: jobPaidAmount(j) + amount });
-};
-
-window.savePaymentFromCustomer = async function () {
-  const jobId  = el("paymentJobSelect")?.value;
-  const amount = Number(el("paymentAmount")?.value || 0);
-  const date   = el("paymentDate")?.value  || today();
-  const method = el("paymentMethod")?.value.trim() || "";
-  const notes  = el("paymentNotes")?.value.trim()  || "";
-  const j      = jobs.find(x => x.id === jobId);
-  if (!j)                        { alert("Select a job"); return; }
-  if (!amount || amount <= 0)    { alert("Enter a valid payment amount"); return; }
-  await addDoc(collection(db, "payments"), {
-    jobId:      j.id,
-    customerId: j.customerId,
-    amount,
-    date,
-    notes:      method ? `${method} ${notes}`.trim() : notes,
-    createdAt:  new Date().toISOString()
-  });
-  await updateDoc(doc(db, "jobs", j.id), { paid: jobPaidAmount(j) + amount });
-  alert("Payment saved");
-  if (activeCustomerDetailId) setTimeout(() => viewCustomer(activeCustomerDetailId), 500);
-};
-
-window.deletePayment = async function (id) {
-  if (confirm("Delete this payment?")) await deleteDoc(doc(db, "payments", id));
-};
-
-window.markPaid = async function (id) {
-  const j = jobs.find(x => x.id === id);
-  if (!j) return;
-  const balance = jobBalance(j);
-  if (balance <= 0) { alert("This job is already paid."); return; }
-  await addDoc(collection(db, "payments"), {
-    jobId:      j.id,
-    customerId: j.customerId,
-    amount:     balance,
-    date:       today(),
-    notes:      "Marked paid",
-    createdAt:  new Date().toISOString()
-  });
-  await updateDoc(doc(db, "jobs", id), { paid: Number(j.amount || 0), status: "Complete" });
-  renderAll();
-  if (activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")) {
-    setTimeout(() => viewCustomer(activeCustomerDetailId), 500);
-  }
-};
-
-// Mark every unpaid job for a customer paid in one tap
-window.markAllPaid = async function (customerId) {
-  const unpaid = jobs.filter(j => j.customerId === customerId && jobBalance(j) > 0);
-  if (!unpaid.length) { alert("No unpaid jobs for this customer."); return; }
-  if (!confirm(`Mark all ${unpaid.length} unpaid job(s) as paid?`)) return;
-  for (const j of unpaid) {
-    const balance = jobBalance(j);
-    await addDoc(collection(db, "payments"), {
-      jobId:      j.id,
-      customerId: j.customerId,
-      amount:     balance,
-      date:       today(),
-      notes:      "Marked paid",
-      createdAt:  new Date().toISOString()
-    });
-    await updateDoc(doc(db, "jobs", j.id), { paid: Number(j.amount || 0), status: "Complete" });
-  }
-  alert("All jobs marked paid.");
-  setTimeout(() => viewCustomer(customerId), 600);
-};
-
-window.setJobStatus = async function (id, status) {
-  try {
-    await updateDoc(doc(db, "jobs", id), { status });
-    renderAll();
-    if (activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")) {
-      setTimeout(() => viewCustomer(activeCustomerDetailId), 400);
-    }
-  } catch (e) { alert("Status update failed: " + e.message); }
-};
-
-// ── Recurring CRUD ─────────────────────────────────────────────────────────────
-window.saveRecurring = async function () {
-  const data = {
-    customerId: el("recurringCustomer").value,
-    title:      el("recurringTitle").value.trim(),
-    nextDate:   el("recurringNextDate").value || today(),
-    time:       el("recurringTime").value || "",
-    amount:     Number(el("recurringAmount").value || 0),
-    frequency:  el("recurringFrequency").value
-  };
-  if (!data.customerId || !data.title) {
-    alert("Select a customer and enter recurring job title"); return;
-  }
-  if (editingRecurringId) {
-    await updateDoc(doc(db, "recurring", editingRecurringId), data);
-  } else {
-    data.createdAt = new Date().toISOString();
-    await addDoc(collection(db, "recurring"), data);
-  }
-  resetRecurringForm();
-};
-
-window.editRecurring = function (id) {
-  const r = recurring.find(x => x.id === id);
-  if (!r) return;
-  editingRecurringId = id;
-  el("recurringFormTitle").innerText   = "Edit Recurring Job";
-  el("recurringCustomer").value        = r.customerId || "";
-  el("recurringTitle").value           = r.title      || "";
-  el("recurringNextDate").value        = r.nextDate   || today();
-  el("recurringTime").value            = r.time       || "";
-  el("recurringAmount").value          = r.amount     || 0;
-  el("recurringFrequency").value       = r.frequency  || "weekly";
-  showView("recurringView");
-  el("recurringFormBox").classList.remove("hidden");
-};
-
-window.resetRecurringForm = function () {
-  editingRecurringId = null;
-  el("recurringFormTitle").innerText = "Add Recurring Job";
-  el("recurringCustomer").value      = "";
-  el("recurringTitle").value         = "";
-  el("recurringNextDate").value      = today();
-  el("recurringTime").value          = "";
-  el("recurringAmount").value        = "";
-  el("recurringFrequency").value     = "weekly";
-};
-
-window.createJobFromRecurring = async function (id) {
-  const r = recurring.find(x => x.id === id);
-  if (!r) return;
-  await addDoc(collection(db, "jobs"), {
-    customerId: r.customerId,
-    title:      r.title,
-    date:       r.nextDate,
-    time:       r.time || "",
-    amount:     Number(r.amount || 0),
-    paid:       0,
-    notes:      "Created from recurring job",
-    status:     "Scheduled",
-    createdAt:  new Date().toISOString()
-  });
-  let nextDate = r.nextDate || today();
-  if (r.frequency === "weekly")   nextDate = addDays(nextDate, 7);
-  if (r.frequency === "biweekly") nextDate = addDays(nextDate, 14);
-  if (r.frequency === "monthly") {
-    const d = new Date(nextDate + "T00:00:00");
-    d.setMonth(d.getMonth() + 1);
-    nextDate = d.toISOString().slice(0, 10);
-  }
-  await updateDoc(doc(db, "recurring", id), { nextDate });
-};
-
-// ── Expense CRUD ───────────────────────────────────────────────────────────────
-window.saveExpense = async function () {
-  const data = {
-    date:     el("expenseDate").value || today(),
-    category: el("expenseCategory").value.trim(),
-    amount:   Number(el("expenseAmount").value || 0),
-    notes:    el("expenseNotes").value.trim()
-  };
-  if (!data.category) { alert("Enter expense category"); return; }
-  if (editingExpenseId) {
-    await updateDoc(doc(db, "expenses", editingExpenseId), data);
-  } else {
-    data.createdAt = new Date().toISOString();
-    await addDoc(collection(db, "expenses"), data);
-  }
-  resetExpenseForm();
-};
-
-window.editExpense = function (id) {
-  const e = expenses.find(x => x.id === id);
-  if (!e) return;
-  editingExpenseId = id;
-  el("expenseFormTitle").innerText = "Edit Expense";
-  el("expenseDate").value          = e.date     || today();
-  el("expenseCategory").value      = e.category || "";
-  el("expenseAmount").value        = e.amount   || 0;
-  el("expenseNotes").value         = e.notes    || "";
-  showView("expensesView");
-  el("expenseFormBox").classList.remove("hidden");
-};
-
-window.resetExpenseForm = function () {
-  editingExpenseId = null;
-  el("expenseFormTitle").innerText = "Add Expense";
-  el("expenseDate").value          = today();
-  el("expenseCategory").value      = "";
-  el("expenseAmount").value        = "";
-  el("expenseNotes").value         = "";
-};
-
-// ── Delete any collection item ─────────────────────────────────────────────────
-window.deleteItem = async function (collectionName, id) {
-  if (!confirm("Delete this item?")) return;
-  try {
-    if (collectionName === "jobs") {
-      for (const p of payments.filter(p => p.jobId === id)) {
-        await deleteDoc(doc(db, "payments", p.id));
-      }
-    }
-    await deleteDoc(doc(db, collectionName, id));
-    setTimeout(() => {
-      renderAll();
-      if (activeCustomerDetailId && !el("customerDetailView").classList.contains("hidden")) {
-        viewCustomer(activeCustomerDetailId);
-      }
-    }, 700);
-  } catch (e) { alert("Delete failed: " + e.message); }
-};
-
-// ── Bid CRUD ───────────────────────────────────────────────────────────────────
-function updateBidTotal() {
-  let total = 0;
-  document.querySelectorAll(".bidRow").forEach(row => {
-    total += Number(row.querySelector(".bidQty").value   || 0) *
-             Number(row.querySelector(".bidPrice").value || 0);
-  });
-  el("bidTotal").innerText = money(total);
-}
-window.updateBidTotal = updateBidTotal;
-
-window.addBidItemRow = function (desc = "", qty = 1, price = 0) {
-  const row = document.createElement("div");
-  row.className = "bidRow";
-  row.innerHTML = `
-    <div class="box">
-      <input class="bidDesc"  placeholder="Item description" value="${safe(desc)}">
-      <input class="bidQty"   type="number" placeholder="Quantity"  value="${qty   || ""}">
-      <input class="bidPrice" type="number" placeholder="Price"     value="${price || ""}">
-      <button class="red removeBidRow">Remove Item</button>
-    </div>
-  `;
-  el("bidItems").appendChild(row);
-  row.querySelector(".removeBidRow").onclick = () => { row.remove(); updateBidTotal(); };
-  row.querySelectorAll("input").forEach(i => i.addEventListener("input", updateBidTotal));
-  updateBidTotal();
-};
-
-window.saveBid = async function () {
-  const customerId = el("bidCustomer").value;
-  const title      = el("bidTitle").value.trim();
-  if (!customerId || !title) { alert("Select customer and enter title"); return; }
-  const items = [];
-  document.querySelectorAll(".bidRow").forEach(row => {
-    const desc  = row.querySelector(".bidDesc").value.trim();
-    const qty   = Number(row.querySelector(".bidQty").value   || 0);
-    const price = Number(row.querySelector(".bidPrice").value || 0);
-    if (desc || qty || price) items.push({ desc, qty, price });
-  });
-  const total = items.reduce((s, i) => s + (i.qty * i.price), 0);
-  const data  = {
-    customerId,
-    title,
-    notes:     el("bidNotes").value.trim(),
-    items,
-    total,
-    status:    editingBidId ? (bids.find(x => x.id === editingBidId)?.status || "Pending") : "Pending",
-    updatedAt: new Date().toISOString()
-  };
-  if (editingBidId) {
-    await updateDoc(doc(db, "bids", editingBidId), data);
-    alert("Bid updated");
-  } else {
-    data.createdAt = new Date().toISOString();
-    await addDoc(collection(db, "bids"), data);
-    alert("Bid saved");
-  }
-  resetBidForm();
-};
-
-window.editBid = function (id) {
-  const b = bids.find(x => x.id === id);
-  if (!b) return;
-  editingBidId = id;
-  showView("bidsView");
-  el("bidFormBox").classList.remove("hidden");
-  el("bidCustomer").value  = b.customerId || "";
-  el("bidTitle").value     = b.title      || "";
-  el("bidNotes").value     = b.notes      || "";
-  el("bidItems").innerHTML = "";
-  (b.items || []).forEach(i => addBidItemRow(i.desc || "", i.qty || "", i.price || ""));
-  updateBidTotal();
-};
-
-window.resetBidForm = function () {
-  editingBidId = null;
-  el("bidCustomer").value  = "";
-  el("bidTitle").value     = "";
-  el("bidNotes").value     = "";
-  el("bidItems").innerHTML = "";
-  el("bidTotal").innerText = "$0";
-};
-
-window.deleteBid = async function (id) {
-  if (!confirm("Delete this bid?")) return;
-  try { await deleteDoc(doc(db, "bids", id)); } catch (e) { alert("Delete bid failed: " + e.message); }
-};
-
-window.convertBidToJob = async function (id) {
-  const b = bids.find(x => x.id === id);
-  if (!b) return;
-  if (!confirm("Convert this bid to a job?")) return;
-  await addDoc(collection(db, "jobs"), {
-    customerId: b.customerId,
-    title:      b.title,
-    date:       today(),
-    time:       "",
-    amount:     Number(b.total || 0),
-    paid:       0,
-    notes:      (b.notes || "") + "\n\nCreated from bid.",
-    status:     "Scheduled",
-    createdAt:  new Date().toISOString()
-  });
-  await updateDoc(doc(db, "bids", id), { status: "Approved", convertedAt: new Date().toISOString() });
-  alert("Bid converted to job");
-};
-
-// Print a bid as a formatted proposal document
-window.printBid = function (id) {
-  const b = bids.find(x => x.id === id);
-  if (!b) return;
-  const c = getCustomer(b.customerId);
-  el("invoiceArea").innerHTML = `
-    <div class="invoice">
-      <div class="invoiceTop">
-        <div>
-          <img class="invoiceLogo" src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
-          <h2>5Cs Property Services LLC</h2>
-          <p>Cleaned Up &bull; Fixed Right &bull; Ready To Sell</p>
-        </div>
-        <div>
-          <h1>Proposal</h1>
-          <p><b>${safe(b.title)}</b></p>
-          <p>Date: ${dateLabel(today())}</p>
-          <span class="badge ${b.status === "Approved" ? "badgeGreen" : "badgeBlue"}">${safe(b.status || "Pending")}</span>
-        </div>
-      </div>
-      ${c ? `
-        <h3>Prepared For</h3>
-        <p>
-          <b>${safe(c.name)}</b><br>
-          ${safe(c.email)}<br>
-          ${safe(c.phone)}<br>
-          ${safe(c.address)}
-        </p>
-      ` : ""}
-      <table>
-        <tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
-        ${(b.items || []).map(i => `
-          <tr>
-            <td>${safe(i.desc)}</td>
-            <td>${i.qty}</td>
-            <td>${money(i.price)}</td>
-            <td>${money(i.qty * i.price)}</td>
-          </tr>
-        `).join("")}
-      </table>
-      <p class="invoiceTotal">Proposal Total: ${money(b.total)}</p>
-      ${b.notes ? `<p>${safe(b.notes)}</p>` : ""}
-      <p class="small">This proposal is valid for 30 days from the date above.</p>
-      <button class="noPrint" onclick="window.print()">Print or Save PDF</button>
-    </div>
-  `;
-  showView("invoiceView");
-};
-
-// ── Invoice ────────────────────────────────────────────────────────────────────
-window.makeInvoiceFromCenter = function () {
-  const customerId = el("invoiceCustomerSelect").value;
-  if (!customerId) { alert("Select a customer"); return; }
-  makeInvoice(customerId);
-};
-
-window.makeInvoice = function (customerId) {
-  const c = getCustomer(customerId);
-  if (!c) return;
-  const custJobs      = jobs.filter(j => j.customerId === customerId);
-  const invoiceNumber = "INV-" + new Date().getFullYear() + "-" + String(Date.now()).slice(-5);
-  const issueDate     = today();
-  const dueDate       = el("invoiceDueDate")?.value || today();
-  const total         = custJobs.reduce((s, j) => s + Number(j.amount || 0), 0);
-  const paid          = custJobs.reduce((s, j) => s + jobPaidAmount(j), 0);
-  const balance       = total - paid;
-  const invoiceNotes  = el("invoiceNotes")?.value || "Payment due upon receipt. Thank you for your business.";
-  const paidStamp     = balance <= 0 ? `<span class="badge badgeGreen">Paid In Full</span>` : "";
-  const overdueStamp  = balance > 0 && isPastDue(dueDate) ? `<span class="badge badgeRed">Overdue</span>` : "";
-
-  const custPayments = payments
-    .filter(p => p.customerId === customerId)
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-
-  el("invoiceArea").innerHTML = `
-    <div class="invoice">
-      <div class="invoiceTop">
-        <div>
-          <img class="invoiceLogo" src="logo.png" alt="5Cs Property Services LLC Logo" onerror="this.style.display='none'">
-          <h2>5Cs Property Services LLC</h2>
-          <p>Cleaned Up &bull; Fixed Right &bull; Ready To Sell</p>
-        </div>
-        <div>
-          <h1>Invoice</h1>
-          <p><b>${invoiceNumber}</b></p>
-          <p>Issue Date: ${safe(issueDate)}</p>
-          <p>Due Date: ${safe(dueDate)}</p>
-          ${paidStamp}
-          ${overdueStamp}
-        </div>
-      </div>
-
-      <h3>Bill To</h3>
-      <p>
-        <b>${safe(c.name)}</b><br>
-        ${safe(c.email)}<br>
-        ${safe(c.phone)}<br>
-        ${safe(c.address)}
-      </p>
-
-      <table>
-        <tr><th>Date</th><th>Description</th><th>Amount</th><th>Paid</th><th>Balance</th></tr>
-        ${custJobs.map(j => `
-          <tr>
-            <td>${safe(j.date)}</td>
-            <td>${safe(j.title)}</td>
-            <td>${money(j.amount)}</td>
-            <td>${money(jobPaidAmount(j))}</td>
-            <td>${money(jobBalance(j))}</td>
-          </tr>
-        `).join("")}
-      </table>
-
-      <p class="invoiceTotal">Total: ${money(total)}</p>
-      <p class="invoiceTotal">Paid: ${money(paid)}</p>
-      <p class="invoiceTotal">Balance Due: ${money(balance)}</p>
-
-      ${custPayments.length ? `
-        <h3>Payment History</h3>
-        <table>
-          <tr><th>Date</th><th>Amount</th><th>Note</th></tr>
-          ${custPayments.map(p => {
-            const job = jobs.find(j => j.id === p.jobId);
-            return `<tr>
-              <td>${safe(p.date)}</td>
-              <td>${money(p.amount)}</td>
-              <td>${safe(p.notes || job?.title || "")}</td>
-            </tr>`;
-          }).join("")}
-        </table>
-      ` : ""}
-
-      <p>${safe(invoiceNotes)}</p>
-      <button class="noPrint" onclick="window.print()">Print or Save PDF</button>
-      <button class="noPrint" onclick="emailInvoice('${customerId}')">Email Invoice</button>
-    </div>
-  `;
-  showView("invoiceView");
-};
-
-window.emailInvoice = function (customerId) {
-  const c = getCustomer(customerId);
-  if (!c) return;
-  if (!c.email) { alert("This customer does not have an email saved."); return; }
-  const totals  = customerTotals(customerId);
-  const subject = encodeURIComponent("Invoice from 5Cs Property Services LLC");
-  const body    = encodeURIComponent(
-`Hello ${c.name},
-
-Below is your invoice summary from 5Cs Property Services LLC.
-
-Total paid: ${money(totals.paid)}
-Balance due: ${money(totals.owed)}
-
-Payment is due upon receipt.
-
-Thank you for your business.
-
-5Cs Property Services LLC`
-  );
-  window.location.href = `mailto:${encodeURIComponent(c.email)}?subject=${subject}&body=${body}`;
-};
-
-// ── Customer detail view ───────────────────────────────────────────────────────
-window.viewCustomer = function (id) {
-  activeCustomerDetailId = id;
-  const c = getCustomer(id);
-  if (!c) return;
-  const phone         = cleanPhone(c.phone);
-  const totals        = customerTotals(id);
-  const custJobs      = jobs.filter(j => j.customerId === id)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const custRecurring = recurring.filter(r => r.customerId === id);
-  const custPayments  = payments.filter(p => p.customerId === id)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const custBids      = bids.filter(b => b.customerId === id)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-  const lastJob       = custJobs[0];
-
-  el("customerDetail").innerHTML = `
-    <div class="box">
-      <div class="detailTitle">
-        <div>
-          <h2>${safe(c.name)}</h2>
-          <div class="small">${safe(c.email)}</div>
-          <div class="small">${safe(c.phone)}</div>
-          <div class="small">${safe(c.address)}</div>
-        </div>
-        <button class="secondary" onclick="showView('customersView')">Back</button>
-      </div>
-
-      <div class="grid">
-        <div class="stat"><b>Paid</b><h2>${money(totals.paid)}</h2></div>
-        <div class="stat"><b>Owed</b><h2>${money(totals.owed)}</h2></div>
-        <div class="stat"><b>Last Service</b><h2>${lastJob ? dateLabel(lastJob.date) : "None"}</h2></div>
-        <div class="stat"><b>Frequency</b><h2>${safe(c.serviceFrequency || "None")}</h2></div>
-      </div>
-
-      <div class="box">
-        <h3>Property Info</h3>
-        <div><b>Gate or Access:</b> ${safe(c.gateCode)}</div>
-        <div><b>Preferred Contact:</b> ${safe(c.preferredContact)}</div>
-        <div><b>Property Notes:</b> ${safe(c.propertyNotes)}</div>
-        <div><b>General Notes:</b> ${safe(c.notes)}</div>
-      </div>
-
-      <div class="row">
-        ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
-        ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
-        <button onclick="makeInvoice('${c.id}')">Invoice</button>
-        <button onclick="emailInvoice('${c.id}')">Email Invoice</button>
-        ${totals.owed > 0 ? `<button class="green" onclick="markAllPaid('${c.id}')">Mark All Paid</button>` : ""}
-        <button class="secondary" onclick="editCustomer('${c.id}')">Edit</button>
-      </div>
-    </div>
-
-    <div class="box noPrint">
-      <h3>Add Job For This Customer</h3>
-      <button onclick="quickJob('${c.id}')">Add Job</button>
-    </div>
-
-    <div class="box noPrint">
-      <h3>Add Payment</h3>
-      <select id="paymentJobSelect">
-        ${custJobs.map(j => `
-          <option value="${j.id}">${safe(j.title)} | Balance ${money(jobBalance(j))}</option>
-        `).join("")}
-      </select>
-      <input id="paymentAmount" type="number" placeholder="Payment amount">
-      <input id="paymentDate" type="date" value="${today()}">
-      <input id="paymentMethod" placeholder="Payment method, ex: Cash, Check, Venmo, Card">
-      <textarea id="paymentNotes" placeholder="Payment notes"></textarea>
-      <button class="green" onclick="savePaymentFromCustomer()">Save Payment</button>
-    </div>
-
-    <div class="box">
-      <h3>Bids</h3>
-      ${custBids.length ? custBids.map(b => `
-        <div class="jobCard">
-          <div class="customerHeader">
-            <div>
-              <h3>${safe(b.title)}</h3>
-              <div class="small">${safe(getCustomerName(b.customerId))}</div>
+  // Customer List Rendering
+  const cq = el("customerSearch")?.value.trim().toLowerCase() || "";
+  const listEl = el("customerList");
+  if (listEl) {
+    listEl.innerHTML = customers
+      .filter(c => c.name.toLowerCase().includes(cq))
+      .map(c => {
+        const totals = customerTotals(c.id);
+        const initials = getInitials(c.name);
+        const color = getAvatarColor(c.name);
+        return `
+          <div class="box" style="padding: 0; overflow: hidden;">
+            <div style="padding: 16px; display: flex; align-items: center; gap: 16px;">
+                <div class="avatar" style="background: ${color}">${initials}</div>
+                <div style="flex: 1">
+                    <h3 style="margin: 0;">${safe(c.name)}</h3>
+                    <div class="small">${safe(c.address || '')}</div>
+                </div>
+                <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">
+                    ${totals.owed > 0 ? money(totals.owed) : "Paid"}
+                </span>
             </div>
-            <span class="badge badgeBlue">${safe(b.status || "Pending")}</span>
+            <div class="card-footer">
+                <button class="secondary" onclick="viewCustomer('${c.id}')">Profile</button>
+                <button class="secondary" onclick="makeInvoice('${c.id}')">Invoice</button>
+            </div>
           </div>
-          <div class="box">
-            ${(b.items || []).map(i => `
-              <div class="moneyLine">
-                <span>${safe(i.desc)} &bull; Qty ${i.qty}</span>
-                <b>${money(i.qty * i.price)}</b>
-              </div>
-            `).join("")}
-          </div>
-          <div class="moneyLine">
-            <span>Bid Total</span><b>${money(b.total)}</b>
-          </div>
-          <div class="row">
-            <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
-            <button onclick="printBid('${b.id}')">Print Proposal</button>
-            <button class="green" onclick="convertBidToJob('${b.id}')">Convert To Job</button>
-            <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
-          </div>
-        </div>
-      `).join("") : "<p class='small'>No bids saved for this customer yet.</p>"}
-    </div>
-
-    <div class="box">
-      <h3>Jobs</h3>
-      ${custJobs.length ? custJobs.map(jobCardHtml).join("") : "<p class='small'>No jobs yet.</p>"}
-    </div>
-
-    <div class="box">
-      <h3>Payment History</h3>
-      ${custPayments.length ? custPayments.map(paymentLineHtml).join("") : "<p class='small'>No payments yet.</p>"}
-    </div>
-
-    <div class="box">
-      <h3>Recurring</h3>
-      ${custRecurring.length ? custRecurring.map(recurringCardHtml).join("") : "<p class='small'>No recurring jobs yet.</p>"}
-    </div>
-  `;
-  showView("customerDetailView");
-};
-
-window.quickJob = function (customerId) {
-  showView("jobsView");
-  el("jobFormBox").classList.remove("hidden");
-  resetJobForm();
-  el("jobCustomer").value = customerId;
-};
-
-window.copyReminder = function (jobId) {
-  const j = jobs.find(x => x.id === jobId);
-  if (!j) return;
-  const message = `Hey ${getCustomerName(j.customerId)}, just wanted to touch base on the remaining balance for ${j.title}. The current balance is ${money(jobBalance(j))}. Thank you.`;
-  navigator.clipboard.writeText(message)
-    .then(() => alert("Reminder copied:\n\n" + message))
-    .catch(() => alert(message));
-};
-
-window.exportBackup = function () {
-  const data = { customers, jobs, recurring, expenses, payments, exportedAt: new Date().toISOString() };
-  const blob  = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url   = URL.createObjectURL(blob);
-  const a     = document.createElement("a");
-  a.href      = url;
-  a.download  = "5cs-tracker-backup.json";
-  a.click();
-};
-
-// ── Workflow board ─────────────────────────────────────────────────────────────
-// workflowMiniCard and renderWorkflowBoard are defined exactly once at module scope.
-// setupWorkflowDragAndDrop() is called once in startListeners() so drop handlers
-// never stack up. renderWorkflowBoard() re-attaches dragstart to new cards only.
-
-function workflowMiniCard(j) {
-  return `
-    <div class="jobCard draggableJob" draggable="true" data-job-id="${j.id}">
-      <h3>${safe(j.title)}</h3>
-      <div class="small">${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)}</div>
-      ${paymentBadge(j)}
-      ${workflowBadge(j)}
-      <div class="moneyLine"><span>Balance</span><b>${money(jobBalance(j))}</b></div>
-      <div class="row">
-        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
-        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
-        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
-        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
-      </div>
-    </div>
-  `;
+        `;
+      }).join("");
+  }
 }
 
-function renderWorkflowBoard() {
-  const scheduled      = jobs.filter(j => (j.status || "Scheduled") === "Scheduled");
-  const inProgress     = jobs.filter(j => (j.status || "Scheduled") === "In Progress");
-  const waitingPayment = jobs.filter(j => (j.status || "Scheduled") === "Complete" && jobBalance(j) > 0);
-  const completedPaid  = jobs.filter(j => (j.status || "Scheduled") === "Complete" && jobBalance(j) <= 0);
-
-  el("workflowScheduled").innerHTML      = scheduled.length      ? scheduled.map(workflowMiniCard).join("")      : "<p class='small'>No scheduled jobs.</p>";
-  el("workflowInProgress").innerHTML     = inProgress.length     ? inProgress.map(workflowMiniCard).join("")     : "<p class='small'>No jobs in progress.</p>";
-  el("workflowWaitingPayment").innerHTML = waitingPayment.length ? waitingPayment.map(workflowMiniCard).join("") : "<p class='small'>No completed jobs waiting on payment.</p>";
-  el("workflowCompletedPaid").innerHTML  = completedPaid.length  ? completedPaid.map(workflowMiniCard).join("")  : "<p class='small'>No completed paid jobs.</p>";
-
-  // Re-attach dragstart to freshly rendered cards
-  document.querySelectorAll(".draggableJob").forEach(card => {
-    card.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("text/plain", card.dataset.jobId);
-    });
-  });
-}
-
-window.renderWorkflowBoard = renderWorkflowBoard;
-
-// Called once after login — attaches drop handlers to the persistent column elements
+// ── Workflow Board Logic ───────────────────────────────────────────────────────
 function setupWorkflowDragAndDrop() {
   document.querySelectorAll(".workflowColumn").forEach(column => {
-    column.addEventListener("dragover",  e => { e.preventDefault(); column.classList.add("dragOver"); });
-    column.addEventListener("dragleave", ()  => column.classList.remove("dragOver"));
+    column.addEventListener("dragover", e => { e.preventDefault(); column.classList.add("dragOver"); });
+    column.addEventListener("dragleave", () => column.classList.remove("dragOver"));
     column.addEventListener("drop", async e => {
       e.preventDefault();
       column.classList.remove("dragOver");
-      const jobId  = e.dataTransfer.getData("text/plain");
+      const jobId = e.dataTransfer.getData("text/plain");
       const status = column.dataset.workflowStatus;
-      if (!jobId || !status) return;
-      try {
+      if (jobId && status) {
         await updateDoc(doc(db, "jobs", jobId), { status });
-        renderAll();
-        renderWorkflowBoard();
-      } catch (err) { alert("Workflow update failed: " + err.message); }
+      }
     });
   });
-}
-
-// ── Schedule ───────────────────────────────────────────────────────────────────
-function renderSchedule(mode) {
-  let list = jobs.slice().sort((a, b) =>
-    `${a.date || ""} ${a.time || ""}`.localeCompare(`${b.date || ""} ${b.time || ""}`)
-  );
-  if (mode === "today") {
-    list = list.filter(j => j.date === today());
-    el("scheduleTitle").innerText = "Today's Jobs";
-  } else if (mode === "upcoming") {
-    const end = addDays(today(), 7);
-    list = list.filter(j => j.date >= today() && j.date <= end);
-    el("scheduleTitle").innerText = "Next 7 Days";
-  } else {
-    list = list.filter(j => j.date);
-    el("scheduleTitle").innerText = "All Scheduled Jobs";
-  }
-  el("scheduleList").innerHTML = list.length
-    ? list.map(scheduleCardHtml).join("")
-    : "<p class='small'>No scheduled jobs found.</p>";
-}
-
-window.renderSchedule = renderSchedule;
-
-// ── Card HTML helpers ──────────────────────────────────────────────────────────
-function paymentLineHtml(p) {
-  const job = jobs.find(j => j.id === p.jobId);
-  return `
-    <div class="paymentLine">
-      <b>${money(p.amount)}</b>
-      <div class="small">${safe(p.date)} | ${safe(job?.title || "Payment")}</div>
-      <div class="small">${safe(p.notes)}</div>
-      <button class="red" onclick="deletePayment('${p.id}')">Delete Payment</button>
-    </div>
-  `;
-}
-
-function jobCardHtml(j) {
-  const balance = jobBalance(j);
-  const list    = jobPayments(j.id);
-  return `
-    <div class="jobCard">
-      <h3>${safe(j.title)}</h3>
-      <div class="small">${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</div>
-      ${paymentBadge(j)}
-      ${workflowBadge(j)}
-      ${isPastDue(j.date) && balance > 0 ? `<span class="badge badgeRed">Overdue</span>` : ""}
-      <div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div>
-      <div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>
-      <div class="moneyLine"><span>Balance</span><b>${money(balance)}</b></div>
-      <p>${safe(j.notes)}</p>
-      <details>
-        <summary>Payment history</summary>
-        ${list.length ? list.map(paymentLineHtml).join("") : "<p class='small'>No payment records yet.</p>"}
-      </details>
-      <div class="row">
-        <button class="blue"      onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
-        <button class="gold"      onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
-        <button class="green"     onclick="setJobStatus('${j.id}','Complete')">Complete</button>
-        <button                   onclick="markPaid('${j.id}')">Mark Paid</button>
-        <button class="green"     onclick="addPayment('${j.id}')">Add Payment</button>
-        <button class="gold"      onclick="copyReminder('${j.id}')">Reminder</button>
-        <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
-        <button class="red"       onclick="deleteItem('jobs','${j.id}')">Delete</button>
-      </div>
-    </div>
-  `;
-}
-
-function recurringCardHtml(r) {
-  const s = recurringStatus(r);
-  return `
-    <div class="box">
-      <h3>${safe(r.title)}</h3>
-      <div class="small">${safe(getCustomerName(r.customerId))}</div>
-      <span class="badge ${s.cls}">${s.label}</span>
-      <div>Next: ${dateLabel(r.nextDate)} ${r.time ? "at " + timeLabel(r.time) : ""}</div>
-      <div>Frequency: ${safe(r.frequency)}</div>
-      <div>Amount: ${money(r.amount)}</div>
-      <div class="row">
-        <button class="green"     onclick="createJobFromRecurring('${r.id}')">Create Job</button>
-        <button class="secondary" onclick="editRecurring('${r.id}')">Edit</button>
-        <button class="red"       onclick="deleteItem('recurring','${r.id}')">Delete</button>
-      </div>
-    </div>
-  `;
-}
-
-function expenseCardHtml(e) {
-  return `
-    <div class="box">
-      <h3>${safe(e.category)}</h3>
-      <div class="small">${dateLabel(e.date)}</div>
-      <div><b>${money(e.amount)}</b></div>
-      <p>${safe(e.notes)}</p>
-      <div class="row">
-        <button class="secondary" onclick="editExpense('${e.id}')">Edit</button>
-        <button class="red"       onclick="deleteItem('expenses','${e.id}')">Delete</button>
-      </div>
-    </div>
-  `;
-}
-
-function scheduleCardHtml(j) {
-  const c     = getCustomer(j.customerId);
-  const phone = cleanPhone(c?.phone);
-  return `
-    <div class="box">
-      <h3>${safe(j.title)}</h3>
-      <div><b>${dateLabel(j.date)} ${j.time ? "at " + timeLabel(j.time) : ""}</b></div>
-      <div>${safe(getCustomerName(j.customerId))}</div>
-      <div class="small">${safe(c?.address || "")}</div>
-      <div class="small">${safe(c?.gateCode ? "Gate or access: " + c.gateCode : "")}</div>
-      <div class="small">${safe(c?.propertyNotes || "")}</div>
-      ${paymentBadge(j)}
-      ${workflowBadge(j)}
-      <div class="row">
-        ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
-        ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
-        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
-        <button onclick="editJob('${j.id}')">Edit Job</button>
-      </div>
-    </div>
-  `;
-}
-
-// ── Main render ────────────────────────────────────────────────────────────────
-// renderAll() is the single function called by all Firestore listeners.
-// It is defined at module scope — never nested inside another function.
-
-function renderAll() {
-  refreshDropdowns();
-
-  // Date range for profit view (defaults to all-time when blank)
-  const filterFrom = el("profitFrom")?.value || "";
-  const filterTo   = el("profitTo")?.value   || "";
-
-  const filteredPayments = payments.filter(p => {
-    if (filterFrom && p.date < filterFrom) return false;
-    if (filterTo   && p.date > filterTo)   return false;
-    return true;
-  });
-  const filteredExpenses = expenses.filter(e => {
-    if (filterFrom && e.date < filterFrom) return false;
-    if (filterTo   && e.date > filterTo)   return false;
-    return true;
-  });
-
-  // Dashboard always shows all-time totals
-  const allTimePaid     = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-  const allTimeExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const totalOwed       = jobs.reduce((s, j) => s + jobBalance(j), 0);
-
-  // Profit view respects the date filter
-  const filteredPaid     = filteredPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-  const filteredExpTotal = filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
-
-  const todayJobs             = jobs.filter(j => j.date === today());
-  const upcomingJobs          = jobs.filter(j => j.date > today() && j.date <= addDays(today(), 7));
-  const customersWithBalances = customers.filter(c => customerTotals(c.id).owed > 0);
-
-  // Dashboard stat tiles
-  el("dashPaid").innerText          = money(allTimePaid);
-  el("dashOwed").innerText          = money(totalOwed);
-  el("dashExpenses").innerText      = money(allTimeExpenses);
-  el("dashProfit").innerText        = money(allTimePaid - allTimeExpenses);
-  el("dashTodayJobs").innerText     = todayJobs.length;
-  el("dashUpcomingJobs").innerText  = upcomingJobs.length;
-  el("dashRecurringJobs").innerText = recurring.length;
-  el("dashInvoiceCount").innerText  = customersWithBalances.length;
-
-  // Profit view tiles (filtered)
-  el("profitPaid").innerText        = money(filteredPaid);
-  el("profitExpenses").innerText    = money(filteredExpTotal);
-  el("profitNet").innerText         = money(filteredPaid - filteredExpTotal);
-  el("profitOutstanding").innerText = money(totalOwed);
-
-  // Expense breakdown (filtered)
-  const expenseGroups = {};
-  filteredExpenses.forEach(e => {
-    const key = e.category || "Other";
-    expenseGroups[key] = (expenseGroups[key] || 0) + Number(e.amount || 0);
-  });
-  el("expenseBreakdown").innerHTML = Object.entries(expenseGroups)
-    .sort((a, b) => b[1] - a[1])
-    .map(([cat, total]) => `
-      <div class="moneyLine">
-        <span>${safe(cat)}</span><b>${money(total)}</b>
-      </div>
-    `).join("") || "<p class='small'>No expenses yet.</p>";
-
-  el("topCustomers").innerHTML = customers
-    .map(c => ({ customer: c, total: customerTotals(c.id) }))
-    .sort((a, b) => b.total.paid - a.total.paid)
-    .slice(0, 5)
-    .map(x => `
-      <div class="box">
-        <h3>${safe(x.customer.name)}</h3>
-        <div>Paid: ${money(x.total.paid)}</div>
-        <div>Owed: ${money(x.total.owed)}</div>
-        <button onclick="viewCustomer('${x.customer.id}')">View Customer</button>
-      </div>
-    `).join("") || "<p class='small'>No customer payments yet.</p>";
-
-  // Workflow board — only re-render when visible to avoid thrashing
-  if (!el("workflowView").classList.contains("hidden")) {
-    renderWorkflowBoard();
-  }
-
-  // Notifications
-  const unpaidJobs   = jobs.filter(j => paymentStatus(j) !== "Paid");
-  const dueRecurring = recurring.filter(r =>
-    ["Past Due","Due Today","Upcoming"].includes(recurringStatus(r).label)
-  );
-  const notifications = [];
-  if (todayJobs.length) notifications.push(`
-    <div class="box">
-      <h3>${todayJobs.length} job${todayJobs.length === 1 ? "" : "s"} scheduled today</h3>
-      <button onclick="openTodaySchedule()">View Today</button>
-    </div>
-  `);
-  if (unpaidJobs.length) notifications.push(`
-    <div class="box">
-      <h3>${unpaidJobs.length} unpaid or partial job${unpaidJobs.length === 1 ? "" : "s"}</h3>
-      <button onclick="openOwedJobs()">Collect Balances</button>
-    </div>
-  `);
-  if (dueRecurring.length) notifications.push(`
-    <div class="box">
-      <h3>${dueRecurring.length} recurring job${dueRecurring.length === 1 ? "" : "s"} due soon</h3>
-      <button onclick="showView('recurringView')">View Recurring</button>
-    </div>
-  `);
-  el("notificationCenter").innerHTML = notifications.length
-    ? notifications.join("")
-    : "<p class='small'>No alerts right now.</p>";
-
-  // Dashboard schedule previews
-  el("todaySchedulePreview").innerHTML = todayJobs.length
-    ? todayJobs.slice(0, 5)
-        .sort((a, b) => (a.time || "").localeCompare(b.time || ""))
-        .map(scheduleCardHtml).join("")
-    : "<p class='small'>No jobs scheduled today.</p>";
-
-  el("upcomingSchedulePreview").innerHTML = upcomingJobs.length
-    ? upcomingJobs.slice(0, 5)
-        .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-        .map(scheduleCardHtml).join("")
-    : "<p class='small'>No upcoming jobs in the next 7 days.</p>";
-
-  // Attention list — top 5 unpaid by balance
-  el("attentionList").innerHTML = unpaidJobs.length
-    ? unpaidJobs.slice().sort((a, b) => jobBalance(b) - jobBalance(a)).slice(0, 5).map(j => `
-        <div class="box">
-          <h3>${safe(j.title)}</h3>
-          <div>${safe(getCustomerName(j.customerId))}</div>
-          ${paymentBadge(j)}
-          ${workflowBadge(j)}
-          <div>Balance: ${money(jobBalance(j))}</div>
-          <div class="row">
-            <button onclick="viewCustomer('${j.customerId}')">Customer</button>
-            <button onclick="makeInvoice('${j.customerId}')">Invoice</button>
-            <button class="green" onclick="addPayment('${j.id}')">Add Payment</button>
-          </div>
-        </div>
-      `).join("")
-    : "<p class='small'>No unpaid jobs right now.</p>";
-
-  // Recent jobs — 5 most recently created
-  el("recentJobs").innerHTML = jobs.slice()
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .slice(0, 5)
-    .map(j => `
-      <div class="box">
-        <h3>${safe(j.title)}</h3>
-        <div>${safe(getCustomerName(j.customerId))} | ${dateLabel(j.date)}</div>
-        ${paymentBadge(j)}
-        ${workflowBadge(j)}
-        <div class="row">
-          <button onclick="viewCustomer('${j.customerId}')">Customer</button>
-          <button onclick="editJob('${j.id}')">Edit Job</button>
-        </div>
-      </div>
-    `).join("") || "<p class='small'>No jobs yet.</p>";
-
-  // Customer list
-  const cq = el("customerSearch").value.trim().toLowerCase();
-  el("customerList").innerHTML = customers.slice()
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
-    .filter(c => {
-      const custJobs = jobs.filter(j => j.customerId === c.id);
-      const text = `${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.gateCode||""} ${c.preferredContact||""} ${c.serviceFrequency||""} ${c.propertyNotes||""} ${c.notes||""} ${custJobs.map(j => j.title).join(" ")}`.toLowerCase();
-      return !cq || text.includes(cq);
-    })
-    .map(c => {
-      const totals = customerTotals(c.id);
-      const phone  = cleanPhone(c.phone);
-      return `
-        <div class="customerCard">
-          <div class="customerHeader">
-            <div>
-              <h3>${safe(c.name)}</h3>
-              <div class="small">${safe(c.email)}</div>
-              <div class="small">${safe(c.phone)}</div>
-              <div class="small">${safe(c.address)}</div>
-              <div class="small">${safe(c.serviceFrequency)}</div>
-            </div>
-            <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">${totals.owed > 0 ? "Owes" : "Paid Up"}</span>
-          </div>
-          <div class="moneyLine"><span>Paid</span><b>${money(totals.paid)}</b></div>
-          <div class="moneyLine"><span>Owed</span><b>${money(totals.owed)}</b></div>
-          <div class="row">
-            <button onclick="viewCustomer('${c.id}')">View</button>
-            <button onclick="makeInvoice('${c.id}')">Invoice</button>
-            <button onclick="emailInvoice('${c.id}')">Email Invoice</button>
-            ${phone ? `<a class="actionLink" href="tel:${phone}">Call</a>` : ""}
-            ${phone ? `<a class="actionLink" href="sms:${phone}">Text</a>` : ""}
-            <button class="secondary" onclick="editCustomer('${c.id}')">Edit</button>
-          </div>
-        </div>
-      `;
-    }).join("") || "<p class='small'>No customers found.</p>";
-
-  // Jobs list
-  const jq           = el("jobSearch").value.trim().toLowerCase();
-  const statusFilter = el("jobStatusFilter").value;
-  el("jobList").innerHTML = jobs.slice()
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .filter(j => {
-      const payStatus      = paymentStatus(j).toLowerCase();
-      const workflowStatus = String(j.status || "Scheduled").toLowerCase();
-      const text           = `${j.title||""} ${j.notes||""} ${getCustomerName(j.customerId)}`.toLowerCase();
-      let statusOk = statusFilter === "all" || payStatus === statusFilter || workflowStatus === statusFilter;
-      if (statusFilter === "today")    statusOk = j.date === today();
-      if (statusFilter === "upcoming") statusOk = j.date > today() && j.date <= addDays(today(), 7);
-      return statusOk && (!jq || text.includes(jq));
-    })
-    .map(jobCardHtml).join("") || "<p class='small'>No jobs found.</p>";
-
-  // Payments list
-  el("paymentsList").innerHTML = payments.slice()
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .map(p => {
-      const job = jobs.find(j => j.id === p.jobId);
-      return `
-        <div class="box">
-          <h3>${money(p.amount)}</h3>
-          <div>${safe(getCustomerName(p.customerId))}</div>
-          <div class="small">${dateLabel(p.date)} | ${safe(job?.title || "Payment")}</div>
-          <p>${safe(p.notes)}</p>
-          <button class="red" onclick="deletePayment('${p.id}')">Delete Payment</button>
-        </div>
-      `;
-    }).join("") || "<p class='small'>No payments yet.</p>";
-
-  // Recurring calendar — all items, no arbitrary cap
-  el("recurringCalendar").innerHTML = recurring.slice()
-    .sort((a, b) => (a.nextDate || "").localeCompare(b.nextDate || ""))
-    .map(r => {
-      const s = recurringStatus(r);
-      return `
-        <div class="moneyLine">
-          <span>${dateLabel(r.nextDate)} ${r.time ? timeLabel(r.time) : ""} | ${safe(r.title)} | ${safe(getCustomerName(r.customerId))}</span>
-          <b><span class="badge ${s.cls}">${s.label}</span></b>
-        </div>
-      `;
-    }).join("") || "<p class='small'>No recurring jobs scheduled.</p>";
-
-  el("recurringList").innerHTML = recurring.slice()
-    .sort((a, b) => (a.nextDate || "").localeCompare(b.nextDate || ""))
-    .map(recurringCardHtml).join("") || "<p class='small'>No recurring jobs yet.</p>";
-
-  // Bids list
-  el("bidsList").innerHTML = bids.length
-    ? bids.slice()
-        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-        .map(b => `
-          <div class="jobCard">
-            <div class="customerHeader">
-              <div>
-                <h3>${safe(b.title)}</h3>
-                <div class="small">${safe(getCustomerName(b.customerId))}</div>
-              </div>
-              <span class="badge ${b.status === "Approved" ? "badgeGreen" : "badgeBlue"}">${safe(b.status || "Pending")}</span>
-            </div>
-            <div class="box">
-              ${(b.items || []).map(i => `
-                <div class="moneyLine">
-                  <span>${safe(i.desc)} &bull; Qty ${i.qty}</span>
-                  <b>${money(i.qty * i.price)}</b>
-                </div>
-              `).join("")}
-            </div>
-            <div class="moneyLine">
-              <span>Bid Total</span><b>${money(b.total)}</b>
-            </div>
-            <p>${safe(b.notes)}</p>
-            <div class="row">
-              <button class="secondary" onclick="editBid('${b.id}')">Edit Bid</button>
-              <button onclick="printBid('${b.id}')">Print Proposal</button>
-              <button class="green" onclick="convertBidToJob('${b.id}')">Convert To Job</button>
-              <button class="red" onclick="deleteBid('${b.id}')">Delete Bid</button>
-            </div>
-          </div>
-        `).join("")
-    : "<p class='small'>No bids saved yet.</p>";
-
-  // Expenses list
-  el("expenseList").innerHTML = expenses.slice()
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .map(expenseCardHtml).join("") || "<p class='small'>No expenses yet.</p>";
-
-  // Invoice center — customers with outstanding balances
-  el("invoiceCustomerList").innerHTML = customersWithBalances.length
-    ? customersWithBalances.map(c => {
-        const totals = customerTotals(c.id);
-        return `
-          <div class="box">
-            <h3>${safe(c.name)}</h3>
-            <div class="small">${safe(c.email)}</div>
-            <div>Balance: ${money(totals.owed)}</div>
-            <button onclick="makeInvoice('${c.id}')">Create Invoice</button>
-            <button onclick="emailInvoice('${c.id}')">Email Invoice</button>
-          </div>
-        `;
-      }).join("")
-    : "<p class='small'>No unpaid balances right now.</p>";
 }
 
 window.renderAll = renderAll;
