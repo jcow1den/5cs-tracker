@@ -1701,6 +1701,36 @@ function workflowMiniCard(j){
   `;
 }
 
+window.renderWorkflowBoard = renderWorkflowBoard;
+
+function workflowMiniCard(j){
+  return `
+    <div class="jobCard draggableJob" draggable="true" data-job-id="${j.id}">
+      <h3>${safe(j.title)}</h3>
+      <div class="small">
+        ${safe(getCustomerName(j.customerId))}
+        |
+        ${dateLabel(j.date)}
+      </div>
+
+      ${paymentBadge(j)}
+      ${workflowBadge(j)}
+
+      <div class="moneyLine">
+        <span>Balance</span>
+        <b>${money(jobBalance(j))}</b>
+      </div>
+
+      <div class="row">
+        <button onclick="viewCustomer('${j.customerId}')">Customer</button>
+        <button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button>
+        <button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button>
+        <button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderWorkflowBoard(){
   const scheduled = jobs.filter(j => (j.status || "Scheduled") === "Scheduled");
   const inProgress = jobs.filter(j => (j.status || "Scheduled") === "In Progress");
@@ -1715,30 +1745,30 @@ function renderWorkflowBoard(){
     jobBalance(j) <= 0
   );
 
-  const cols = [
-    el("workflowScheduled"),
-    el("workflowInProgress"),
-    el("workflowWaitingPayment"),
-    el("workflowCompletedPaid")
-  ];
+  const scheduledCol = el("workflowScheduled");
+  const inProgressCol = el("workflowInProgress");
+  const waitingCol = el("workflowWaitingPayment");
+  const paidCol = el("workflowCompletedPaid");
 
-  cols.forEach(c => c.classList.add("workflowColumn"));
+  [scheduledCol,inProgressCol,waitingCol,paidCol].forEach(col=>{
+    if(col) col.classList.add("workflowColumn");
+  });
 
-  el("workflowScheduled").dataset.workflowStatus = "Scheduled";
-  el("workflowInProgress").dataset.workflowStatus = "In Progress";
-  el("workflowWaitingPayment").dataset.workflowStatus = "Complete";
-  el("workflowCompletedPaid").dataset.workflowStatus = "Complete";
+  scheduledCol.dataset.workflowStatus = "Scheduled";
+  inProgressCol.dataset.workflowStatus = "In Progress";
+  waitingCol.dataset.workflowStatus = "Complete";
+  paidCol.dataset.workflowStatus = "Complete";
 
-  el("workflowScheduled").innerHTML =
+  scheduledCol.innerHTML =
     scheduled.length ? scheduled.map(workflowMiniCard).join("") : "<p class='small'>No scheduled jobs.</p>";
 
-  el("workflowInProgress").innerHTML =
+  inProgressCol.innerHTML =
     inProgress.length ? inProgress.map(workflowMiniCard).join("") : "<p class='small'>No jobs in progress.</p>";
 
-  el("workflowWaitingPayment").innerHTML =
+  waitingCol.innerHTML =
     waitingPayment.length ? waitingPayment.map(workflowMiniCard).join("") : "<p class='small'>No completed jobs waiting on payment.</p>";
 
-  el("workflowCompletedPaid").innerHTML =
+  paidCol.innerHTML =
     completedPaid.length ? completedPaid.map(workflowMiniCard).join("") : "<p class='small'>No completed paid jobs.</p>";
 
   setupWorkflowDragAndDrop();
