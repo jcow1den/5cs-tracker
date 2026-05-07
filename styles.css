@@ -90,7 +90,7 @@ header {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(13,11,7,0.88);
+  background: rgba(255,255,255,0.92);
   backdrop-filter: saturate(180%) blur(24px);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   border-bottom: 1px solid var(--border);
@@ -107,8 +107,8 @@ header {
   flex-shrink: 0;
 }
 
-header h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; line-height: 1.2; }
-header p  { font-size: 12px; color: var(--muted); margin: 0; font-weight: 400; }
+header h1 { font-size: 18px; font-weight: 700; color: (#1a1710); letter-spacing: -0.02em; line-height: 1.2; }
+header p  { font-size: 12px; color: var(#9a8f80); margin: 0; font-weight: 400; }
 
 /* ── Cards & surfaces ──────────────────────────────────────────────────────── */
 .box {
