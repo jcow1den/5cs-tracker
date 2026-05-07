@@ -58,41 +58,80 @@ const fabMenu   = document.getElementById("fabMenu");
 // ── Utilities ──────────────────────────────────────────────────────────────────
 const money = n => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const today = () => new Date().toISOString().slice(0, 10);
-const el    = id  => document.getElementById(id);
+const el = id => document.getElementById(id);
+
+// Generate Initials for Avatar
+function getInitials(name) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// Generate unique colors based on name strings
+function getAvatarColor(name) {
+  const colors = ['#175cd3', '#079455', '#7a5af8', '#f79009', '#d92d20', '#ee46bc'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
 
 function safe(v) {
   return String(v || "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 }
 
-function cleanPhone(phone) {
-  return String(phone || "").replace(/\D/g, "");
+// ── Updated Nav with Icons ───────────────────────────────────────────────────
+// Replace your bottomNav.innerHTML line with this:
+function updateNavigationUI(activeId) {
+  bottomNav.innerHTML = `
+    <button onclick="showView('dashboardView')" class="${activeId === 'dashboardView' ? 'active' : ''}">
+      <i data-lucide="home"></i><span>Home</span>
+    </button>
+    <button onclick="showView('customersView')" class="${activeId === 'customersView' ? 'active' : ''}">
+      <i data-lucide="users"></i><span>Clients</span>
+    </button>
+    <button onclick="showView('jobsView')" class="${activeId === 'jobsView' ? 'active' : ''}">
+      <i data-lucide="briefcase"></i><span>Jobs</span>
+    </button>
+    <button onclick="showView('invoicesView')" class="${activeId === 'invoicesView' ? 'active' : ''}">
+      <i data-lucide="file-text"></i><span>Invoices</span>
+    </button>
+    <button onclick="showView('settingsView')" class="${activeId === 'settingsView' ? 'active' : ''}">
+      <i data-lucide="more-horizontal"></i><span>More</span>
+    </button>
+  `;
+  if (window.lucide) lucide.createIcons();
 }
 
-function dateLabel(value) {
-  if (!value) return "";
-  const d = new Date(value + "T00:00:00");
-  if (isNaN(d)) return value;
-  return d.toLocaleDateString();
-}
+// ── Modern Customer Card ──────────────────────────────────────────────────────
+// Replace the .map(c => ...) part of your customer list in renderAll() with this:
+function modernCustomerCard(c) {
+  const totals = customerTotals(c.id);
+  const initials = getInitials(c.name);
+  const color = getAvatarColor(c.name);
+  const phone = cleanPhone(c.phone);
 
-function timeLabel(value) {
-  if (!value) return "";
-  const [h, m] = value.split(":");
-  let hour = Number(h);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-  return `${hour}:${m || "00"} ${ampm}`;
-}
-
-function addDays(dateValue, days) {
-  const d = new Date((dateValue || today()) + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function isPastDue(dateValue) {
-  if (!dateValue) return false;
-  return new Date(dateValue + "T00:00:00") < new Date(today() + "T00:00:00");
+  return `
+    <div class="box card-actionable" style="padding: 0; overflow: hidden;">
+        <div style="padding: 16px; display: flex; align-items: center; gap: 16px;">
+            <div class="avatar" style="background: ${color}">${initials}</div>
+            <div style="flex: 1">
+                <h3 style="margin: 0; font-size: 1.1rem;">${safe(c.name)}</h3>
+                <div class="small">${safe(c.address)}</div>
+            </div>
+            <div style="text-align: right">
+                <span class="badge ${totals.owed > 0 ? "badgeRed" : "badgeGreen"}">
+                    ${totals.owed > 0 ? money(totals.owed) : "Paid"}
+                </span>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button class="secondary" onclick="viewCustomer('${c.id}')">Profile</button>
+            <button class="secondary" onclick="makeInvoice('${c.id}')">Invoice</button>
+            ${phone ? `<a href="tel:${phone}" class="btn-icon"><i data-lucide="phone"></i></a>` : ''}
+            ${phone ? `<a href="sms:${phone}" class="btn-icon"><i data-lucide="message-square"></i></a>` : ''}
+        </div>
+    </div>
+  `;
 }
 
 // ── Sync badge ─────────────────────────────────────────────────────────────────
