@@ -94,6 +94,21 @@ const PRICE_LIST=[
   {id:"minjob",   cat:"Other",               name:"Minimum Job Charge",        hasSizes:false,flat:75,                                             firstOk:false},
 ];
 
+const PACKAGES=[
+  {key:"basic",      title:"Basic Curb Appeal",        discount:0.10,
+   desc:"Lawn mowing, edging, exterior window cleaning",
+   items:[{id:"lawn",sizeType:"lot"},{id:"windows"}]},
+  {key:"exterior",   title:"Full Exterior Prep",        discount:0.12,
+   desc:"Lawn mowing, full yard cleanup, pressure washing, gutter cleaning",
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"}]},
+  {key:"readytosell",title:"Ready To Sell",             discount:0.12,
+   desc:"Full Exterior Prep + deep interior clean + professional photography",
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"deepclean",sizeType:"home"},{id:"photos",sizeType:"home"}]},
+  {key:"fullservice",title:"Full Service Listing Prep", discount:0.15,
+   desc:"Ready To Sell + drone photos + handyman repairs",
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"deepclean",sizeType:"home"},{id:"photos",sizeType:"home"},{id:"drone"},{id:"handyman"}]},
+];
+
 appRoot.innerHTML=`
 <section id="loginScreen" class="box">
   <h2>Login</h2>
@@ -266,7 +281,10 @@ appRoot.innerHTML=`
       <select id="bidCustomer"></select>
       <input id="bidTitle" placeholder="Bid title">
       <textarea id="bidNotes" placeholder="General notes"></textarea>
-      <div style="margin:10px 0"><button class="secondary" onclick="openPriceListPanel()">Build from Price List</button></div>
+      <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="secondary" onclick="openPriceListPanel()">Build from Price List</button>
+        <button class="secondary" onclick="openPackagesPanel()">Packages</button>
+      </div>
       <div id="priceListPanel" class="box hidden" style="background:var(--s2);padding:12px">
         <h3 style="margin-bottom:8px">Select Services</h3>
         <div id="priceListContent"></div>
@@ -284,7 +302,28 @@ appRoot.innerHTML=`
           <button class="secondary" onclick="toggleBox('priceListPanel')">Cancel</button>
         </div>
       </div>
-      <div id="bidItems"></div>
+
+      <div id="packagesPanel" class="box hidden" style="background:var(--s2);padding:12px">
+        <h3 style="margin-bottom:10px">Pre-Built Packages</h3>
+        <div style="margin-bottom:12px">
+          <div class="small" style="margin-bottom:4px">Lot Size</div>
+          <select id="pkgLotSize" onchange="renderPackages()" style="margin:0 0 8px">
+            <option value="sm">Under &frac14; acre</option>
+            <option value="md">&frac14; &ndash; &frac12; acre</option>
+            <option value="lg">&frac12; &ndash; 1 acre</option>
+            <option value="xl">1+ acre</option>
+          </select>
+          <div class="small" style="margin-bottom:4px">Home Size</div>
+          <select id="pkgHomeSize" onchange="renderPackages()" style="margin:0">
+            <option value="sm">Under 1,500 sq ft</option>
+            <option value="md">1,500&ndash;2,500 sq ft</option>
+            <option value="lg">2,500&ndash;4,000 sq ft</option>
+            <option value="xl">4,000+ sq ft</option>
+          </select>
+        </div>
+        <div id="packagesContent"></div>
+        <button class="secondary" style="margin-top:8px;width:100%" onclick="toggleBox('packagesPanel')">Cancel</button>
+      </div>
       <button onclick="addBidItemRow()">+ Add Line Item Manually</button>
       <div class="box" style="background:var(--s2);margin-top:8px"><h3>Bid Total</h3><div class="moneyLine"><span>Total</span><b id="bidTotal">$0.00</b></div></div>
       <button class="green" onclick="saveBid()">Save Bid</button>
@@ -665,6 +704,66 @@ window.addPriceListToBid=function(){
   selected.forEach(svc=>{const cb=el(`plCheck_${svc.id}`);if(cb)cb.checked=false;const sd=el(`plSize_${svc.id}`);if(sd)sd.style.display="none";});
   plFirstVisit=false;const cb2=el("plFirstCheck");if(cb2)cb2.checked=false;el("priceListPanel").classList.add("hidden");
   showToast(`${selected.length} service${selected.length===1?"":"s"} added to bid`);
+};
+
+window.openPackagesPanel=function(){
+  el("packagesPanel").classList.remove("hidden");
+  renderPackages();
+};
+
+function renderPackages(){
+  const lotSz=el("pkgLotSize")?.value||"sm";
+  const homeSz=el("pkgHomeSize")?.value||"sm";
+  el("packagesContent").innerHTML=PACKAGES.map(pkg=>{
+    let total=0;
+    const lines=pkg.items.map(item=>{
+      const svc=PRICE_LIST.find(s=>s.id===item.id);if(!svc)return null;
+      const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:svc.flat;
+      total+=price;
+      return{name:svc.name,price};
+    }).filter(Boolean);
+    const discounted=Math.round(total*(1-pkg.discount));
+    const savings=total-discounted;
+    return`<div class="box" style="background:var(--s1);margin-bottom:8px">
+      <h3 style="margin-bottom:2px">${safe(pkg.title)}</h3>
+      <p class="small" style="margin-bottom:8px">${safe(pkg.desc)}</p>
+      <div style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px">
+        ${lines.map(li=>`<div class="moneyLine"><span style="font-size:13px">${safe(li.name)}</span><span style="font-size:13px">${money(li.price)}</span></div>`).join("")}
+        <div class="moneyLine" style="border-top:0.5px solid #d0cbbf;margin-top:6px;padding-top:6px">
+          <span style="font-size:13px;color:#9a8f80">Regular Total</span>
+          <span style="font-size:13px;color:#9a8f80;text-decoration:line-through">${money(total)}</span>
+        </div>
+        <div class="moneyLine">
+          <span style="font-size:14px;font-weight:600;color:#087443">Package Price</span>
+          <span style="font-size:18px;font-weight:700;color:#087443">${money(discounted)}</span>
+        </div>
+        <div class="moneyLine">
+          <span style="font-size:12px;color:#b7791f">Customer saves</span>
+          <span style="font-size:12px;font-weight:600;color:#b7791f">${money(savings)} (${Math.round(pkg.discount*100)}% off)</span>
+        </div>
+      </div>
+      <button class="green" style="width:100%" onclick="addPackageToBid('${pkg.key}')">Add This Package to Bid</button>
+    </div>`;
+  }).join("");
+}
+window.renderPackages=renderPackages;
+
+window.addPackageToBid=function(key){
+  const pkg=PACKAGES.find(p=>p.key===key);if(!pkg)return;
+  const lotSz=el("pkgLotSize")?.value||"sm";
+  const homeSz=el("pkgHomeSize")?.value||"sm";
+  let total=0;
+  const lines=pkg.items.map(item=>{
+    const svc=PRICE_LIST.find(s=>s.id===item.id);if(!svc)return null;
+    const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:svc.flat;
+    total+=price;
+    return{name:svc.name,price};
+  }).filter(Boolean);
+  const savings=Math.round(total*pkg.discount);
+  lines.forEach(li=>addBidItemRow(li.name,1,li.price));
+  addBidItemRow(`${pkg.title} Package Discount (${Math.round(pkg.discount*100)}% off)`,1,-savings);
+  el("packagesPanel").classList.add("hidden");
+  showToast(`${pkg.title} added to bid`);
 };
 
 function updateBidTotal(){let t=0;document.querySelectorAll(".bidRow").forEach(row=>{t+=Number(row.querySelector(".bidQty").value||0)*Number(row.querySelector(".bidPrice").value||0);});el("bidTotal").innerText=money(t);}
