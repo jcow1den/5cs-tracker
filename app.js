@@ -975,8 +975,29 @@ window.viewCustomer = function(id){
         <button onclick="emailInvoice('${c.id}')">Email Invoice</button>
         ${totals.owed>0?`<button class="green" onclick="markAllPaid('${c.id}')">Mark All Paid</button>`:""}
         <button class="secondary" onclick="editCustomer('${c.id}')">Edit</button>
+        <button class="red" onclick="deleteCustomer('${c.id}')">Delete</button>
       </div>
     </div>
+
+    window.deleteCustomer = async function(id){
+  const custJobs = jobs.filter(j => j.customerId === id);
+  if(custJobs.length > 0){
+    if(!confirm(`This customer has ${custJobs.length} job(s) on record. Deleting them will also delete all their jobs, payments, and bids. Are you sure?`)) return;
+  } else {
+    if(!confirm("Delete this customer?")) return;
+  }
+  try {
+    for(const j of custJobs){
+      for(const p of payments.filter(p => p.jobId === j.id)) await deleteDoc(doc(db,"payments",p.id));
+      await deleteDoc(doc(db,"jobs",j.id));
+    }
+    for(const b of bids.filter(b => b.customerId === id)) await deleteDoc(doc(db,"bids",b.id));
+    for(const r of recurring.filter(r => r.customerId === id)) await deleteDoc(doc(db,"recurring",r.id));
+    await deleteDoc(doc(db,"customers",id));
+    showToast("Customer deleted");
+    showView("customersView");
+  } catch(e){ alert("Delete failed: " + e.message); }
+};
 
     <div class="box noPrint">
       <h3>Add Job For This Customer</h3>
