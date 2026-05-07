@@ -322,6 +322,21 @@ appRoot.innerHTML=`
           </select>
         </div>
         <div id="packagesContent"></div>
+        <div style="margin-top:12px;border-top:0.5px solid #d0cbbf;padding-top:12px">
+          <button class="secondary" style="width:100%;margin-bottom:8px" onclick="openCustomPkg()">+ Build Custom Package</button>
+          <div id="customPkgBox" class="hidden">
+            <div id="customPkgServices"></div>
+            <div style="margin:10px 0;display:flex;align-items:center;gap:10px">
+              <div style="font-size:14px;font-weight:500;color:var(--text)">Discount</div>
+              <input id="customPkgDiscount" type="number" min="0" max="50" value="10" style="width:70px;margin:0" oninput="updateCustomPkgTotal()">
+              <div style="font-size:14px;color:var(--text)">%</div>
+            </div>
+            <div id="customPkgTotals" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:8px">
+              <p class="small">Select services above to see your package price.</p>
+            </div>
+            <button class="green" style="width:100%" onclick="addCustomPackageToBid()">Add Custom Package to Bid</button>
+          </div>
+        </div>
         <button class="secondary" style="margin-top:8px;width:100%" onclick="toggleBox('packagesPanel')">Cancel</button>
       </div>
       <button onclick="addBidItemRow()">+ Add Line Item Manually</button>
@@ -764,6 +779,78 @@ window.addPackageToBid=function(key){
   addBidItemRow(`${pkg.title} Package Discount (${Math.round(pkg.discount*100)}% off)`,1,-savings);
   el("packagesPanel").classList.add("hidden");
   showToast(`${pkg.title} added to bid`);
+};
+
+window.openCustomPkg=function(){
+  const box=el("customPkgBox");
+  if(!box.classList.contains("hidden")){box.classList.add("hidden");return;}
+  const cats=[...new Set(PRICE_LIST.map(s=>s.cat))];
+  let html="";
+  for(const cat of cats){
+    html+=`<div class="formSection" style="margin-top:8px;font-size:11px">${safe(cat)}</div>`;
+    for(const svc of PRICE_LIST.filter(s=>s.cat===cat)){
+      const ph=svc.hasSizes?"varies by size":money(svc.flat)+(svc.unit?"/"+svc.unit:"");
+      html+=`<div style="padding:6px 0;border-bottom:0.5px solid #e8e4dc">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="cp_${svc.id}" style="width:18px;height:18px;margin:0;flex-shrink:0;accent-color:#087443" onchange="cpToggleSvc('${svc.id}')">
+          <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small">${ph}</div></div>
+        </label>
+        <div id="cpSize_${svc.id}" style="display:none;padding:4px 0 0 26px">
+          ${svc.hasSizes?`<select id="cpSel_${svc.id}" style="margin:0;font-size:12px" onchange="updateCustomPkgTotal()">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:""}
+        </div>
+      </div>`;
+    }
+  }
+  el("customPkgServices").innerHTML=html;
+  updateCustomPkgTotal();
+  box.classList.remove("hidden");
+};
+
+window.cpToggleSvc=function(id){
+  const cb=el(`cp_${id}`);const sd=el(`cpSize_${id}`);
+  if(sd)sd.style.display=cb?.checked?"block":"none";
+  updateCustomPkgTotal();
+};
+
+window.updateCustomPkgTotal=function(){
+  const discount=Math.min(50,Math.max(0,Number(el("customPkgDiscount")?.value||10)));
+  let total=0;const selected=[];
+  PRICE_LIST.forEach(svc=>{
+    const cb=el(`cp_${svc.id}`);if(!cb?.checked)return;
+    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.flat;
+    total+=price;selected.push({name:svc.name,price});
+  });
+  const discounted=Math.round(total*(1-discount/100));
+  const savings=total-discounted;
+  const totalsEl=el("customPkgTotals");if(!totalsEl)return;
+  if(!selected.length){totalsEl.innerHTML="<p class='small'>Select services above to see your package price.</p>";return;}
+  totalsEl.innerHTML=`
+    ${selected.map(li=>`<div class="moneyLine"><span style="font-size:13px">${safe(li.name)}</span><span style="font-size:13px">${money(li.price)}</span></div>`).join("")}
+    <div class="moneyLine" style="border-top:0.5px solid #d0cbbf;margin-top:6px;padding-top:6px">
+      <span style="font-size:13px;color:#9a8f80">Regular Total</span>
+      <span style="font-size:13px;color:#9a8f80;text-decoration:line-through">${money(total)}</span>
+    </div>
+    <div class="moneyLine">
+      <span style="font-size:14px;font-weight:600;color:#087443">Package Price</span>
+      <span style="font-size:18px;font-weight:700;color:#087443">${money(discounted)}</span>
+    </div>
+    ${savings>0?`<div class="moneyLine"><span style="font-size:12px;color:#b7791f">Customer saves</span><span style="font-size:12px;font-weight:600;color:#b7791f">${money(savings)} (${discount}% off)</span></div>`:""}`;
+};
+
+window.addCustomPackageToBid=function(){
+  const discount=Math.min(50,Math.max(0,Number(el("customPkgDiscount")?.value||10)));
+  let total=0;const selected=[];
+  PRICE_LIST.forEach(svc=>{
+    const cb=el(`cp_${svc.id}`);if(!cb?.checked)return;
+    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.flat;
+    total+=price;selected.push({name:svc.name,price});
+  });
+  if(!selected.length){alert("Select at least one service");return;}
+  const savings=Math.round(total*(discount/100));
+  selected.forEach(li=>addBidItemRow(li.name,1,li.price));
+  if(savings>0)addBidItemRow(`Custom Package Discount (${discount}% off)`,1,-savings);
+  el("packagesPanel").classList.add("hidden");
+  showToast("Custom package added to bid");
 };
 
 function updateBidTotal(){let t=0;document.querySelectorAll(".bidRow").forEach(row=>{t+=Number(row.querySelector(".bidQty").value||0)*Number(row.querySelector(".bidPrice").value||0);});el("bidTotal").innerText=money(t);}
