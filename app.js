@@ -710,7 +710,7 @@ function renderPriceList(){
         </div>
         <input type="checkbox" id="plCheck_${svc.id}" style="display:none">
         <div id="plSize_${svc.id}" style="display:none;padding:4px 0 0 38px">
-          ${svc.hasSizes?`<select id="plSel_${svc.id}" style="margin:0">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:""}
+          ${svc.hasSizes?`<select id="plSel_${svc.id}" style="margin:0">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:svc.unit==="hr"?`<div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="plHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0" oninput="updatePlHourly('${svc.id}')"><div style="font-size:13px;color:var(--text)" id="plHrsTotal_${svc.id}">${money(svc.flat)}</div></div>`:""}
         </div>
       </div>`;
     }
@@ -729,6 +729,13 @@ window.togglePlSvc=function(id){
   if(row){row.style.background=checked?"rgba(8,116,67,0.08)":"";}
   if(sd)sd.style.display=checked?"block":"none";
   updateCustomPkgTotal&&updateCustomPkgTotal();
+};
+window.updatePlHourly=function(id){
+  const svc=PRICE_LIST.find(s=>s.id===id);if(!svc||svc.unit!=="hr")return;
+  const hrs=Math.max(0.5,Number(el(`plHrs_${id}`)?.value||1));
+  const price=plFirstVisit?Math.round(svc.flat*hrs*1.6):Math.round(svc.flat*hrs);
+  const tot=el(`plHrsTotal_${id}`);if(tot)tot.textContent=money(price);
+  const hint=el(`plHint_${id}`);if(hint)hint.textContent=`${money(price)} (${hrs} hr${hrs!==1?"s":""})`;
 };
 window.togglePlFirst=function(){
   plFirstVisit=el("plFirstCheck")?.checked||false;
@@ -750,6 +757,7 @@ window.addPriceListToBid=function(){
   for(const svc of selected){
     let price,desc;
     if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";price=svc.prices[szKey];const sizes=svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;}
+    else if(svc.unit==="hr"){const hrs=Math.max(0.5,Number(el(`plHrs_${svc.id}`)?.value||1));price=Math.round(svc.flat*hrs);desc=`${svc.name} (${hrs} hr${hrs!==1?"s":""})`;}
     else{price=svc.flat;desc=svc.name;}
     if(plFirstVisit)price=Math.round(price*1.6);
     addBidItemRow(desc,1,price);
@@ -835,7 +843,7 @@ window.openCustomPkg=function(){
         </div>
         <input type="checkbox" id="cp_${svc.id}" style="display:none">
         <div id="cpSize_${svc.id}" style="display:none;padding:4px 0 0 28px">
-          ${svc.hasSizes?`<select id="cpSel_${svc.id}" style="margin:0;font-size:12px" onchange="updateCustomPkgTotal()">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:""}
+          ${svc.hasSizes?`<select id="cpSel_${svc.id}" style="margin:0;font-size:12px" onchange="updateCustomPkgTotal()">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:svc.unit==="hr"?`<div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="cpHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0;font-size:12px" oninput="updateCustomPkgTotal()"></div>`:""}
         </div>
       </div>`;
     }
@@ -863,7 +871,7 @@ window.updateCustomPkgTotal=function(){
   let total=0;const selected=[];
   PRICE_LIST.forEach(svc=>{
     const cb=el(`cp_${svc.id}`);if(!cb?.checked)return;
-    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.flat;
+    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.unit==="hr"?Math.round(svc.flat*Math.max(0.5,Number(el(`cpHrs_${svc.id}`)?.value||1))):svc.flat;
     total+=price;selected.push({name:svc.name,price});
   });
   const discounted=Math.round(total*(1-discount/100));
@@ -888,8 +896,8 @@ window.addCustomPackageToBid=function(){
   let total=0;const selected=[];
   PRICE_LIST.forEach(svc=>{
     const cb=el(`cp_${svc.id}`);if(!cb?.checked)return;
-    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.flat;
-    total+=price;selected.push({name:svc.name,price});
+    const price=svc.hasSizes?(svc.prices[el(`cpSel_${svc.id}`)?.value||"sm"]):svc.unit==="hr"?Math.round(svc.flat*Math.max(0.5,Number(el(`cpHrs_${svc.id}`)?.value||1))):svc.flat;
+    const hrs2=svc.unit==="hr"?Math.max(0.5,Number(el(`cpHrs_${svc.id}`)?.value||1)):null;const name2=hrs2?`${svc.name} (${hrs2} hr${hrs2!==1?"s":""})`  :svc.name;total+=price;selected.push({name:name2,price});
   });
   if(!selected.length){alert("Select at least one service");return;}
   const savings=Math.round(total*(discount/100));
