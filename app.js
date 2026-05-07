@@ -340,7 +340,23 @@ appRoot.innerHTML=`
         <button class="secondary" style="margin-top:8px;width:100%" onclick="toggleBox('packagesPanel')">Cancel</button>
       </div>
       <button onclick="addBidItemRow()">+ Add Line Item Manually</button>
-      <div class="box" style="background:var(--s2);margin-top:8px"><h3>Bid Total</h3><div class="moneyLine"><span>Total</span><b id="bidTotal">$0.00</b></div></div>
+      <div class="box" style="background:var(--s2);margin-top:8px">
+        <h3 style="margin-bottom:8px">Discount (Optional)</h3>
+        <input id="bidDiscountLabel" placeholder="Discount label, ex: New Customer Special, Loyalty Discount">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:-4px">
+          <select id="bidDiscountType" style="width:auto;margin:0" onchange="updateBidTotal()">
+            <option value="amount">$ Fixed</option>
+            <option value="percent">% Off</option>
+          </select>
+          <input id="bidDiscountValue" type="number" min="0" placeholder="0" style="flex:1;margin:0" oninput="updateBidTotal()">
+        </div>
+      </div>
+      <div class="box" style="background:var(--s2);margin-top:8px">
+        <h3>Bid Summary</h3>
+        <div class="moneyLine"><span>Subtotal</span><b id="bidSubtotal">$0.00</b></div>
+        <div id="bidDiscountLine" style="display:none" class="moneyLine"><span id="bidDiscountLineLabel">Discount</span><b id="bidDiscountAmt" style="color:#b7791f">-$0.00</b></div>
+        <div class="moneyLine" style="border-top:0.5px solid #d0cbbf;margin-top:6px;padding-top:6px"><span style="font-weight:600">Total</span><b id="bidTotal" style="font-size:18px;color:#087443">$0.00</b></div>
+      </div>
       <button class="green" onclick="saveBid()">Save Bid</button>
     </div>
     <div class="box"><h2>Saved Bids</h2><div id="bidsList"></div></div>
@@ -364,6 +380,15 @@ appRoot.innerHTML=`
       <select id="invoiceCustomerSelect"></select>
       <input id="invoiceDueDate" type="date">
       <textarea id="invoiceNotes" placeholder="Invoice notes or payment instructions">Payment due upon receipt. Please call or text 918-424-7953 to arrange payment.</textarea>
+      <div class="formSection">Discount (Optional)</div>
+      <input id="invoiceDiscountLabel" placeholder="Discount label, ex: Loyal Customer Discount">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="invoiceDiscountType" style="width:auto;margin:0">
+          <option value="amount">$ Fixed</option>
+          <option value="percent">% Off</option>
+        </select>
+        <input id="invoiceDiscountValue" type="number" min="0" placeholder="0" style="flex:1;margin:0">
+      </div>
       <button onclick="makeInvoiceFromCenter()">Create Invoice</button>
     </div>
     <div class="box"><h2>Customers With Balances</h2><div id="invoiceCustomerList"></div></div>
@@ -853,7 +878,26 @@ window.addCustomPackageToBid=function(){
   showToast("Custom package added to bid");
 };
 
-function updateBidTotal(){let t=0;document.querySelectorAll(".bidRow").forEach(row=>{t+=Number(row.querySelector(".bidQty").value||0)*Number(row.querySelector(".bidPrice").value||0);});el("bidTotal").innerText=money(t);}
+function updateBidTotal(){
+  let subtotal=0;
+  document.querySelectorAll(".bidRow").forEach(row=>{subtotal+=Number(row.querySelector(".bidQty").value||0)*Number(row.querySelector(".bidPrice").value||0);});
+  const discType=el("bidDiscountType")?.value||"amount";
+  const discVal=Number(el("bidDiscountValue")?.value||0);
+  let discAmt=0;
+  if(discVal>0){discAmt=discType==="percent"?Math.round(subtotal*(discVal/100)):Math.min(discVal,subtotal);}
+  const total=Math.max(0,subtotal-discAmt);
+  if(el("bidSubtotal"))el("bidSubtotal").innerText=money(subtotal);
+  if(el("bidTotal"))el("bidTotal").innerText=money(total);
+  const discLine=el("bidDiscountLine");
+  if(discLine){
+    if(discAmt>0){
+      discLine.style.display="flex";
+      const lbl=el("bidDiscountLabel")?.value.trim()||"Discount";
+      el("bidDiscountLineLabel").innerText=lbl+(discType==="percent"?` (${discVal}% off)`:"");
+      el("bidDiscountAmt").innerText=`-${money(discAmt)}`;
+    }else{discLine.style.display="none";}
+  }
+}
 window.updateBidTotal=updateBidTotal;
 window.addBidItemRow=function(desc="",qty=1,price=0){
   const row=document.createElement("div");row.className="bidRow";
@@ -868,7 +912,10 @@ window.saveBid=async function(){
   if(!customerId||!title){alert("Select customer and enter title");return;}
   const items=[];document.querySelectorAll(".bidRow").forEach(row=>{const desc=row.querySelector(".bidDesc").value.trim(),qty=Number(row.querySelector(".bidQty").value||0),price=Number(row.querySelector(".bidPrice").value||0);if(desc||qty||price)items.push({desc,qty,price});});
   const total=items.reduce((s,i)=>s+(i.qty*i.price),0);
-  const data={customerId,title,notes:el("bidNotes").value.trim(),items,total,status:editingBidId?(bids.find(x=>x.id===editingBidId)?.status||"Pending"):"Pending",updatedAt:new Date().toISOString()};
+  const discType=el("bidDiscountType")?.value||"amount";
+  const discVal=Number(el("bidDiscountValue")?.value||0);
+  const discAmt=discVal>0?(discType==="percent"?Math.round(total*(discVal/100)):Math.min(discVal,total)):0;
+  const data={customerId,title,notes:el("bidNotes").value.trim(),items,total:Math.max(0,total-discAmt),subtotal:total,discountLabel:el("bidDiscountLabel")?.value.trim()||"",discountType:discType,discountValue:discVal,discountAmount:discAmt,status:editingBidId?(bids.find(x=>x.id===editingBidId)?.status||"Pending"):"Pending",updatedAt:new Date().toISOString()};
   if(editingBidId){await updateDoc(doc(db,"bids",editingBidId),data);showToast("Bid updated");}
   else{data.createdAt=new Date().toISOString();await addDoc(collection(db,"bids"),data);showToast("Bid saved");}
   resetBidForm();
@@ -876,10 +923,14 @@ window.saveBid=async function(){
 window.editBid=function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;
   editingBidId=id;showView("bidsView");el("bidFormBox").classList.remove("hidden");
-  el("bidCustomer").value=b.customerId||"";el("bidTitle").value=b.title||"";el("bidNotes").value=b.notes||"";el("bidItems").innerHTML="";
+  el("bidCustomer").value=b.customerId||"";el("bidTitle").value=b.title||"";el("bidNotes").value=b.notes||"";
+  if(el("bidDiscountLabel"))el("bidDiscountLabel").value=b.discountLabel||"";
+  if(el("bidDiscountType"))el("bidDiscountType").value=b.discountType||"amount";
+  if(el("bidDiscountValue"))el("bidDiscountValue").value=b.discountValue||"";
+  el("bidItems").innerHTML="";
   (b.items||[]).forEach(i=>addBidItemRow(i.desc||"",i.qty||"",i.price||""));updateBidTotal();
 };
-window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";el("bidItems").innerHTML="";el("bidTotal").innerText="$0.00";el("priceListPanel").classList.add("hidden");};
+window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";el("priceListPanel").classList.add("hidden");};
 window.deleteBid=async function(id){if(!confirm("Delete this bid?"))return;try{await deleteDoc(doc(db,"bids",id));}catch(e){alert("Delete bid failed: "+e.message);}};
 window.convertBidToJob=async function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;if(!confirm("Convert this bid to a job?"))return;
@@ -888,7 +939,7 @@ window.convertBidToJob=async function(id){
 };
 window.printBid=function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;const c=getCustomer(b.customerId);
-  el("invoiceArea").innerHTML=`<div class="invoice"><div class="invoiceTop"><div><img class="invoiceLogo" src="logo.png" alt="${COMPANY.name}" onerror="this.style.display='none'"><h2>${COMPANY.name}</h2><p>${COMPANY.tagline}</p><p>${COMPANY.phone}</p><p>${COMPANY.email}</p></div><div><h1>Proposal</h1><p><b>${safe(b.title)}</b></p><p>Date: ${dateLabel(today())}</p><span class="badge ${b.status==="Approved"?"badgeGreen":"badgeBlue"}">${safe(b.status||"Pending")}</span></div></div>${c?`<h3>Prepared For</h3><p><b>${safe(c.name)}</b><br>${safe(c.email)}<br>${safe(c.phone)}<br>${safe(c.address)}</p>`:""}<table><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>${(b.items||[]).map(i=>`<tr><td>${safe(i.desc)}</td><td>${i.qty}</td><td>${money(i.price)}</td><td>${money(i.qty*i.price)}</td></tr>`).join("")}</table><p class="invoiceTotal">Proposal Total: ${money(b.total)}</p>${b.notes?`<p>${safe(b.notes)}</p>`:""}<p class="small" style="margin-top:16px">This proposal is valid for 30 days from the date above.</p><button class="noPrint" onclick="window.print()">Print or Save PDF</button></div>`;
+  el("invoiceArea").innerHTML=`<div class="invoice"><div class="invoiceTop"><div><img class="invoiceLogo" src="logo.png" alt="${COMPANY.name}" onerror="this.style.display='none'"><h2>${COMPANY.name}</h2><p>${COMPANY.tagline}</p><p>${COMPANY.phone}</p><p>${COMPANY.email}</p></div><div><h1>Proposal</h1><p><b>${safe(b.title)}</b></p><p>Date: ${dateLabel(today())}</p><span class="badge ${b.status==="Approved"?"badgeGreen":"badgeBlue"}">${safe(b.status||"Pending")}</span></div></div>${c?`<h3>Prepared For</h3><p><b>${safe(c.name)}</b><br>${safe(c.email)}<br>${safe(c.phone)}<br>${safe(c.address)}</p>`:""}<table><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>${(b.items||[]).map(i=>`<tr><td>${safe(i.desc)}</td><td>${i.qty}</td><td>${money(i.price)}</td><td>${money(i.qty*i.price)}</td></tr>`).join("")}</table>${b.discountAmount>0?`<p style="text-align:right;color:#9a8f80;margin-bottom:2px">Subtotal: ${money(b.subtotal||b.total)}</p><p style="text-align:right;color:#b7791f;margin-bottom:2px">${safe(b.discountLabel||"Discount")}: -${money(b.discountAmount)}</p>`:""}<p class="invoiceTotal">Proposal Total: ${money(b.total)}</p>${b.notes?`<p>${safe(b.notes)}</p>`:""}<p class="small" style="margin-top:16px">This proposal is valid for 30 days from the date above.</p><button class="noPrint" onclick="window.print()">Print or Save PDF</button></div>`;
   showView("invoiceView");
 };
 
@@ -900,10 +951,14 @@ window.makeInvoice=function(customerId){
   const dueDate=el("invoiceDueDate")?.value||today();
   const total=custJobs.reduce((s,j)=>s+Number(j.amount||0),0);
   const paid=custJobs.reduce((s,j)=>s+jobPaidAmount(j),0);
-  const balance=total-paid;
+  const discType=el("invoiceDiscountType")?.value||"amount";
+  const discVal=Number(el("invoiceDiscountValue")?.value||0);
+  const discLabel=el("invoiceDiscountLabel")?.value.trim()||"Discount";
+  const discAmt=discVal>0?(discType==="percent"?Math.round(total*(discVal/100)):Math.min(discVal,total)):0;
+  const balance=Math.max(0,total-discAmt-paid);
   const invNotes=el("invoiceNotes")?.value||"Payment due upon receipt. Please call or text 918-424-7953 to arrange payment.";
   const custPmts=payments.filter(p=>p.customerId===customerId).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
-  el("invoiceArea").innerHTML=`<div class="invoice"><div class="invoiceTop"><div><img class="invoiceLogo" src="logo.png" alt="${COMPANY.name}" onerror="this.style.display='none'"><h2>${COMPANY.name}</h2><p>${COMPANY.tagline}</p><p>${COMPANY.phone}</p><p>${COMPANY.email}</p></div><div><h1>Invoice</h1><p><b>${invNum}</b></p><p>Issue Date: ${today()}</p><p>Due Date: ${safe(dueDate)}</p>${balance<=0?`<span class="badge badgeGreen">Paid In Full</span>`:""}${balance>0&&isPastDue(dueDate)?`<span class="badge badgeRed">Overdue</span>`:""}</div></div><h3>Bill To</h3><p><b>${safe(c.name)}</b><br>${safe(c.email)}<br>${safe(c.phone)}<br>${safe(c.address)}</p><table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Paid</th><th>Balance</th></tr>${custJobs.map(j=>`<tr><td>${safe(j.date)}</td><td>${safe(j.title)}</td><td>${money(j.amount)}</td><td>${money(jobPaidAmount(j))}</td><td>${money(jobBalance(j))}</td></tr>`).join("")}</table><p class="invoiceTotal">Total: ${money(total)}</p><p class="invoiceTotal">Paid: ${money(paid)}</p><p class="invoiceTotal">Balance Due: ${money(balance)}</p>${custPmts.length?`<h3>Payment History</h3><table><tr><th>Date</th><th>Amount</th><th>Note</th></tr>${custPmts.map(p=>{const job=jobs.find(j=>j.id===p.jobId);return`<tr><td>${safe(p.date)}</td><td>${money(p.amount)}</td><td>${safe(p.notes||job?.title||"")}</td></tr>`;}).join("")}</table>`:""}<p>${safe(invNotes)}</p><button class="noPrint" onclick="window.print()">Print or Save PDF</button><button class="noPrint secondary" onclick="emailInvoice('${customerId}')">Email Invoice</button></div>`;
+  el("invoiceArea").innerHTML=`<div class="invoice"><div class="invoiceTop"><div><img class="invoiceLogo" src="logo.png" alt="${COMPANY.name}" onerror="this.style.display='none'"><h2>${COMPANY.name}</h2><p>${COMPANY.tagline}</p><p>${COMPANY.phone}</p><p>${COMPANY.email}</p></div><div><h1>Invoice</h1><p><b>${invNum}</b></p><p>Issue Date: ${today()}</p><p>Due Date: ${safe(dueDate)}</p>${balance<=0?`<span class="badge badgeGreen">Paid In Full</span>`:""}${balance>0&&isPastDue(dueDate)?`<span class="badge badgeRed">Overdue</span>`:""}</div></div><h3>Bill To</h3><p><b>${safe(c.name)}</b><br>${safe(c.email)}<br>${safe(c.phone)}<br>${safe(c.address)}</p><table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Paid</th><th>Balance</th></tr>${custJobs.map(j=>`<tr><td>${safe(j.date)}</td><td>${safe(j.title)}</td><td>${money(j.amount)}</td><td>${money(jobPaidAmount(j))}</td><td>${money(jobBalance(j))}</td></tr>`).join("")}</table><p class="invoiceTotal">Total: ${money(total)}</p>${discAmt>0?`<p class="invoiceTotal" style="color:#b7791f">${safe(discLabel)}: -${money(discAmt)}</p><p class="invoiceTotal">After Discount: ${money(total-discAmt)}</p>`:""}<p class="invoiceTotal">Paid: ${money(paid)}</p><p class="invoiceTotal">Balance Due: ${money(balance)}</p>${custPmts.length?`<h3>Payment History</h3><table><tr><th>Date</th><th>Amount</th><th>Note</th></tr>${custPmts.map(p=>{const job=jobs.find(j=>j.id===p.jobId);return`<tr><td>${safe(p.date)}</td><td>${money(p.amount)}</td><td>${safe(p.notes||job?.title||"")}</td></tr>`;}).join("")}</table>`:""}<p>${safe(invNotes)}</p><button class="noPrint" onclick="window.print()">Print or Save PDF</button><button class="noPrint secondary" onclick="emailInvoice('${customerId}')">Email Invoice</button></div>`;
   showView("invoiceView");
 };
 window.emailInvoice=function(customerId){
