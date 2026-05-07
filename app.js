@@ -703,12 +703,12 @@ function renderPriceList(){
     html+=`<div class="formSection" style="margin-top:10px">${safe(cat)}</div>`;
     for(const svc of PRICE_LIST.filter(s=>s.cat===cat)){
       const ph=svc.hasSizes?"price varies by size":money(svc.flat)+(svc.unit?"/"+svc.unit:"");
-      html+=`<div id="plRow_${svc.id}" style="padding:8px 0;border-bottom:0.5px solid #e8e4dc;transition:background 0.15s;border-radius:6px">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 6px">
-          <div id="plBox_${svc.id}" style="width:22px;height:22px;flex-shrink:0;border-radius:5px;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:15px;color:#fff"></div>
+      html+=`<div id="plRow_${svc.id}" style="padding:8px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px">
+        <div style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 6px" onclick="togglePlSvc('${svc.id}')">
+          <div id="plBox_${svc.id}" style="width:22px;height:22px;flex-shrink:0;border-radius:5px;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;transition:all 0.15s"></div>
           <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small" id="plHint_${svc.id}">${ph}</div></div>
-        </label>
-        <input type="checkbox" id="plCheck_${svc.id}" style="display:none" onchange="togglePlSvc('${svc.id}')">
+        </div>
+        <input type="checkbox" id="plCheck_${svc.id}" style="display:none">
         <div id="plSize_${svc.id}" style="display:none;padding:4px 0 0 38px">
           ${svc.hasSizes?`<select id="plSel_${svc.id}" style="margin:0">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:""}
         </div>
@@ -828,7 +828,7 @@ window.openCustomPkg=function(){
     html+=`<div class="formSection" style="margin-top:8px;font-size:11px">${safe(cat)}</div>`;
     for(const svc of PRICE_LIST.filter(s=>s.cat===cat)){
       const ph=svc.hasSizes?"varies by size":money(svc.flat)+(svc.unit?"/"+svc.unit:"");
-      html+=`<div id="cpRow_${svc.id}" style="padding:6px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px;transition:background 0.15s">
+      html+=`<div id="cpRow_${svc.id}" style="padding:6px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px">
         <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px" onclick="cpToggleSvc('${svc.id}')">
           <div id="cpBox_${svc.id}" style="width:20px;height:20px;flex-shrink:0;border-radius:4px;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;transition:all 0.15s"></div>
           <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small">${ph}</div></div>
