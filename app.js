@@ -1236,7 +1236,8 @@ function renderAll() {
     : "<p class='small'>No unpaid balances right now.</p>";
 }
 
-window.renderAll = renderAll;
+window.renderAll = renderAll; 
+window.runGlobalSearch = runGlobalSearch;
 window.openGlobalSearch = function () {
   showView("globalSearchView");
   setTimeout(() => { const inp = el("globalSearchInput"); if (inp) { inp.focus(); inp.value = ""; runGlobalSearch(); } }, 100);
