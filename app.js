@@ -1052,7 +1052,8 @@ window.emailBid=function(id){
   const itemLines=b.items.map(i=>`  ${i.desc} x${i.qty} — ${money(i.qty*i.price)}`).join("\n");
   const discLine=b.discountAmount>0?`\nDiscount (${safe(b.discountLabel||"Discount")}): -${money(b.discountAmount)}`:"";
   window.location.href=`mailto:${encodeURIComponent(c.email)}?subject=${encodeURIComponent(`Proposal from 5Cs Property Services LLC — ${b.title}`)}&body=${encodeURIComponent(`Hello ${c.name},\n\nThank you for the opportunity to put together this proposal for you. Please see the details below.\n\n─────────────────────────\nPROPOSAL: ${b.title}\n─────────────────────────\n${itemLines}${discLine}\n\nProposal Total: ${money(b.total)}\n─────────────────────────\n\nThis proposal is valid for 30 days. If you have any questions or would like to move forward, please do not hesitate to reach out.\n\nCall or text: 918-424-7953\nEmail: craig.chaney.87@gmail.com\n\nThank you,\nCraig Chaney\n5Cs Property Services LLC\n918-424-7953\ncraig.chaney.87@gmail.com`)}`;
-};const cid=el("invoiceCustomerSelect").value;if(!cid){alert("Select a customer");return;}makeInvoice(cid);};
+};
+window.makeInvoiceFromCenter=function(){const cid=el("invoiceCustomerSelect").value;if(!cid){alert("Select a customer");return;}makeInvoice(cid);};
 window.makeInvoice=function(customerId){
   const c=getCustomer(customerId);if(!c)return;
   const custJobs=jobs.filter(j=>j.customerId===customerId);
