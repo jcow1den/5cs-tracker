@@ -98,6 +98,7 @@ const ICONS={
   jobs:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>`,
   schedule:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
   search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  bids:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>`,
   more:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
 };
 
@@ -184,6 +185,7 @@ appRoot.innerHTML=`
     <div class="box noPrint"><h2>Quick Add</h2><div class="quickAdd">
       <button onclick="showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
       <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+      <button onclick="showView('bidsView');toggleBox('bidFormBox',true)">Create Bid</button>
       <button onclick="showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
       <button onclick="showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
     </div></div>
@@ -232,7 +234,7 @@ appRoot.innerHTML=`
 
   <section id="customersView" class="hidden">
     <div class="searchBar noPrint"><input id="customerSearch" oninput="renderAll()" placeholder="Search customers..."></div>
-    <div class="box noPrint"><button onclick="toggleBox('customerFormBox')">Add or Edit Customer</button></div>
+    <div class="box noPrint"><button onclick="toggleBox('customerFormBox')">Add Customer</button></div>
     <div id="customerFormBox" class="box hidden">
       <h2 id="customerFormTitle">Add Customer</h2>
       <div class="formSection">Contact</div>
@@ -248,7 +250,8 @@ appRoot.innerHTML=`
       <input id="customerServiceFrequency" placeholder="Service frequency">
       <div class="formSection">Notes</div>
       <textarea id="customerNotes" placeholder="General notes"></textarea>
-      <input id="customerReferredBy" placeholder="Referred by (optional)" oninput="checkReferralMatch()">
+      <div class="small" style="margin-top:8px;margin-bottom:2px">Referred By</div>
+      <input id="customerReferredBy" placeholder="Name of person who referred this customer" oninput="checkReferralMatch()">
       <div id="referralSuggestion" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;margin-top:-8px">
         <div id="referralSuggestionText" style="font-size:13px;color:#166534"></div>
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -275,7 +278,7 @@ appRoot.innerHTML=`
         <option value="complete">Complete</option>
       </select>
     </div>
-    <div class="box noPrint"><button onclick="toggleBox('jobFormBox')">Add or Edit Job</button></div>
+    <div class="box noPrint"><button onclick="toggleBox('jobFormBox')">Add Job</button></div>
     <div id="jobFormBox" class="box hidden">
       <h2 id="jobFormTitle">Add Job</h2>
       <div class="formSection">Customer &amp; Description</div>
@@ -295,10 +298,17 @@ appRoot.innerHTML=`
     <div id="jobList"></div>
   </section>
 
-  <section id="paymentsView" class="hidden"><div class="box"><h2>Payments</h2><div id="paymentsList"></div></div></section>
+  <section id="paymentsView" class="hidden">
+    <div class="box">
+      <h2>Payments</h2>
+      <div class="searchBar noPrint" style="margin-bottom:8px"><input id="paymentsSearch" oninput="renderAll()" placeholder="Search payments..."></div>
+      <div class="moneyLine" style="padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="font-weight:600">Total Collected</span><b id="paymentsTotalLabel" style="color:var(--green)">$0.00</b></div>
+    </div>
+    <div class="box"><div id="paymentsList"></div></div>
+  </section>
 
   <section id="recurringView" class="hidden">
-    <div class="box noPrint"><button onclick="toggleBox('recurringFormBox')">Add or Edit Recurring Job</button></div>
+    <div class="box noPrint"><button onclick="toggleBox('recurringFormBox')">Add Recurring Job</button></div>
     <div id="recurringFormBox" class="box hidden">
       <h2 id="recurringFormTitle">Add Recurring Job</h2>
       <select id="recurringCustomer"></select>
@@ -406,7 +416,7 @@ appRoot.innerHTML=`
   </section>
 
   <section id="expensesView" class="hidden">
-    <div class="box noPrint"><button onclick="toggleBox('expenseFormBox')">Add or Edit Expense</button></div>
+    <div class="box noPrint"><button onclick="toggleBox('expenseFormBox')">Add Expense</button></div>
     <div id="expenseFormBox" class="box hidden">
       <h2 id="expenseFormTitle">Add Expense</h2>
       <input id="expenseDate" type="date"><input id="expenseCategory" placeholder="Category">
@@ -444,7 +454,7 @@ appRoot.innerHTML=`
       <h2 style="color:var(--green-text)">Referral Partners</h2>
       <p class="small" style="color:var(--green-text)">Track real estate agents and referral partners. Set follow-up dates so no relationship goes cold.</p>
     </div>
-    <div class="box noPrint"><button onclick="toggleBox('partnerFormBox')">Add or Edit Partner</button></div>
+    <div class="box noPrint"><button onclick="toggleBox('partnerFormBox')">Add Partner</button></div>
     <div id="partnerFormBox" class="box hidden">
       <h2 id="partnerFormTitle">Add Partner</h2>
       <div class="formSection">Contact</div>
@@ -467,7 +477,7 @@ appRoot.innerHTML=`
 
   <section id="settingsView" class="hidden">
     <div class="box"><h2>More</h2><div class="moreGrid">
-      <button onclick="showView('bidsView')">Bids</button>
+      <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
       <button onclick="showView('invoicesView')">Invoices</button>
       <button onclick="showView('paymentsView')">Payments</button>
       <button onclick="showView('partnersView')">Partners</button>
@@ -490,10 +500,9 @@ appRoot.innerHTML=`
 bottomNav.innerHTML=`
   <button id="navDashboard" onclick="showView('dashboardView')">${ICONS.home}<span>Home</span></button>
   <button id="navCustomers" onclick="showView('customersView')">${ICONS.customers}<span>Customers</span></button>
-  <button id="navJobs" onclick="showView('jobsView')">${ICONS.jobs}<span>Jobs</span></button>
-  <button id="navSchedule" onclick="openTodaySchedule()">${ICONS.schedule}<span>Schedule</span></button>
-  <button id="navSearch" onclick="openGlobalSearch()">${ICONS.search}<span>Search</span></button>
-  <button id="navMore" onclick="showView('settingsView')">${ICONS.more}<span>More</span></button>`;
+  <button id="navJobs"      onclick="showView('jobsView')">${ICONS.jobs}<span>Jobs</span></button>
+  <button id="navBids"      onclick="showView('bidsView')">${ICONS.bids}<span>Bids</span></button>
+  <button id="navMore"      onclick="showView('settingsView')">${ICONS.more}<span>More</span></button>`;
 
 fabMenu.innerHTML=`
   <button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
@@ -551,9 +560,8 @@ window.showView=function(id){
   if(id==="dashboardView") el("navDashboard").classList.add("active");
   if(id==="customersView"||id==="customerDetailView") el("navCustomers").classList.add("active");
   if(id==="jobsView") el("navJobs").classList.add("active");
-  if(id==="scheduleView") el("navSchedule").classList.add("active");
-  if(id==="globalSearchView") el("navSearch").classList.add("active");
-  if(["settingsView","bidsView","expensesView","recurringView","profitView","paymentsView","workflowView","invoicesView","invoiceView","partnersView"].includes(id)) el("navMore").classList.add("active");
+  if(id==="bidsView"||id==="invoiceView") el("navBids").classList.add("active");
+  if(["settingsView","scheduleView","expensesView","recurringView","profitView","paymentsView","workflowView","invoicesView","partnersView","globalSearchView"].includes(id)) el("navMore").classList.add("active");
   const titles={dashboardView:"Business dashboard",scheduleView:"Schedule",workflowView:"Workflow board",bidsView:"Bids",profitView:"Reports",customersView:"Customers",customerDetailView:"Customer detail",jobsView:"Jobs",paymentsView:"Payments",recurringView:"Recurring calendar",expensesView:"Expense ledger",invoicesView:"Invoice center",invoiceView:"Invoice preview",partnersView:"Referral Partners",settingsView:"More",globalSearchView:"Search"};
   document.getElementById("headerSub").innerText=titles[id]||"Business dashboard";
   window.scrollTo(0,0);
@@ -1294,7 +1302,7 @@ function paymentLineHtml(p){
 function jobCardHtml(j){
   const bal=jobBalance(j),list=jobPayments(j.id),ol=overdueLabel(j.date);
   const isComplete=j.status==="Complete",isPaid=paymentStatus(j)==="Paid";
-  return `<div class="jobCard"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)} ${j.time?"at "+timeLabel(j.time):""}</div></div>${bal>0?`<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--gold);letter-spacing:-0.02em">${money(bal)}</div><div class="small">balance</div></div>`:`<div style="font-size:18px;font-weight:700;color:var(--green)">Paid</div>`}</div><div style="margin-bottom:6px">${paymentBadge(j)}${workflowBadge(j)}${ol&&bal>0?`<span class="badge badgeRed">${safe(ol)}</span>`:""}</div><div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div><div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>${j.notes?`<p style="margin-top:8px;font-size:13px">${safe(j.notes)}</p>`:""}<details><summary>Payment history (${list.length})</summary>${list.length?list.map(paymentLineHtml).join(""):"<p class='small'>No payment records yet.</p>"}</details><div class="row"><button class="blue" onclick="setJobStatus('${j.id}','Scheduled')">Scheduled</button><button class="gold" onclick="setJobStatus('${j.id}','In Progress')">In Progress</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button><button onclick="markPaid('${j.id}')">Mark Paid</button><button class="green" onclick="addPayment('${j.id}')">Add Payment</button><button class="gold" onclick="copyReminder('${j.id}')">Reminder</button>${isComplete&&isPaid?`<button class="blue" onclick="requestReview('${j.id}')">Request Review</button>`:""}<button onclick="makeJobRecurring('${j.id}')">Make Recurring</button><button class="secondary" onclick="editJob('${j.id}')">Edit</button><button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button></div></div>`;
+  return `<div class="jobCard"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)} ${j.time?"at "+timeLabel(j.time):""}</div></div>${bal>0?`<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--gold);letter-spacing:-0.02em">${money(bal)}</div><div class="small">balance</div></div>`:`<div style="font-size:18px;font-weight:700;color:var(--green)">Paid</div>`}</div><div style="margin-bottom:6px">${paymentBadge(j)}${workflowBadge(j)}${ol&&bal>0?`<span class="badge badgeRed">${safe(ol)}</span>`:""}</div><div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div><div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>${j.notes?`<p style="margin-top:8px;font-size:13px">${safe(j.notes)}</p>`:""}<details><summary>Payment history (${list.length})</summary>${list.length?list.map(paymentLineHtml).join(""):"<p class='small'>No payment records yet.</p>"}</details><div class="row">${ws==="Scheduled"?`<button class="gold" onclick="setJobStatus('${j.id}','In Progress')">Start Job</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="In Progress"?`<button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="Complete"&&bal>0?`<button class="green" onclick="markPaid('${j.id}')">Mark Paid</button><button onclick="addPayment('${j.id}')">Add Payment</button>`:""}${ws!=="Complete"?`<button class="secondary" onclick="setJobStatus('${j.id}','Scheduled')">Reset</button>`:""}${isComplete&&isPaid?`<button class="blue" onclick="requestReview('${j.id}')">Request Review</button>`:""}<button class="gold" onclick="copyReminder('${j.id}')">Reminder</button><button onclick="makeJobRecurring('${j.id}')">Make Recurring</button><button class="secondary" onclick="editJob('${j.id}')">Edit</button><button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button></div></div>`;
 }
 function recurringCardHtml(r){
   const s=recurringStatus(r);
@@ -1400,7 +1408,11 @@ function renderAll(){
   const jq=el("jobSearch").value.trim().toLowerCase(),sf=el("jobStatusFilter").value;
   el("jobList").innerHTML=jobs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).filter(j=>{const ps=paymentStatus(j).toLowerCase(),ws=String(j.status||"Scheduled").toLowerCase(),t=`${j.title||""} ${j.notes||""} ${getCustomerName(j.customerId)}`.toLowerCase();let ok=sf==="all"||ps===sf||ws===sf;if(sf==="today")ok=j.date===today();if(sf==="upcoming")ok=j.date>today()&&j.date<=addDays(today(),7);return ok&&(!jq||t.includes(jq));}).map(jobCardHtml).join("")||"<p class='small'>No jobs found.</p>";
 
-  el("paymentsList").innerHTML=payments.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(p=>{const job=jobs.find(j=>j.id===p.jobId);return`<div class="box" style="background:var(--s2)"><div style="display:flex;justify-content:space-between;align-items:center"><div><b style="font-size:18px;color:var(--green)">${money(p.amount)}</b><div class="small">${safe(getCustomerName(p.customerId))}</div><div class="small">${dateLabel(p.date)} &bull; ${safe(job?.title||"Payment")}</div>${p.notes?`<div class="small">${safe(p.notes)}</div>`:""}</div><button class="red" style="width:auto;padding:8px 12px;font-size:13px" onclick="deletePayment('${p.id}')">Delete</button></div></div>`;}).join("")||"<p class='small'>No payments yet.</p>";
+  const pq=(el("paymentsSearch")?.value||"").trim().toLowerCase();
+  const filteredPmts=payments.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).filter(p=>{if(!pq)return true;const job=jobs.find(j=>j.id===p.jobId);return `${getCustomerName(p.customerId)} ${p.date||""} ${job?.title||""} ${p.notes||""}`.toLowerCase().includes(pq);});
+  const pmtsTotal=filteredPmts.reduce((s,p)=>s+Number(p.amount||0),0);
+  if(el("paymentsTotalLabel"))el("paymentsTotalLabel").innerText=money(pmtsTotal);
+  el("paymentsList").innerHTML=filteredPmts.map(p=>{const job=jobs.find(j=>j.id===p.jobId);return`<div class="box" style="background:var(--s2)"><div style="display:flex;justify-content:space-between;align-items:center"><div><b style="font-size:18px;color:var(--green)">${money(p.amount)}</b><div class="small">${safe(getCustomerName(p.customerId))}</div><div class="small">${dateLabel(p.date)} &bull; ${safe(job?.title||"Payment")}</div>${p.notes?`<div class="small">${safe(p.notes)}</div>`:""}</div><button class="red" style="width:auto;padding:8px 12px;font-size:13px" onclick="deletePayment('${p.id}')">Delete</button></div></div>`;}).join("")||"<p class='small'>No payments yet.</p>";
 
   el("recurringCalendar").innerHTML=recurring.slice().sort((a,b)=>(a.nextDate||"").localeCompare(b.nextDate||"")).map(r=>{const s=recurringStatus(r);return`<div class="moneyLine"><span style="font-size:13px">${dateLabel(r.nextDate)} ${r.time?timeLabel(r.time):""} &bull; ${safe(r.title)} &bull; ${safe(getCustomerName(r.customerId))}</span><span class="badge ${s.cls}">${s.label}</span></div>`;}).join("")||"<p class='small'>No recurring jobs scheduled.</p>";
   el("recurringList").innerHTML=recurring.slice().sort((a,b)=>(a.nextDate||"").localeCompare(b.nextDate||"")).map(recurringCardHtml).join("")||"<p class='small'>No recurring jobs yet.</p>";
