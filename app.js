@@ -176,13 +176,17 @@ window.goBack=function(){
   else showView("dashboardView");
 };
 document.head.insertAdjacentHTML("beforeend",`<style>
-.statsStrip{display:flex;gap:8px;padding:12px 12px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.statPill{flex:1;min-width:72px;background:var(--s1,#fff);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;border:0.5px solid var(--border,#e0dbd0);transition:opacity 0.15s}
-.statPill:active{opacity:0.7}
-.statPillVal{font-size:17px;font-weight:700;color:var(--text,#1a1710);line-height:1.2;letter-spacing:-0.02em}
+.statsStrip{display:flex;gap:8px;padding:14px 12px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.statsStrip::-webkit-scrollbar{display:none}
+.statPill{flex:1;min-width:78px;background:var(--s1,#fff);border-radius:16px;padding:12px 8px 10px;text-align:center;cursor:pointer;border:1px solid rgba(0,0,0,0.07);transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.05);position:relative;overflow:hidden}
+.statPill::after{content:'';position:absolute;top:0;left:12px;right:12px;height:2px;border-radius:0 0 3px 3px;background:var(--green,#087443);opacity:0.35}
+.statPillOwe::after{background:#b42318}
+.statPillProfit::after{background:var(--green,#087443)}
+.statPill:active{opacity:0.75;transform:scale(0.97)}
+.statPillVal{font-family:'DM Serif Display',Georgia,serif;font-size:20px;font-weight:400;color:var(--text,#1a1710);line-height:1.1;letter-spacing:-0.02em}
 .statPillOwe .statPillVal{color:#b42318}
 .statPillProfit .statPillVal{color:#087443}
-.statPillLabel{font-size:11px;color:var(--text-secondary,#9a8f80);margin-top:2px}
+.statPillLabel{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary,#9a8f80);margin-top:4px}
 .moreSection{margin-bottom:18px}
 .moreSectionLabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary,#9a8f80);padding:0 2px;margin-bottom:8px}
 .flowPrompt{position:fixed;bottom:72px;left:12px;right:12px;background:var(--s1,#fff);border-radius:16px;padding:14px 16px;box-shadow:0 4px 28px rgba(0,0,0,0.18);z-index:999;border:1px solid var(--border,#e0dbd0);animation:fadeSlideIn 0.25s ease}
@@ -238,13 +242,13 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .heroCard{border-radius:18px;padding:20px;margin:0 0 12px;color:#fff;position:relative;overflow:hidden}
 .heroCardPos{background:linear-gradient(135deg,#054f31 0%,#087443 100%)}
 .heroCardNeg{background:linear-gradient(135deg,#7f1d1d 0%,#b42318 100%)}
-.heroProfit{font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin:4px 0 8px}
+.heroProfit{font-family:'DM Serif Display',Georgia,serif;font-size:44px;font-weight:400;letter-spacing:-1px;line-height:1;margin:4px 0 8px}
 .heroLabel{font-size:12px;opacity:0.75;font-weight:500;text-transform:uppercase;letter-spacing:0.08em}
 .heroStatus{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,0.2);margin-bottom:12px}
 .heroStats{display:flex;margin-top:4px;background:rgba(0,0,0,0.15);border-radius:12px;overflow:hidden}
 .heroStat{flex:1;padding:10px 8px;text-align:center;border-right:1px solid rgba(255,255,255,0.1)}
 .heroStat:last-child{border-right:none}
-.heroStatVal{font-size:15px;font-weight:700;line-height:1.2}
+.heroStatVal{font-family:'DM Serif Display',Georgia,serif;font-size:17px;font-weight:400;line-height:1.2}
 .heroStatLabel{font-size:10px;opacity:0.7;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em}
 .healthSection{margin-bottom:16px}
 .healthTitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary,#9a8f80);padding:0 2px;margin-bottom:8px}
@@ -263,7 +267,7 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .leaderRank{font-size:16px;font-weight:800;color:var(--text-secondary,#9a8f80);flex:0 0 24px;text-align:center}
 .leaderRank.gold{color:#b7791f}
 .leaderName{flex:1;font-size:14px;font-weight:500;color:var(--text,#1a1710)}
-.leaderAmt{font-size:14px;font-weight:700;color:#087443}
+.leaderAmt{font-family:'DM Serif Display',Georgia,serif;font-size:15px;font-weight:400;color:#087443}
 .agingBucket{margin-bottom:20px}
 .agingBucketHeader{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:12px;margin-bottom:8px}
 .agingBucketCurrent{background:#f0fdf4;border:1px solid #86efac}
@@ -294,7 +298,7 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .todayCardCompact:active{opacity:0.8}
 .todayStatusDot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .todayCardMain{flex:1;min-width:0}
-.todayCardTitle{font-size:15px;font-weight:600;color:var(--text,#1a1710);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todayCardTitle{font-size:15px;font-weight:600;color:var(--text,#1a1710);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em}
 .todayCardSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:1px}
 .todayCardAction{flex-shrink:0;display:flex;align-items:center;gap:8px}
 .todayCardAction button{margin:0;padding:8px 14px;font-size:13px;width:auto}
