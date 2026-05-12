@@ -2318,11 +2318,15 @@ function renderTodayPreview(){
   const todayList=jobs.filter(j=>j.date===today()).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
   const html=todayList.length?todayList.map(todayCardHtml).join(""):"<p class='small'>No jobs scheduled today.</p>";
   if(el("todaySchedulePreview"))el("todaySchedulePreview").innerHTML=html;
-  // Also update schedule list if it is currently showing today's jobs
+  // Update schedule list view if showing today
   const schedList=el("scheduleList");
   const schedView=el("scheduleView");
   if(schedList&&schedView&&!schedView.classList.contains("hidden")&&el("scheduleTitle")?.innerText==="Today's Jobs"){
     schedList.innerHTML=html;
+  }
+  // Update calendar day panel for whichever date is selected
+  if(schedView&&!schedView.classList.contains("hidden")&&calViewMode==="cal"&&calSelectedDate){
+    renderCalDayPanel(calSelectedDate);
   }
 }
 window.renderTodayPreview=renderTodayPreview;
