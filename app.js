@@ -1015,7 +1015,13 @@ window.viewJobPhoto=function(src){
 };
 
 // Render photo section HTML for a job card
+// Jobs where before/after photos don't make sense
+const NO_PHOTO_KEYWORDS=["photo","drone","aerial","lockbox","yard sign","key dup","key duplication","staging","check-in","checkin","storm inspection","utility","winterize"];
+
 function jobPhotoHtml(j){
+  // Skip for photography/drone jobs and quick service jobs where docs add no value
+  const title=(j.title||"").toLowerCase();
+  if(NO_PHOTO_KEYWORDS.some(k=>title.includes(k)))return"";
   const photos=j.photos||{};
   const makeThumb=(type,label)=>{
     if(photos[type])return`
