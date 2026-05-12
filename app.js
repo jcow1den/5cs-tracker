@@ -21,6 +21,7 @@ const db   = initializeFirestore(app, { localCache: persistentLocalCache({ tabMa
 const auth = getAuth(app);
 
 let customers=[],jobs=[],recurring=[],expenses=[],payments=[],bids=[],partners=[];
+let learnedMins={}; // Craig's learned flag hours — overrides PRICE_LIST defaults
 let editingCustomerId=null,editingJobId=null,editingRecurringId=null;
 let editingExpenseId=null,editingBidId=null,editingPartnerId=null;
 let activeCustomerDetailId=null,plFirstVisit=false,_referralMatchId=null,_referralMatchName=null;
@@ -315,7 +316,26 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .jobFormToggleArrow{font-size:18px;color:var(--text-secondary,#9a8f80);transition:transform 0.2s}
 .jobFormToggleArrow.open{transform:rotate(180deg)}
 .jobFormSection{padding:10px 4px 4px;display:none}
-.jobFormSection.open{display:block}
+.jobFormSection.open{display:block}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:6px}
+.calendarDow{text-align:center;font-size:11px;font-weight:600;color:var(--text-secondary,#9a8f80);padding:4px 0;text-transform:uppercase}
+.calCell{min-height:54px;border-radius:8px;padding:4px 5px;cursor:pointer;position:relative;background:var(--s2,#f5f1e8);transition:background 0.15s}
+.calCell:active{background:var(--gold-surface,#fef3c7)}
+.calCell.today{background:var(--gold-surface,#fef3c7);border:1.5px solid var(--gold,#b7791f)}
+.calCell.otherMonth{opacity:0.35}
+.calCell.selected{background:var(--gold-surface,#fef3c7);border:1.5px solid var(--gold,#b7791f)}
+.calDateNum{font-size:13px;font-weight:600;color:var(--text,#1a1710);line-height:1}
+.calCell.today .calDateNum{color:var(--gold,#b7791f)}
+.calDots{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px}
+.calDot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.calMore{font-size:10px;color:var(--text-secondary,#9a8f80);margin-top:2px}
+.calNav{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px}
+.calNavBtn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:var(--text,#1a1710);border-radius:8px}
+.calNavBtn:active{background:var(--s2,#f5f1e8)}
+.calMonthLabel{font-size:17px;font-weight:700;color:var(--text,#1a1710)}
+.calViewToggle{display:flex;gap:6px;margin-bottom:10px}
+.calViewBtn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border,#e0dbd0);background:var(--s2,#f5f1e8);font-size:13px;font-weight:500;cursor:pointer;color:var(--text-secondary,#9a8f80)}
+.calViewBtn.active{background:var(--gold-surface,#fef3c7);border-color:var(--gold,#b7791f);color:var(--gold-text,#7c4a00);font-weight:600}
+.calDayPanel{margin-top:10px}
 </style>`);
 
 
@@ -333,50 +353,50 @@ const LOT_SIZES=[{key:"sm",label:"Under \u00bc acre",sub:"Small city/subdivision
 const HOME_SIZES=[{key:"sm",label:"Under 1,500 sq ft",sub:"Small home"},{key:"md",label:"1,500\u20132,500 sq ft",sub:"Average home"},{key:"lg",label:"2,500\u20134,000 sq ft",sub:"Larger home"},{key:"xl",label:"4,000+ sq ft",sub:"Large or luxury home"}];
 const PRICE_LIST=[
   // Exterior & Grounds
-  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 desc:"Mow, edge, and clean up.",                                             hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true},
-  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            desc:"Full debris removal and yard cleanup.",                                        hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true},
-  {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       desc:"Hedges and shrubs trimmed and shaped.",                                     hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 desc:"Leaves cleared from yard and beds.",                                            hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        desc:"Loaded and hauled away. Priced per load.",                           hasSizes:false,flat:95,unit:"load",                                   firstOk:false},
-  {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              desc:"Gutters cleared and flushed out.",                     hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false},
-  {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   desc:"Exterior windows cleaned.",                             hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"fence_repair",cat:"Exterior & Grounds",    name:"Fence Repair",                 desc:"Damaged areas repaired and secured.",                      hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    desc:"Full stain or paint application.",                           hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      desc:"Dead limbs removed and cleaned up.",                          hasSizes:false,flat:150,                                              firstOk:false},
-  {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               desc:"Ground down below grade.",                                 hasSizes:false,flat:125,unit:"stump",                                 firstOk:false},
-  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         desc:"Overgrowth cleared and removed.",                       hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       desc:"Door refreshed with a clean coat of paint.",                hasSizes:false,flat:75,unit:"door",                                   firstOk:false},
-  {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    desc:"Hard surfaces washed down. Add-on service — availability varies.",       hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false},
+  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 desc:"Mow, edge, and clean up.",                                             hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true,mins:90},
+  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            desc:"Full debris removal and yard cleanup.",                                        hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true,mins:180},
+  {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       desc:"Hedges and shrubs trimmed and shaped.",                                     hasSizes:false,flat:95,                                               firstOk:false,mins:90},
+  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 desc:"Leaves cleared from yard and beds.",                                            hasSizes:false,flat:175,                                              firstOk:false,mins:135},
+  {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        desc:"Loaded and hauled away. Priced per load.",                           hasSizes:false,flat:95,unit:"load",                                   firstOk:false,mins:120},
+  {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              desc:"Gutters cleared and flushed out.",                     hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false,mins:90},
+  {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   desc:"Exterior windows cleaned.",                             hasSizes:false,flat:95,                                               firstOk:false,mins:90},
+  {id:"fence_repair",cat:"Exterior & Grounds",    name:"Fence Repair",                 desc:"Damaged areas repaired and secured.",                      hasSizes:false,flat:125,                                              firstOk:false,mins:180},
+  {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    desc:"Full stain or paint application.",                           hasSizes:false,flat:175,                                              firstOk:false,mins:270},
+  {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      desc:"Dead limbs removed and cleaned up.",                          hasSizes:false,flat:150,                                              firstOk:false,mins:180},
+  {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               desc:"Ground down below grade.",                                 hasSizes:false,flat:125,unit:"stump",                                 firstOk:false,mins:90},
+  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         desc:"Overgrowth cleared and removed.",                       hasSizes:false,flat:175,                                              firstOk:false,mins:210},
+  {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       desc:"Door refreshed with a clean coat of paint.",                hasSizes:false,flat:75,unit:"door",                                   firstOk:false,mins:90},
+  {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    desc:"Hard surfaces washed down. Add-on service — availability varies.",       hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false,mins:120},
   // Interior Prep
-  {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                desc:"Thorough cleaning throughout the home.", hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
-  {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      desc:"Full cleanout — everything removed from the property.",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false},
-  {id:"handyman",    cat:"Interior Prep",          name:"Handyman / Minor Repairs",     desc:"Small repairs handled by the hour.",         hasSizes:false,flat:75,unit:"hr",                                     firstOk:false},
-  {id:"int_paint",   cat:"Interior Prep",          name:"Interior Painting",            desc:"Walls painted, room by room. Labor only — client provides paint.",     hasSizes:false,flat:200,unit:"room",                                  firstOk:false},
-  {id:"touch_paint", cat:"Interior Prep",          name:"Paint Touch-Ups",              desc:"Scuffs and minor damage touched up.",                              hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"carpet_clean",cat:"Interior Prep",          name:"Carpet Cleaning",              desc:"Carpets cleaned and refreshed.",                           hasSizes:true, sizeType:"home", prices:{sm:150,md:200,lg:275,xl:375}, firstOk:false},
-  {id:"carpet_rem",  cat:"Interior Prep",          name:"Carpet Removal",               desc:"Carpet pulled up and hauled away.",                        hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
-  {id:"drywall",     cat:"Interior Prep",          name:"Drywall Repair",               desc:"Holes and damage patched and sanded.",                                   hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"caulk",       cat:"Interior Prep",          name:"Caulking & Weatherstripping",  desc:"Seals refreshed around tubs, windows, and doors.",                    hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"light_fix",   cat:"Interior Prep",          name:"Light Fixture Replacement",    desc:"Old fixtures swapped out. Client provides new fixtures.",                  hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
-  {id:"door_hw",     cat:"Interior Prep",          name:"Door Hardware Replacement",    desc:"Hardware replaced per door. Client provides new hardware.",                    hasSizes:false,flat:65,unit:"ea",                                     firstOk:false},
-  {id:"appliance",   cat:"Interior Prep",          name:"Appliance Removal",            desc:"Unwanted appliances disconnected and hauled away.",                    hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
+  {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                desc:"Thorough cleaning throughout the home.", hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false,mins:270},
+  {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      desc:"Full cleanout — everything removed from the property.",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false,mins:330},
+  {id:"handyman",    cat:"Interior Prep",          name:"Handyman / Minor Repairs",     desc:"Small repairs handled by the hour.",         hasSizes:false,flat:75,unit:"hr",                                     firstOk:false,mins:120},
+  {id:"int_paint",   cat:"Interior Prep",          name:"Interior Painting",            desc:"Walls painted, room by room. Labor only — client provides paint.",     hasSizes:false,flat:200,unit:"room",                                  firstOk:false,mins:360},
+  {id:"touch_paint", cat:"Interior Prep",          name:"Paint Touch-Ups",              desc:"Scuffs and minor damage touched up.",                              hasSizes:false,flat:75,                                               firstOk:false,mins:90},
+  {id:"carpet_clean",cat:"Interior Prep",          name:"Carpet Cleaning",              desc:"Carpets cleaned and refreshed.",                           hasSizes:true, sizeType:"home", prices:{sm:150,md:200,lg:275,xl:375}, firstOk:false,mins:120},
+  {id:"carpet_rem",  cat:"Interior Prep",          name:"Carpet Removal",               desc:"Carpet pulled up and hauled away.",                        hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false,mins:180},
+  {id:"drywall",     cat:"Interior Prep",          name:"Drywall Repair",               desc:"Holes and damage patched and sanded.",                                   hasSizes:false,flat:125,                                              firstOk:false,mins:180},
+  {id:"caulk",       cat:"Interior Prep",          name:"Caulking & Weatherstripping",  desc:"Seals refreshed around tubs, windows, and doors.",                    hasSizes:false,flat:75,                                               firstOk:false,mins:90},
+  {id:"light_fix",   cat:"Interior Prep",          name:"Light Fixture Replacement",    desc:"Old fixtures swapped out. Client provides new fixtures.",                  hasSizes:false,flat:75,unit:"ea",                                     firstOk:false,mins:90},
+  {id:"door_hw",     cat:"Interior Prep",          name:"Door Hardware Replacement",    desc:"Hardware replaced per door. Client provides new hardware.",                    hasSizes:false,flat:65,unit:"ea",                                     firstOk:false,mins:30},
+  {id:"appliance",   cat:"Interior Prep",          name:"Appliance Removal",            desc:"Unwanted appliances disconnected and hauled away.",                    hasSizes:false,flat:75,unit:"ea",                                     firstOk:false,mins:90},
   // Photography & Media
-  {id:"photos",      cat:"Photography & Media",    name:"Professional Photography",     desc:"Listing photos, edited and delivered promptly.",       hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240}, firstOk:false},
-  {id:"drone",       cat:"Photography & Media",    name:"Drone Aerial Photos",          desc:"Aerial photos of the property and surrounding area.",            hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"photodrone",  cat:"Photography & Media",    name:"Photos + Drone Combo",         desc:"Ground and aerial photos — the complete package.",             hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350}, firstOk:false},
+  {id:"photos",      cat:"Photography & Media",    name:"Professional Photography",     desc:"Listing photos, edited and delivered promptly.",       hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240}, firstOk:false,mins:90},
+  {id:"drone",       cat:"Photography & Media",    name:"Drone Aerial Photos",          desc:"Aerial photos of the property and surrounding area.",            hasSizes:false,flat:125,                                              firstOk:false,mins:45},
+  {id:"photodrone",  cat:"Photography & Media",    name:"Photos + Drone Combo",         desc:"Ground and aerial photos — the complete package.",             hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350}, firstOk:false,mins:105},
   // Staging & Presentation
-  {id:"lockbox",     cat:"Staging & Presentation", name:"Lockbox Installation",         desc:"Lockbox installed and set at the property.",                                 hasSizes:false,flat:50,                                               firstOk:false},
-  {id:"yardsign",    cat:"Staging & Presentation", name:"Yard Sign Installation",       desc:"Sign posted at the property.",                                     hasSizes:false,flat:50,                                               firstOk:false},
-  {id:"staging",     cat:"Staging & Presentation", name:"Staging Consultation",         desc:"Walk-through advice on presentation and layout.",        hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"key_dup",     cat:"Staging & Presentation", name:"Key Duplication",              desc:"Keys duplicated for property access.",                     hasSizes:false,flat:50,unit:"key",                                    firstOk:false},
+  {id:"lockbox",     cat:"Staging & Presentation", name:"Lockbox Installation",         desc:"Lockbox installed and set at the property.",                                 hasSizes:false,flat:50,                                               firstOk:false,mins:30},
+  {id:"yardsign",    cat:"Staging & Presentation", name:"Yard Sign Installation",       desc:"Sign posted at the property.",                                     hasSizes:false,flat:50,                                               firstOk:false,mins:30},
+  {id:"staging",     cat:"Staging & Presentation", name:"Staging Consultation",         desc:"Walk-through advice on presentation and layout.",        hasSizes:false,flat:75,                                               firstOk:false,mins:90},
+  {id:"key_dup",     cat:"Staging & Presentation", name:"Key Duplication",              desc:"Keys duplicated for property access.",                     hasSizes:false,flat:50,unit:"key",                                    firstOk:false,mins:30},
   // Ongoing / Vacant
-  {id:"checkin",     cat:"Ongoing / Vacant",       name:"Vacant Property Check-In",     desc:"Property checked and report provided.", hasSizes:false,flat:60,                                               firstOk:false},
-  {id:"storminsp",   cat:"Ongoing / Vacant",       name:"Storm Damage Inspection",      desc:"Post-storm check with photos and written report.",              hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"utility",     cat:"Ongoing / Vacant",       name:"Utility Monitoring Visit",     desc:"Utilities checked and any issues noted.",            hasSizes:false,flat:60,                                               firstOk:false},
-  {id:"winterize",   cat:"Ongoing / Vacant",       name:"Winterization Check",          desc:"Property checked for winter readiness.",                  hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"checkin",     cat:"Ongoing / Vacant",       name:"Vacant Property Check-In",     desc:"Property checked and report provided.", hasSizes:false,flat:60,                                               firstOk:false,mins:45},
+  {id:"storminsp",   cat:"Ongoing / Vacant",       name:"Storm Damage Inspection",      desc:"Post-storm check with photos and written report.",              hasSizes:false,flat:95,                                               firstOk:false,mins:45},
+  {id:"utility",     cat:"Ongoing / Vacant",       name:"Utility Monitoring Visit",     desc:"Utilities checked and any issues noted.",            hasSizes:false,flat:60,                                               firstOk:false,mins:30},
+  {id:"winterize",   cat:"Ongoing / Vacant",       name:"Winterization Check",          desc:"Property checked for winter readiness.",                  hasSizes:false,flat:75,                                               firstOk:false,mins:90},
   // Other
-  {id:"minjob",      cat:"Other",                  name:"Minimum Job Charge",           desc:"Minimum charge for any service call.",                                              hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"custom",      cat:"Other",                  name:"Custom Service",               desc:"Custom service — described in the line item.",                             hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"minjob",      cat:"Other",                  name:"Minimum Job Charge",           desc:"Minimum charge for any service call.",                                              hasSizes:false,flat:75,                                               firstOk:false,mins:30},
+  {id:"custom",      cat:"Other",                  name:"Custom Service",               desc:"Custom service — described in the line item.",                             hasSizes:false,flat:75,                                               firstOk:false,mins:60},
 ];
 
 // Package psychology config
@@ -428,13 +448,36 @@ appRoot.innerHTML=`
   </section>
 
   <section id="scheduleView" class="hidden">
-    <div class="box"><h2>Schedule</h2><div class="quickAdd noPrint">
-      <button onclick="openTodaySchedule()">Today</button>
-      <button onclick="openUpcomingSchedule()">Next 7 Days</button>
-      <button onclick="showAllSchedule()">All Scheduled</button>
-      <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
-    </div></div>
-    <div class="box"><h2 id="scheduleTitle">Scheduled Jobs</h2><div id="scheduleList"></div></div>
+    <div class="box">
+      <div class="calViewToggle">
+        <button class="calViewBtn active" id="calViewBtnCal" onclick="setCalView('cal')">📅 Calendar</button>
+        <button class="calViewBtn" id="calViewBtnList" onclick="setCalView('list')">☰ List</button>
+      </div>
+      <div id="calendarPanel">
+        <div class="calNav">
+          <button class="calNavBtn" onclick="calPrevMonth()">‹</button>
+          <div class="calMonthLabel" id="calMonthLabel"></div>
+          <button class="calNavBtn" onclick="calNextMonth()">›</button>
+        </div>
+        <div class="calendarGrid" id="calDowRow">
+          <div class="calendarDow">Su</div><div class="calendarDow">Mo</div><div class="calendarDow">Tu</div>
+          <div class="calendarDow">We</div><div class="calendarDow">Th</div><div class="calendarDow">Fr</div>
+          <div class="calendarDow">Sa</div>
+        </div>
+        <div class="calendarGrid" id="calGrid"></div>
+        <div class="calDayPanel" id="calDayPanel"></div>
+      </div>
+      <div id="calListPanel" style="display:none">
+        <div class="quickAdd noPrint" style="margin-bottom:10px">
+          <button onclick="renderSchedule('today')">Today</button>
+          <button onclick="renderSchedule('upcoming')">Next 7 Days</button>
+          <button onclick="renderSchedule('all')">All Scheduled</button>
+          <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
+        </div>
+        <h2 id="scheduleTitle">Scheduled Jobs</h2>
+        <div id="scheduleList"></div>
+      </div>
+    </div>
   </section>
 
   <section id="workflowView" class="hidden">
@@ -544,10 +587,17 @@ appRoot.innerHTML=`
       <h2 id="jobFormTitle">Add Job</h2>
       <div class="formSection">Customer &amp; Description</div>
       <select id="jobCustomer"></select>
-      <input id="jobTitle" placeholder="Job description">
+      <input id="jobTitle" placeholder="Job description" oninput="prefillJobMins()">
       <div class="formSection">Schedule</div>
       <input id="jobDate" type="date">
       <input id="jobTime" type="time">
+      <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+        <div style="flex:1">
+          <div class="small" style="margin-bottom:3px;color:var(--text-secondary)">Est. duration</div>
+          <input id="jobMins" type="number" min="15" step="15" placeholder="60" style="margin:0" oninput="updateJobDurationLabel()">
+        </div>
+        <div style="padding-top:18px;font-size:13px;color:var(--text-secondary)" id="jobDurationLabel">1 hr</div>
+      </div>
       <div class="formSection">Payment</div>
       <input id="jobAmount" type="number" placeholder="Amount charged">
       <input id="jobPaid" type="number" placeholder="Initial payment amount">
@@ -851,7 +901,40 @@ function startListeners(){
   onSnapshot(collection(db,"payments"),snap=>{payments=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();});
   onSnapshot(collection(db,"bids"),snap=>{bids=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();});
   onSnapshot(collection(db,"partners"),snap=>{partners=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();});
+  // Load Craig's learned flag hours
+  onSnapshot(doc(db,"settings","flagHours"),snap=>{
+    if(snap.exists())learnedMins={...snap.data()};
+  });
   setupWorkflowDragAndDrop();
+}
+
+// Return duration in minutes for a service — Craig's learned value wins over system default
+function getJobMins(serviceId){
+  if(!serviceId)return 60;
+  if(learnedMins[serviceId]!==undefined)return learnedMins[serviceId];
+  const svc=PRICE_LIST.find(s=>s.id===serviceId);
+  return svc?.mins||60;
+}
+
+// Silently save Craig's preferred duration for a service to Firestore
+async function saveLearnedMins(serviceId,mins){
+  if(!serviceId||mins===undefined)return;
+  learnedMins[serviceId]=mins;
+  try{await updateDoc(doc(db,"settings","flagHours"),{[serviceId]:mins});}
+  catch(e){
+    // Doc may not exist yet — create it
+    try{const {setDoc}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    await setDoc(doc(db,"settings","flagHours"),learnedMins,{merge:true});}catch(e2){}
+  }
+}
+
+// Format minutes as readable string: "1 hr 30 min", "45 min", "2 hrs"
+function fmtMins(m){
+  if(!m||m===0)return"0 min";
+  const h=Math.floor(m/60),min=m%60;
+  if(h&&min)return`${h} hr${h>1?"s":""} ${min} min`;
+  if(h)return`${h} hr${h>1?"s":""}`;
+  return`${min} min`;
 }
 
 const ALL_VIEWS=["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","partnersView","settingsView","globalSearchView"];
@@ -885,6 +968,8 @@ window.showView=function(id){
   document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
   if(id==="dashboardView") el("navHome").classList.add("active");
   else if(id==="scheduleView") el("navSchedule").classList.add("active");
+  // Render calendar when schedule view opens
+  if(id==="scheduleView")setTimeout(()=>{if(calViewMode==="cal")renderCalendar();},50);
   else if(id==="customersView"||id==="customerDetailView") el("navCustomers").classList.add("active");
   else if(id==="bidsView"||id==="invoiceView") el("navBids").classList.add("active");
   else el("navMore").classList.add("active");
@@ -895,9 +980,138 @@ window.showView=function(id){
 
 window.openPaidJobs=function(){showView("jobsView");el("jobStatusFilter").value="paid";el("jobSearch").value="";renderAll();};
 window.openOwedJobs=function(){showView("jobsView");el("jobStatusFilter").value="unpaid";el("jobSearch").value="";renderAll();};
-window.openTodaySchedule=function(){showView("scheduleView");renderSchedule("today");};
-window.openUpcomingSchedule=function(){showView("scheduleView");renderSchedule("upcoming");};
-window.showAllSchedule=function(){showView("scheduleView");renderSchedule("all");};
+window.openTodaySchedule=function(){showView("scheduleView");setCalView("cal");calGoToToday();};
+window.openUpcomingSchedule=function(){showView("scheduleView");setCalView("list");renderSchedule("upcoming");};
+window.showAllSchedule=function(){showView("scheduleView");setCalView("list");renderSchedule("all");};
+
+// Calendar state
+let calYear=new Date().getFullYear();
+let calMonth=new Date().getMonth(); // 0-indexed
+let calSelectedDate=today();
+let calViewMode="cal"; // "cal" or "list"
+
+window.setCalView=function(mode){
+  calViewMode=mode;
+  el("calendarPanel").style.display=mode==="cal"?"block":"none";
+  el("calListPanel").style.display=mode==="list"?"block":"none";
+  el("calViewBtnCal").classList.toggle("active",mode==="cal");
+  el("calViewBtnList").classList.toggle("active",mode==="list");
+  if(mode==="cal")renderCalendar();
+};
+
+window.calPrevMonth=function(){
+  calMonth--;if(calMonth<0){calMonth=11;calYear--;}
+  renderCalendar();
+};
+window.calNextMonth=function(){
+  calMonth++;if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+};
+window.calGoToToday=function(){
+  const now=new Date();calYear=now.getFullYear();calMonth=now.getMonth();
+  calSelectedDate=today();renderCalendar();
+};
+
+function jobStatusColor(j){
+  if(j.status==="Complete"||jobBalance(j)<=0)return"#087443";
+  if(j.status==="In Progress")return"#b45309";
+  return"#b7791f";
+}
+
+window.renderCalendar=function(){
+  const grid=el("calGrid");if(!grid)return;
+
+  const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  if(el("calMonthLabel"))el("calMonthLabel").innerText=`${monthNames[calMonth]} ${calYear}`;
+
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+  const todayStr=today();
+
+  // Build date → jobs map
+  const jobsByDate={};
+  jobs.filter(j=>j.date).forEach(j=>{
+    if(!jobsByDate[j.date])jobsByDate[j.date]={};
+    jobsByDate[j.date][j.id]=j;
+  });
+
+  let cells="";
+  // Leading days from previous month
+  for(let i=firstDay-1;i>=0;i--){
+    const d=daysInPrev-i;
+    const ds=`${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    cells+=`<div class="calCell otherMonth" onclick="calSelectDate('${ds}')">`+
+      `<div class="calDateNum">${d}</div></div>`;
+  }
+  // This month
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const dayJobs=Object.values(jobsByDate[ds]||{});
+    const isToday=ds===todayStr;
+    const isSelected=ds===calSelectedDate;
+    const cls=["calCell",isToday?"today":"",isSelected&&!isToday?"selected":""].filter(Boolean).join(" ");
+    const dots=dayJobs.slice(0,4).map(j=>`<div class="calDot" style="background:${jobStatusColor(j)}"></div>`).join("");
+    const more=dayJobs.length>4?`<div class="calMore">+${dayJobs.length-4}</div>`:"";
+    cells+=`<div class="${cls}" onclick="calSelectDate('${ds}')">
+      <div class="calDateNum">${d}</div>
+      <div class="calDots">${dots}</div>
+      ${more}
+    </div>`;
+  }
+  // Trailing days
+  const totalCells=firstDay+daysInMonth;
+  const trailing=(7-totalCells%7)%7;
+  for(let d=1;d<=trailing;d++){
+    const nextMonth=calMonth+1>11?0:calMonth+1;
+    const nextYear=calMonth+1>11?calYear+1:calYear;
+    const ds=`${nextYear}-${String(nextMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    cells+=`<div class="calCell otherMonth" onclick="calSelectDate('${ds}')">`+
+      `<div class="calDateNum">${d}</div></div>`;
+  }
+  grid.innerHTML=cells;
+  renderCalDayPanel(calSelectedDate);
+};
+
+window.calSelectDate=function(ds){
+  calSelectedDate=ds;
+  // Update selected month/year if clicking prev/next month days
+  const parts=ds.split("-");
+  const y=parseInt(parts[0]),m=parseInt(parts[1])-1;
+  if(y!==calYear||m!==calMonth){calYear=y;calMonth=m;}
+  renderCalendar();
+};
+
+function renderCalDayPanel(ds){
+  const panel=el("calDayPanel");if(!panel)return;
+  const dayJobs=jobs.filter(j=>j.date===ds).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
+  const parts=ds.split("-");
+  const dateObj=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  const dayLabel=dateObj.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const isToday=ds===today();
+
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-top:4px">
+    <div style="font-size:15px;font-weight:600;color:var(--text)">${isToday?"Today — ":""}${dayLabel}</div>
+    <button class="secondary" style="width:auto;padding:6px 12px;font-size:12px" onclick="calAddJobOnDate('${ds}')">+ Add Job</button>
+  </div>`;
+
+  if(!dayJobs.length){
+    html+=`<p class="small" style="color:var(--text-secondary);padding:8px 0">No jobs scheduled. Tap + Add Job to schedule one.</p>`;
+  }else{
+    html+=dayJobs.map(todayCardHtml).join("");
+    // Show total estimated time for the day
+    const totalMins=dayJobs.reduce((sum,j)=>sum+(j.mins||60),0);
+    html+=`<div style="text-align:right;font-size:12px;color:var(--text-secondary);padding:8px 4px 0">Est. ${fmtMins(totalMins)} scheduled</div>`;
+  }
+  panel.innerHTML=html;
+}
+
+window.calAddJobOnDate=function(ds){
+  showView("jobsView");
+  toggleBox("jobFormBox",true);
+  resetJobForm();
+  if(el("jobDate"))el("jobDate").value=ds;
+};
 window.openExpenses=function(){showView("expensesView");};
 window.openPayments=function(){showView("paymentsView");};
 window.openProfitBreakdown=function(){showView("profitView");renderAll();switchReportTab("overview");};
@@ -1257,8 +1471,12 @@ window.deleteCustomer=async function(id){
 
 window.saveJob=async function(){
   const ej=editingJobId?jobs.find(x=>x.id===editingJobId):null;
-  const data={customerId:el("jobCustomer").value,title:el("jobTitle").value.trim(),date:el("jobDate").value||today(),time:el("jobTime").value||"",amount:Number(el("jobAmount").value||0),notes:el("jobNotes").value.trim(),status:ej?.status||"Scheduled"};
+  const minsVal=Number(el("jobMins")?.value||60);
+  const data={customerId:el("jobCustomer").value,title:el("jobTitle").value.trim(),date:el("jobDate").value||today(),time:el("jobTime").value||"",amount:Number(el("jobAmount").value||0),notes:el("jobNotes").value.trim(),status:ej?.status||"Scheduled",mins:minsVal};
   if(!data.customerId||!data.title){alert("Select a customer and enter a job description");return;}
+  // Detect service type from title and save learned mins if changed
+  const matchedSvc=PRICE_LIST.find(s=>data.title.toLowerCase().includes(s.name.toLowerCase().split(" ")[0]));
+  if(matchedSvc&&minsVal!==getJobMins(matchedSvc.id))saveLearnedMins(matchedSvc.id,minsVal);
   if(editingJobId){await updateDoc(doc(db,"jobs",editingJobId),data);}
   else{data.paid=0;data.createdAt=new Date().toISOString();const jobRef=await addDoc(collection(db,"jobs"),data);const ip=Number(el("jobPaid").value||0);if(ip>0)await addDoc(collection(db,"payments"),{jobId:jobRef.id,customerId:data.customerId,amount:ip,date:data.date,notes:"Initial payment",createdAt:new Date().toISOString()});}
   resetJobForm();showToast("Job saved");
@@ -1267,13 +1485,25 @@ window.editJob=function(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;editingJobId=id;el("jobFormTitle").innerText="Edit Job";
   el("jobCustomer").value=j.customerId||"";el("jobTitle").value=j.title||"";el("jobDate").value=j.date||today();
   el("jobTime").value=j.time||"";el("jobAmount").value=j.amount||0;el("jobPaid").value=jobPaidAmount(j);el("jobNotes").value=j.notes||"";
+  if(el("jobMins")){el("jobMins").value=j.mins||60;updateJobDurationLabel();}
   showView("jobsView");el("jobFormBox").classList.remove("hidden");
 };
 window.resetJobForm=function(){
   editingJobId=null;el("jobFormTitle").innerText="Add Job";
   const sp=el("jobSmartPrompts");if(sp){sp.innerHTML="";sp.dataset.prompts="";}
-
   el("jobCustomer").value="";el("jobTitle").value="";el("jobDate").value=today();el("jobTime").value="";el("jobAmount").value="";el("jobPaid").value="";el("jobNotes").value="";
+  if(el("jobMins")){el("jobMins").value=60;updateJobDurationLabel();}
+};
+window.updateJobDurationLabel=function(){
+  const m=Number(el("jobMins")?.value||0);
+  const lbl=el("jobDurationLabel");
+  if(lbl)lbl.innerText=fmtMins(m);
+};
+// Pre-fill duration when job title changes
+window.prefillJobMins=function(){
+  const title=(el("jobTitle")?.value||"").toLowerCase();
+  const svc=PRICE_LIST.find(s=>title.includes(s.name.toLowerCase().split(" ")[0])&&s.id!=="travel");
+  if(svc&&el("jobMins")){el("jobMins").value=getJobMins(svc.id);updateJobDurationLabel();}
 };
 window.addPayment=async function(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;
@@ -2086,9 +2316,14 @@ window.toggleTodayCard=function(id){
 
 function renderTodayPreview(){
   const todayList=jobs.filter(j=>j.date===today()).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
-  el("todaySchedulePreview").innerHTML=todayList.length
-    ?todayList.map(todayCardHtml).join("")
-    :"<p class='small'>No jobs scheduled today.</p>";
+  const html=todayList.length?todayList.map(todayCardHtml).join(""):"<p class='small'>No jobs scheduled today.</p>";
+  if(el("todaySchedulePreview"))el("todaySchedulePreview").innerHTML=html;
+  // Also update schedule list if it is currently showing today's jobs
+  const schedList=el("scheduleList");
+  const schedView=el("scheduleView");
+  if(schedList&&schedView&&!schedView.classList.contains("hidden")&&el("scheduleTitle")?.innerText==="Today's Jobs"){
+    schedList.innerHTML=html;
+  }
 }
 window.renderTodayPreview=renderTodayPreview;
 
@@ -2344,6 +2579,8 @@ function renderAll(){
 
   renderTodayPreview();
   el("upcomingSchedulePreview").innerHTML=upcoming.length?upcoming.slice(0,5).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(scheduleCardHtml).join(""):"<p class='small'>No upcoming jobs in the next 7 days.</p>";
+  // Refresh calendar dots if schedule view is open
+  if(el("scheduleView")&&!el("scheduleView").classList.contains("hidden")&&calViewMode==="cal")renderCalendar();
 
 // Unpaid card toggle system
 const expandedUnpaidJobs=new Set();
