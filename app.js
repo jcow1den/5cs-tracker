@@ -544,7 +544,7 @@ appRoot.innerHTML=`
       <h2 id="jobFormTitle">Add Job</h2>
       <div class="formSection">Customer &amp; Description</div>
       <select id="jobCustomer"></select>
-      <input id="jobTitle" placeholder="Job description" oninput="checkJobSmartPrompts()">
+      <input id="jobTitle" placeholder="Job description">
       <div class="formSection">Schedule</div>
       <input id="jobDate" type="date">
       <input id="jobTime" type="time">
@@ -607,6 +607,7 @@ appRoot.innerHTML=`
       <select id="bidCustomer"></select>
       <input id="bidTitle" placeholder="Bid title">
       <textarea id="bidNotes" placeholder="General notes"></textarea>
+      <div id="bidSmartPrompts" style="margin:8px 0"></div>
       <div style="margin:10px 0">
         <button class="accordionBtn" id="plAccBtn" onclick="toggleAccordion('plAccBtn','priceListPanel',openPriceListPanel)">
           &#9776; Build from Price List <span class="accArrow">&#9660;</span>
@@ -1021,62 +1022,87 @@ window.openWorkflow=function(){showView("workflowView");renderWorkflowBoard();};
 window.openGlobalSearch=function(){showView("globalSearchView");setTimeout(()=>{const i=el("globalSearchInput");if(i){i.focus();i.value="";runGlobalSearch();}},100);};
 
 // Smart prompts — contextual follow-up questions on the job form
-const PHOTO_KEYWORDS=["photo","drone","aerial","picture","pic","media","listing photo"];
-const CLEAN_KEYWORDS=["clean","deep clean","trash out","cleanout","foreclosure"];
-const TRAVEL_KEYWORDS=["photo","drone","aerial","travel","distant","out of town"];
+// Travel fee prompt — shown on every job and bid, no keyword logic needed
+const TRAVEL_PROMPT_HTML=`
+  <div class="jobFormToggle" onclick="toggleJobPrompt('travelPrompt')">
+    <div>
+      <div class="jobFormToggleLabel">🚗 Add travel fee?</div>
+      <div class="jobFormToggleSub">Enter the job address to calculate mileage from McAlester.</div>
+    </div>
+    <div class="jobFormToggleArrow" id="travelPromptArrow">⌄</div>
+  </div>
+  <div class="jobFormSection" id="travelPromptSection">
+    <input id="jobPropertyAddr" placeholder="Job address (e.g. 123 Main St, Hartshorne, OK)" style="margin-bottom:6px">
+    <button class="secondary" style="width:auto;padding:7px 14px;font-size:13px" onclick="calcJobTravelFee()">Calculate</button>
+    <div id="jobTravelResult" class="smartPromptResult"></div>
+    <div id="jobTravelFeeField" style="display:none;margin-top:8px">
+      <div class="small" style="margin-bottom:4px">Travel fee</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px">$</span>
+        <input id="jobTravelFeeAmt" type="number" min="0" placeholder="0" style="width:100px;margin:0">
+        <span style="font-size:12px;color:var(--text-secondary)">adjustable</span>
+      </div>
+    </div>
+  </div>`;
 
 window.checkJobSmartPrompts=function(){
-  const title=(el("jobTitle")?.value||"").toLowerCase();
-  const prompts=[];
-  const isPhoto=PHOTO_KEYWORDS.some(k=>title.includes(k));
-  const needsTravel=TRAVEL_KEYWORDS.some(k=>title.includes(k));
-
-  if(isPhoto||needsTravel){
-    prompts.push({
-      id:"jobPromptAddress",
-      icon:"📍",
-      label:"Add property address?",
-      sub:"Where is this job located? Used for travel fee calculation.",
-      content:`<input id="jobPropertyAddr" placeholder="Property address (e.g. 123 Main St, Krebs, OK)" style="margin-bottom:6px">
-        <button class="secondary" style="width:auto;padding:7px 14px;font-size:13px" onclick="calcJobTravelFee()">Calculate Travel Fee</button>
-        <div id="jobTravelResult" class="smartPromptResult"></div>
-        <div id="jobTravelFeeField" style="display:none;margin-top:6px">
-          <div class="small" style="margin-bottom:4px">Travel fee to add to job</div>
-          <input id="jobTravelFeeAmt" type="number" min="0" placeholder="0" style="width:120px;margin:0">
-        </div>`
-    });
-  }else{
-    prompts.push({
-      id:"jobPromptAddress",
-      icon:"📍",
-      label:"Add property address?",
-      sub:"Optional — helps with directions and gate codes.",
-      content:`<input id="jobPropertyAddr" placeholder="Property address" style="margin-bottom:0">`
-    });
-  }
-
   const container=el("jobSmartPrompts");
-  if(!container)return;
-
-  // Only re-render if prompt IDs changed
-  const currentIds=container.dataset.prompts||"";
-  const newIds=prompts.map(p=>p.id).join(",");
-  if(currentIds===newIds)return;
-  container.dataset.prompts=newIds;
-
-  container.innerHTML=prompts.map(p=>`
-    <div class="jobFormToggle" onclick="toggleJobPrompt('${p.id}')">
-      <div>
-        <div class="jobFormToggleLabel">${p.icon} ${p.label}</div>
-        <div class="jobFormToggleSub">${p.sub}</div>
-      </div>
-      <div class="jobFormToggleArrow" id="${p.id}Arrow">⌄</div>
-    </div>
-    <div class="jobFormSection" id="${p.id}Section">${p.content}</div>
-  `).join("");
+  if(!container||container.dataset.prompts==="set")return;
+  container.dataset.prompts="set";
+  container.innerHTML=TRAVEL_PROMPT_HTML;
 };
 
-window.toggleJobPrompt=function(id){
+window.initBidTravelPrompt=function(){
+  const container=el("bidSmartPrompts");
+  if(!container||container.dataset.prompts==="set")return;
+  container.dataset.prompts="set";
+  container.innerHTML=`
+    <div class="jobFormToggle" onclick="toggleJobPrompt('bidTravelPrompt')">
+      <div>
+        <div class="jobFormToggleLabel">🚗 Add travel fee?</div>
+        <div class="jobFormToggleSub">Enter the job address to calculate mileage from McAlester.</div>
+      </div>
+      <div class="jobFormToggleArrow" id="bidTravelPromptArrow">⌄</div>
+    </div>
+    <div class="jobFormSection" id="bidTravelPromptSection">
+      <input id="bidPropertyAddr" placeholder="Job address (e.g. 123 Main St, Hartshorne, OK)" style="margin-bottom:6px">
+      <button class="secondary" style="width:auto;padding:7px 14px;font-size:13px" onclick="calcBidTravelFee()">Calculate</button>
+      <div id="bidTravelResult" class="smartPromptResult"></div>
+      <div id="bidTravelFeeField" style="display:none;margin-top:8px">
+        <div class="small" style="margin-bottom:4px">Travel fee — tap Add to include on bid</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:14px">$</span>
+          <input id="bidTravelFeeAmt" type="number" min="0" placeholder="0" style="width:100px;margin:0">
+          <button class="green" style="width:auto;padding:7px 14px;font-size:13px" onclick="addBidTravelFeeToItems()">Add to Bid</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.calcBidTravelFee=async function(){
+  const addr=el("bidPropertyAddr")?.value||"";
+  if(!addr.trim()){el("bidTravelResult").innerText="Enter an address first.";return;}
+  const btn=event.target;btn.innerText="Calculating...";btn.disabled=true;
+  const result=await calcTravelFee(addr);
+  btn.innerText="Calculate";btn.disabled=false;
+  el("bidTravelResult").innerText=result.note;
+  const feeField=el("bidTravelFeeField");
+  const feeAmt=el("bidTravelFeeAmt");
+  if(feeField)feeField.style.display=result.fee>0?"block":"none";
+  if(feeAmt)feeAmt.value=result.fee;
+};
+
+window.addBidTravelFeeToItems=function(){
+  const amt=Number(el("bidTravelFeeAmt")?.value||0);
+  const addr=el("bidPropertyAddr")?.value||"";
+  if(!amt)return;
+  addBidItemRow(`Travel Fee${addr?" — "+addr:""}`,1,amt);
+  // Reset prompt
+  const container=el("bidSmartPrompts");
+  if(container){container.innerHTML="";container.dataset.prompts="";}
+  setTimeout(initBidTravelPrompt,100);
+  showToast("Travel fee added to bid");
+};
   const section=el(id+"Section");
   const arrow=el(id+"Arrow");
   if(!section)return;
@@ -1097,7 +1123,16 @@ window.calcJobTravelFee=async function(){
   if(feeField)feeField.style.display="block";
   if(feeAmt)feeAmt.value=result.fee;
 };
-window.toggleBox=function(id,forceOpen){const b=el(id);if(forceOpen===true){b.classList.remove("hidden");return;}b.classList.toggle("hidden");};
+window.toggleBox=function(id,forceOpen){
+  const b=el(id);if(!b)return;
+  if(forceOpen===true){b.classList.remove("hidden");}
+  else b.classList.toggle("hidden");
+  // Init smart prompts when forms open
+  if(!b.classList.contains("hidden")){
+    if(id==="jobFormBox"){setTimeout(checkJobSmartPrompts,50);}
+    if(id==="bidFormBox"){setTimeout(initBidTravelPrompt,50);}
+  }
+};
 window.clearProfitFilter=function(){el("profitFrom").value="";el("profitTo").value="";renderAll();};
 
 function getCustomer(id){return customers.find(c=>c.id===id);}
@@ -1709,7 +1744,10 @@ window.editBid=function(id){
   el("bidItems").innerHTML="";
   (b.items||[]).forEach(i=>addBidItemRow(i.desc||"",i.qty||"",i.price||""));updateBidTotal();
 };
-window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";if(el("plAccBtn"))el("plAccBtn").classList.remove("open");if(el("priceListPanel"))el("priceListPanel").classList.remove("open");};
+window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";if(el("plAccBtn"))el("plAccBtn").classList.remove("open");if(el("priceListPanel"))el("priceListPanel").classList.remove("open");
+  const bsp=el("bidSmartPrompts");if(bsp){bsp.innerHTML="";bsp.dataset.prompts="";}
+  setTimeout(initBidTravelPrompt,50);
+};
 window.deleteBid=async function(id){if(!confirm("Delete this bid?"))return;try{await deleteDoc(doc(db,"bids",id));}catch(e){alert("Delete bid failed: "+e.message);}};
 window.convertBidToJob=async function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;if(!confirm("Convert this bid to a job?"))return;
