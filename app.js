@@ -316,26 +316,30 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .jobFormToggleArrow{font-size:18px;color:var(--text-secondary,#9a8f80);transition:transform 0.2s}
 .jobFormToggleArrow.open{transform:rotate(180deg)}
 .jobFormSection{padding:10px 4px 4px;display:none}
-.jobFormSection.open{display:block}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:6px}
+.jobFormSection.open{display:block}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:6px}
 .calendarDow{text-align:center;font-size:11px;font-weight:600;color:var(--text-secondary,#9a8f80);padding:4px 0;text-transform:uppercase}
-.calCell{min-height:54px;border-radius:8px;padding:4px 5px;cursor:pointer;position:relative;background:var(--s2,#f5f1e8);transition:background 0.15s}
-.calCell:active{background:var(--gold-surface,#fef3c7)}
-.calCell.today{background:var(--gold-surface,#fef3c7);border:1.5px solid var(--gold,#b7791f)}
-.calCell.otherMonth{opacity:0.35}
-.calCell.selected{background:var(--gold-surface,#fef3c7);border:1.5px solid var(--gold,#b7791f)}
-.calDateNum{font-size:13px;font-weight:600;color:var(--text,#1a1710);line-height:1}
-.calCell.today .calDateNum{color:var(--gold,#b7791f)}
-.calDots{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px}
-.calDot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.calMore{font-size:10px;color:var(--text-secondary,#9a8f80);margin-top:2px}
-.calNav{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px}
-.calNavBtn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 10px;color:var(--text,#1a1710);border-radius:8px}
+.calCell{min-height:58px;border-radius:10px;padding:5px 4px 4px;cursor:pointer;position:relative;background:var(--s2,#f5f1e8);transition:background 0.2s,border 0.2s}
+.calCell:active{opacity:0.75}
+.calCell.otherMonth{opacity:0.3}
+.calCell.load-light{background:#f0fdf4}
+.calCell.load-moderate{background:#fef3c7}
+.calCell.load-heavy{background:#fef2f2}
+.calCell.selected .calDateCircle{background:var(--gold,#b7791f);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.calCell.today .calDateCircle{background:var(--gold,#b7791f);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.calDateCircle{font-size:13px;font-weight:600;color:var(--text,#1a1710);line-height:1;text-align:center;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.calDots{display:flex;justify-content:center;gap:3px;margin-top:4px}
+.calDot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.calJobCount{font-size:10px;font-weight:600;text-align:center;margin-top:3px;color:var(--text-secondary,#9a8f80)}
+.calNav{display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px}
+.calNavBtn{background:none;border:none;font-size:24px;cursor:pointer;padding:4px 12px;color:var(--text,#1a1710);border-radius:8px;line-height:1}
 .calNavBtn:active{background:var(--s2,#f5f1e8)}
 .calMonthLabel{font-size:17px;font-weight:700;color:var(--text,#1a1710)}
 .calViewToggle{display:flex;gap:6px;margin-bottom:10px}
 .calViewBtn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border,#e0dbd0);background:var(--s2,#f5f1e8);font-size:13px;font-weight:500;cursor:pointer;color:var(--text-secondary,#9a8f80)}
 .calViewBtn.active{background:var(--gold-surface,#fef3c7);border-color:var(--gold,#b7791f);color:var(--gold-text,#7c4a00);font-weight:600}
-.calDayPanel{margin-top:10px}
+.calDayPanel{overflow:hidden;max-height:0;transition:max-height 0.35s ease;margin-top:0}
+.calDayPanel.open{max-height:2000px;margin-top:10px}
+.calDayPanelInner{padding-top:4px}
 </style>`);
 
 
@@ -1020,66 +1024,60 @@ function jobStatusColor(j){
 
 window.renderCalendar=function(){
   const grid=el("calGrid");if(!grid)return;
-
   const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
   if(el("calMonthLabel"))el("calMonthLabel").innerText=`${monthNames[calMonth]} ${calYear}`;
-
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   const daysInPrev=new Date(calYear,calMonth,0).getDate();
   const todayStr=today();
-
-  // Build date → jobs map
   const jobsByDate={};
   jobs.filter(j=>j.date).forEach(j=>{
-    if(!jobsByDate[j.date])jobsByDate[j.date]={};
-    jobsByDate[j.date][j.id]=j;
+    if(!jobsByDate[j.date])jobsByDate[j.date]=[];
+    jobsByDate[j.date].push(j);
   });
-
+  const makeCell=(d,ds,isOther)=>{
+    const dayJobs=(jobsByDate[ds]||[]).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
+    const isToday=ds===todayStr,isSelected=ds===calSelectedDate;
+    const totalMins=dayJobs.reduce((sum,j)=>sum+(j.mins||60),0);
+    const loadCls=dayJobs.length?(totalMins>=420?"load-heavy":totalMins>=240?"load-moderate":"load-light"):"";
+    const cls=["calCell",isOther?"otherMonth":"",isToday?"today":"",isSelected?"selected":"",loadCls].filter(Boolean).join(" ");
+    const dots=dayJobs.slice(0,3).map(j=>`<div class="calDot" style="background:${jobStatusColor(j)}"></div>`).join("");
+    const extra=dayJobs.length>3?`<div class="calJobCount">+${dayJobs.length-3}</div>`:"";
+    return`<div class="${cls}" onclick="calSelectDate('${ds}')"><div class="calDateCircle">${d}</div><div class="calDots">${dots}</div>${extra}</div>`;
+  };
   let cells="";
-  // Leading days from previous month
   for(let i=firstDay-1;i>=0;i--){
     const d=daysInPrev-i;
-    const ds=`${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    cells+=`<div class="calCell otherMonth" onclick="calSelectDate('${ds}')">`+
-      `<div class="calDateNum">${d}</div></div>`;
+    cells+=makeCell(d,`${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`,true);
   }
-  // This month
   for(let d=1;d<=daysInMonth;d++){
-    const ds=`${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const dayJobs=Object.values(jobsByDate[ds]||{});
-    const isToday=ds===todayStr;
-    const isSelected=ds===calSelectedDate;
-    const cls=["calCell",isToday?"today":"",isSelected&&!isToday?"selected":""].filter(Boolean).join(" ");
-    const dots=dayJobs.slice(0,4).map(j=>`<div class="calDot" style="background:${jobStatusColor(j)}"></div>`).join("");
-    const more=dayJobs.length>4?`<div class="calMore">+${dayJobs.length-4}</div>`:"";
-    cells+=`<div class="${cls}" onclick="calSelectDate('${ds}')">
-      <div class="calDateNum">${d}</div>
-      <div class="calDots">${dots}</div>
-      ${more}
-    </div>`;
+    cells+=makeCell(d,`${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`,false);
   }
-  // Trailing days
-  const totalCells=firstDay+daysInMonth;
-  const trailing=(7-totalCells%7)%7;
+  const trailing=(7-(firstDay+daysInMonth)%7)%7;
   for(let d=1;d<=trailing;d++){
-    const nextMonth=calMonth+1>11?0:calMonth+1;
-    const nextYear=calMonth+1>11?calYear+1:calYear;
-    const ds=`${nextYear}-${String(nextMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    cells+=`<div class="calCell otherMonth" onclick="calSelectDate('${ds}')">`+
-      `<div class="calDateNum">${d}</div></div>`;
+    const nm=calMonth+1>11?0:calMonth+1,ny=calMonth+1>11?calYear+1:calYear;
+    cells+=makeCell(d,`${ny}-${String(nm+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`,true);
   }
   grid.innerHTML=cells;
-  renderCalDayPanel(calSelectedDate);
+  const panel=el("calDayPanel");
+  if(panel&&panel.classList.contains("open"))renderCalDayPanel(calSelectedDate);
 };
 
 window.calSelectDate=function(ds){
+  const panel=el("calDayPanel");
+  const wasSameDay=ds===calSelectedDate;
   calSelectedDate=ds;
-  // Update selected month/year if clicking prev/next month days
   const parts=ds.split("-");
   const y=parseInt(parts[0]),m=parseInt(parts[1])-1;
   if(y!==calYear||m!==calMonth){calYear=y;calMonth=m;}
   renderCalendar();
+  if(!panel)return;
+  if(wasSameDay&&panel.classList.contains("open")){
+    panel.classList.remove("open");
+  }else{
+    renderCalDayPanel(ds);
+    panel.classList.add("open");
+  }
 };
 
 function renderCalDayPanel(ds){
@@ -1089,27 +1087,17 @@ function renderCalDayPanel(ds){
   const dateObj=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
   const dayLabel=dateObj.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   const isToday=ds===today();
-
-  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-top:4px">
-    <div style="font-size:15px;font-weight:600;color:var(--text)">${isToday?"Today — ":""}${dayLabel}</div>
-    <button class="secondary" style="width:auto;padding:6px 12px;font-size:12px" onclick="calAddJobOnDate('${ds}')">+ Add Job</button>
-  </div>`;
-
-  if(!dayJobs.length){
-    html+=`<p class="small" style="color:var(--text-secondary);padding:8px 0">No jobs scheduled. Tap + Add Job to schedule one.</p>`;
-  }else{
-    html+=dayJobs.map(todayCardHtml).join("");
-    // Show total estimated time for the day
-    const totalMins=dayJobs.reduce((sum,j)=>sum+(j.mins||60),0);
-    html+=`<div style="text-align:right;font-size:12px;color:var(--text-secondary);padding:8px 4px 0">Est. ${fmtMins(totalMins)} scheduled</div>`;
-  }
+  const totalMins=dayJobs.reduce((sum,j)=>sum+(j.mins||60),0);
+  const timeTag=dayJobs.length?`<span style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-left:8px">${fmtMins(totalMins)} est.</span>`:"";
+  let html=`<div class="calDayPanelInner"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:15px;font-weight:700;color:var(--text)">${isToday?"Today · ":""}${dayLabel}${timeTag}</div><button class="secondary" style="width:auto;padding:6px 12px;font-size:12px" onclick="calAddJobOnDate('${ds}')">+ Add Job</button></div>`;
+  if(!dayJobs.length){html+=`<p class="small" style="color:var(--text-secondary);padding:4px 0 8px">Nothing scheduled — tap + Add Job.</p>`;}
+  else{html+=dayJobs.map(todayCardHtml).join("");}
+  html+=`</div>`;
   panel.innerHTML=html;
 }
 
 window.calAddJobOnDate=function(ds){
-  showView("jobsView");
-  toggleBox("jobFormBox",true);
-  resetJobForm();
+  showView("jobsView");toggleBox("jobFormBox",true);resetJobForm();
   if(el("jobDate"))el("jobDate").value=ds;
 };
 window.openExpenses=function(){showView("expensesView");};
