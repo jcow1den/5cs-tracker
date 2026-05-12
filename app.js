@@ -239,6 +239,22 @@ document.head.insertAdjacentHTML("beforeend",`<style>
   .periodReport{padding:0}
   body{background:#fff}
 }
+.todayCard{background:var(--s1,#fff);border-radius:14px;border:0.5px solid var(--border,#e0dbd0);margin-bottom:8px;overflow:hidden}
+.todayCardCompact{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.todayCardCompact:active{opacity:0.8}
+.todayStatusDot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.todayCardMain{flex:1;min-width:0}
+.todayCardTitle{font-size:15px;font-weight:600;color:var(--text,#1a1710);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todayCardSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:1px}
+.todayCardAction{flex-shrink:0;display:flex;align-items:center;gap:8px}
+.todayCardAction button{margin:0;padding:8px 14px;font-size:13px;width:auto}
+.todayChevron{font-size:18px;color:var(--text-secondary,#9a8f80);flex-shrink:0;transition:transform 0.2s;line-height:1}
+.todayChevron.open{transform:rotate(180deg)}
+.todayCardExpanded{border-top:0.5px solid var(--border,#e0dbd0);padding:12px 14px;background:var(--s2,#f5f1e8)}
+.todayExpandInfo{font-size:13px;color:var(--text,#1a1710);line-height:1.8;margin-bottom:10px}
+.todayExpandInfo a{color:#087443;text-decoration:none;font-weight:500}
+.todayExpandActions{display:flex;flex-wrap:wrap;gap:6px}
+.todayExpandActions button,.todayExpandActions a{margin:0;padding:8px 12px;font-size:13px;width:auto}
 </style>`);
 
 
@@ -1079,6 +1095,7 @@ window.setJobStatus=async function(id,status){
   try{
     await updateDoc(doc(db,"jobs",id),{status});
     renderAll();
+    renderTodayPreview();
     if(status==="Complete"){
       const j=jobs.find(x=>x.id===id);
       if(j) showFlowPrompt(`${safe(j.title)} is complete. Ready to invoice ${safe(getCustomerName(j.customerId))}?`,[{label:"Create Invoice",cls:"green",fn:`makeInvoice('${j.customerId}')`}]);
@@ -1763,6 +1780,89 @@ function scheduleCardHtml(j){
   const c=getCustomer(j.customerId),phone=cleanPhone(c?.phone);
   return `<div class="box"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">${avatarHtml(getCustomerName(j.customerId),"sm")}<div><h3 style="margin:0">${safe(j.title)}</h3><div><b style="color:var(--green);font-size:13px">${dateLabel(j.date)} ${j.time?"at "+timeLabel(j.time):""}</b></div></div></div><div class="small">${safe(getCustomerName(j.customerId))}</div>${c?.address?`<div class="small">${safe(c.address)}</div>`:""}${c?.gateCode?`<div class="small">Gate: ${safe(c.gateCode)}</div>`:""}${c?.propertyNotes?`<div class="small">${safe(c.propertyNotes)}</div>`:""}<div style="margin:6px 0">${paymentBadge(j)}${workflowBadge(j)}</div><div class="row">${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}${phone?`<a class="actionLink" href="sms:${phone}">Text</a>`:""}<button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="editJob('${j.id}')">Edit Job</button></div></div>`;
 }
+
+// Today card - compact by default, expandable
+const expandedTodayJobs=new Set();
+
+window.toggleTodayCard=function(id){
+  if(expandedTodayJobs.has(id))expandedTodayJobs.delete(id);
+  else expandedTodayJobs.add(id);
+  renderTodayPreview();
+};
+
+function renderTodayPreview(){
+  const todayList=jobs.filter(j=>j.date===today()).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
+  el("todaySchedulePreview").innerHTML=todayList.length
+    ?todayList.map(todayCardHtml).join("")
+    :"<p class='small'>No jobs scheduled today.</p>";
+}
+window.renderTodayPreview=renderTodayPreview;
+
+function todayCardHtml(j){
+  const ws=j.status||"Scheduled";
+  const bal=jobBalance(j);
+  const isPaid=paymentStatus(j)==="Paid";
+  const isExpanded=expandedTodayJobs.has(j.id);
+  const c=getCustomer(j.customerId);
+  const phone=cleanPhone(c?.phone);
+
+  // Status dot color
+  const dotColor=ws==="In Progress"?"#b7791f":ws==="Complete"?"#087443":"#64748b";
+
+  // Primary compact action button
+  let actionBtn="";
+  if(ws==="Scheduled")
+    actionBtn=`<button class="gold" onclick="event.stopPropagation();setJobStatus('${j.id}','In Progress')">Start</button>`;
+  else if(ws==="In Progress")
+    actionBtn=`<button class="green" onclick="event.stopPropagation();setJobStatus('${j.id}','Complete')">Complete</button>`;
+  else if(ws==="Complete"&&bal>0)
+    actionBtn=`<button class="green" onclick="event.stopPropagation();markPaid('${j.id}')">Mark Paid</button>`;
+  else if(isPaid)
+    actionBtn=`<span style="font-size:12px;font-weight:600;color:#087443;padding:0 4px">✓ Paid</span>`;
+
+  // Compact row
+  const compact=`<div class="todayCardCompact" onclick="toggleTodayCard('${j.id}')">
+    <div class="todayStatusDot" style="background:${dotColor}"></div>
+    <div class="todayCardMain">
+      <div class="todayCardTitle">${safe(getCustomerName(j.customerId))}</div>
+      <div class="todayCardSub">${safe(j.title)}${j.time?" · "+timeLabel(j.time):""}</div>
+    </div>
+    <div class="todayCardAction">
+      ${actionBtn}
+      <div class="todayChevron ${isExpanded?"open":""}">⌄</div>
+    </div>
+  </div>`;
+
+  if(!isExpanded)return`<div class="todayCard" id="tcard_${j.id}">${compact}</div>`;
+
+  // Expanded section
+  const mapsUrl=c?.address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`:"";
+  const expanded=`<div class="todayCardExpanded">
+    <div class="todayExpandInfo">
+      ${c?.address?`<div>📍 <a href="${mapsUrl}" target="_blank">${safe(c.address)}</a></div>`:""}
+      ${c?.gateCode?`<div>🔑 ${safe(c.gateCode)}</div>`:""}
+      ${phone?`<div>📞 <a href="tel:${phone}">${safe(c.phone)}</a></div>`:""}
+      ${j.notes?`<div style="margin-top:4px;color:var(--text-secondary)">${safe(j.notes)}</div>`:""}
+    </div>
+    <div style="margin-bottom:8px">${paymentBadge(j)}${workflowBadge(j)}</div>
+    <div class="todayExpandActions">
+      ${ws==="Scheduled"?`<button class="gold" onclick="setJobStatus('${j.id}','In Progress')">Start Job</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}
+      ${ws==="In Progress"?`<button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button><button class="secondary" onclick="setJobStatus('${j.id}','Scheduled')">Reopen</button>`:""}
+      ${ws==="Complete"&&bal>0?`<button class="green" onclick="markPaid('${j.id}')">Mark Paid</button><button onclick="addPayment('${j.id}')">Add Payment</button>`:""}
+      ${isPaid?`<button class="red" onclick="markUnpaid('${j.id}')">Mark Unpaid</button><button class="blue" onclick="requestReview('${j.id}')">Request Review</button>`:""}
+      ${phone?`<a class="actionLink" href="tel:${phone}">Call</a><a class="actionLink" href="sms:${phone}">Text</a>`:""}
+      <button class="gold" onclick="copyReminder('${j.id}')">Copy Reminder</button>
+      <button onclick="makeJobRecurring('${j.id}')">Make Recurring</button>
+      <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
+      <button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button>
+    </div>
+    <div style="text-align:center;padding-top:10px">
+      <button class="secondary" style="width:auto;font-size:12px;padding:6px 16px" onclick="toggleTodayCard('${j.id}')">⌃ Collapse</button>
+    </div>
+  </div>`;
+
+  return`<div class="todayCard" id="tcard_${j.id}">${compact}${expanded}</div>`;
+}
 function partnerCardHtml(p){
   const phone=cleanPhone(p.phone),fu=partnerFollowUpStatus(p);
   return `<div class="box"><div class="customerHeader"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(p.name,"md")}<div><h3 style="margin:0">${safe(p.name)}</h3><div class="small">${safe(p.company)}</div><div class="small">${safe(p.phone)}</div></div></div>${fu?`<span class="badge ${fu.cls}">${fu.label}</span>`:""}</div><div class="moneyLine"><span>Last Contact</span><b>${dateLabel(p.lastContact)||"Never"}</b></div><div class="moneyLine"><span>Follow-Up</span><b>${dateLabel(p.followUpDate)||"Not set"}</b></div>${p.notes?`<p style="font-size:13px;margin-top:8px">${safe(p.notes)}</p>`:""}<div class="row">${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}${phone?`<a class="actionLink" href="sms:${phone}">Text</a>`:""}<button class="green" onclick="logPartnerContact('${p.id}')">Log Contact</button><button class="secondary" onclick="editPartner('${p.id}')">Edit</button><button class="red" onclick="deletePartner('${p.id}')">Delete</button></div></div>`;
@@ -1948,7 +2048,7 @@ function renderAll(){
   if(overduePartners.length)notifs.push(`<div class="box" style="background:var(--gold-surface);border-color:var(--gold-border)"><h3 style="color:var(--gold-text)">${overduePartners.length} partner${overduePartners.length===1?"":"s"} need${overduePartners.length===1?"s":""} follow-up</h3><button class="gold" onclick="showView('partnersView')">View Partners</button></div>`);
   el("notificationCenter").innerHTML=notifs.length?notifs.join(""):"<p class='small'>No alerts right now.</p>";
 
-  el("todaySchedulePreview").innerHTML=todayJobs.length?todayJobs.slice(0,5).sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(scheduleCardHtml).join(""):"<p class='small'>No jobs scheduled today.</p>";
+  renderTodayPreview();
   el("upcomingSchedulePreview").innerHTML=upcoming.length?upcoming.slice(0,5).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(scheduleCardHtml).join(""):"<p class='small'>No upcoming jobs in the next 7 days.</p>";
 
   el("attentionList").innerHTML=unpaidJobs.length?unpaidJobs.slice().sort((a,b)=>jobBalance(b)-jobBalance(a)).slice(0,5).map(j=>{const ol=overdueLabel(j.date);return`<div class="box" style="background:var(--s2)"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700;color:var(--gold)">${money(jobBalance(j))}</div>${ol?`<div class="small" style="color:var(--red-text)">${safe(ol)}</div>`:""}</div></div><div style="margin:6px 0">${paymentBadge(j)}${workflowBadge(j)}</div><div class="row"><button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="makeInvoice('${j.customerId}')">Invoice</button><button class="green" onclick="addPayment('${j.id}')">Add Payment</button></div></div>`;}).join(""):"<p class='small'>No unpaid jobs right now.</p>";
