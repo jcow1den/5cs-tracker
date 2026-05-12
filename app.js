@@ -2051,7 +2051,94 @@ function renderAll(){
   renderTodayPreview();
   el("upcomingSchedulePreview").innerHTML=upcoming.length?upcoming.slice(0,5).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(scheduleCardHtml).join(""):"<p class='small'>No upcoming jobs in the next 7 days.</p>";
 
-  el("attentionList").innerHTML=unpaidJobs.length?unpaidJobs.slice().sort((a,b)=>jobBalance(b)-jobBalance(a)).slice(0,5).map(j=>{const ol=overdueLabel(j.date);return`<div class="box" style="background:var(--s2)"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700;color:var(--gold)">${money(jobBalance(j))}</div>${ol?`<div class="small" style="color:var(--red-text)">${safe(ol)}</div>`:""}</div></div><div style="margin:6px 0">${paymentBadge(j)}${workflowBadge(j)}</div><div class="row"><button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="makeInvoice('${j.customerId}')">Invoice</button><button class="green" onclick="addPayment('${j.id}')">Add Payment</button></div></div>`;}).join(""):"<p class='small'>No unpaid jobs right now.</p>";
+// Unpaid card toggle system
+const expandedUnpaidJobs=new Set();
+let unpaidSortMode="balance"; // "balance" or "age"
+
+window.toggleUnpaidCard=function(id){
+  if(expandedUnpaidJobs.has(id))expandedUnpaidJobs.delete(id);
+  else expandedUnpaidJobs.add(id);
+  renderUnpaidList();
+};
+
+window.setUnpaidSort=function(mode){
+  unpaidSortMode=mode;
+  renderUnpaidList();
+};
+
+function renderUnpaidList(){
+  const unpaid=jobs.filter(j=>jobBalance(j)>0);
+  const sorted=unpaid.slice().sort((a,b)=>{
+    if(unpaidSortMode==="age"){
+      const da=daysBetween(a.date||today(),today());
+      const db=daysBetween(b.date||today(),today());
+      return db-da;
+    }
+    return jobBalance(b)-jobBalance(a);
+  });
+
+  const toggleBtns=`<div class="row noPrint" style="gap:6px;margin-bottom:10px">
+    <button style="width:auto;padding:6px 14px;font-size:12px;${unpaidSortMode==="balance"?"":"opacity:0.5"}" onclick="setUnpaidSort('balance')">$ Balance</button>
+    <button style="width:auto;padding:6px 14px;font-size:12px;${unpaidSortMode==="age"?"":"opacity:0.5"}" onclick="setUnpaidSort('age')">Oldest First</button>
+  </div>`;
+
+  if(!sorted.length){el("attentionList").innerHTML="<p class='small'>No unpaid jobs right now. 🎉</p>";return;}
+  el("attentionList").innerHTML=toggleBtns+sorted.map(unpaidCardHtml).join("");
+}
+window.renderUnpaidList=renderUnpaidList;
+
+function unpaidCardHtml(j){
+  const bal=jobBalance(j);
+  const days=j.date?daysBetween(j.date,today()):0;
+  const isExpanded=expandedUnpaidJobs.has(j.id);
+  const c=getCustomer(j.customerId);
+  const phone=cleanPhone(c?.phone);
+  const ol=overdueLabel(j.date);
+  const daysLabel=days>0?`${days}d ago`:"";
+  const balColor=days>60?"#b42318":days>30?"#b45309":"var(--gold,#b7791f)";
+
+  const compact=`<div class="todayCardCompact" onclick="toggleUnpaidCard('${j.id}')">
+    <div class="todayCardMain">
+      <div class="todayCardTitle">${safe(getCustomerName(j.customerId))}</div>
+      <div class="todayCardSub">${safe(j.title)}${daysLabel?" · "+daysLabel:""}</div>
+    </div>
+    <div class="todayCardAction">
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:700;color:${balColor};letter-spacing:-0.5px">${money(bal)}</div>
+        ${ol?`<div style="font-size:11px;color:#b42318;font-weight:600">${safe(ol)}</div>`:""}
+      </div>
+      <button class="green" style="padding:8px 12px;font-size:13px" onclick="event.stopPropagation();markPaid('${j.id}')">Mark Paid</button>
+      <div class="todayChevron ${isExpanded?"open":""}">⌄</div>
+    </div>
+  </div>`;
+
+  if(!isExpanded)return`<div class="todayCard" id="ucard_${j.id}">${compact}</div>`;
+
+  const mapsUrl=c?.address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`:"";
+  const expanded=`<div class="todayCardExpanded">
+    <div class="todayExpandInfo">
+      ${c?.address?`<div>📍 <a href="${mapsUrl}" target="_blank">${safe(c.address)}</a></div>`:""}
+      ${phone?`<div>📞 <a href="tel:${phone}">${safe(c.phone)}</a></div>`:""}
+      ${j.notes?`<div style="color:var(--text-secondary)">${safe(j.notes)}</div>`:""}
+    </div>
+    <div style="margin-bottom:8px"><div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div><div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div><div class="moneyLine"><span>Balance</span><b style="color:${balColor}">${money(bal)}</b></div></div>
+    <div class="todayExpandActions">
+      <button class="green" onclick="markPaid('${j.id}')">Mark Paid</button>
+      <button onclick="addPayment('${j.id}')">Add Payment</button>
+      <button onclick="makeInvoice('${j.customerId}')">Create Invoice</button>
+      ${phone?`<a class="actionLink" href="tel:${phone}">Call</a><a class="actionLink" href="sms:${phone}">Text</a>`:""}
+      <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
+      <button class="secondary" onclick="viewCustomer('${j.customerId}')">View Customer</button>
+    </div>
+    <div style="text-align:center;padding-top:10px">
+      <button class="secondary" style="width:auto;font-size:12px;padding:6px 16px" onclick="toggleUnpaidCard('${j.id}')">⌃ Collapse</button>
+    </div>
+  </div>`;
+
+  return`<div class="todayCard" id="ucard_${j.id}">${compact}${expanded}</div>`;
+}
+
+  el("attentionList").innerHTML="";renderUnpaidList();
 
   el("recentJobs").innerHTML=jobs.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,5).map(j=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(getCustomerName(j.customerId),"sm")}<div style="flex:1"><h3 style="margin:0">${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)}</div></div>${paymentBadge(j)}</div><div class="row" style="margin-top:8px"><button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="editJob('${j.id}')">Edit</button></div></div>`).join("")||"<p class='small'>No jobs yet.</p>";
 
