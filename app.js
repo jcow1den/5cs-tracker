@@ -78,6 +78,16 @@ function overdueLabel(dv){if(!dv||!isPastDue(dv))return"";const days=Math.floor(
 function showToast(msg){let t=el("appToast");if(!t){t=document.createElement("div");t.id="appToast";t.className="toast";document.body.appendChild(t);}t.textContent=msg;t.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove("show"),2500);}
 window.showToast=showToast;
 
+function showFlowPrompt(msg, actions){
+  let p=el("flowPrompt");
+  if(!p){p=document.createElement("div");p.id="flowPrompt";p.className="flowPrompt fpHidden";document.body.appendChild(p);}
+  p.innerHTML=`<div class="flowPromptMsg">${msg}</div><div class="flowPromptActions">${actions.map(a=>`<button class="${a.cls||""}" onclick="(${a.fn})();dismissFlowPrompt()">${a.label}</button>`).join("")}<button class="secondary" onclick="dismissFlowPrompt()">Dismiss</button></div>`;
+  p.classList.remove("fpHidden");
+  clearTimeout(window._fpTimer);
+  window._fpTimer=setTimeout(()=>dismissFlowPrompt(),10000);
+}
+window.dismissFlowPrompt=function(){const p=el("flowPrompt");if(p)p.classList.add("fpHidden");};
+
 const AVATAR_COLORS=[
   {bg:"rgba(8,116,67,0.12)",color:"#087443",border:"rgba(8,116,67,0.25)"},
   {bg:"rgba(23,92,211,0.12)",color:"#175cd3",border:"rgba(23,92,211,0.25)"},
@@ -105,6 +115,26 @@ const ICONS={
 document.body.insertAdjacentHTML("afterbegin",`<div id="syncBadge" class="syncBadge">Online</div>`);
 function updateSyncBadge(){const b=el("syncBadge");if(!b)return;if(navigator.onLine){b.textContent="Online";b.classList.remove("offline");}else{b.textContent="Offline";b.classList.add("offline");}}
 window.addEventListener("online",updateSyncBadge);window.addEventListener("offline",updateSyncBadge);updateSyncBadge();
+document.head.insertAdjacentHTML("beforeend",`<style>
+.statsStrip{display:flex;gap:8px;padding:12px 12px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.statPill{flex:1;min-width:72px;background:var(--s1,#fff);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;border:0.5px solid var(--border,#e0dbd0);transition:opacity 0.15s}
+.statPill:active{opacity:0.7}
+.statPillVal{font-size:17px;font-weight:700;color:var(--text,#1a1710);line-height:1.2;letter-spacing:-0.02em}
+.statPillOwe .statPillVal{color:#b42318}
+.statPillProfit .statPillVal{color:#087443}
+.statPillLabel{font-size:11px;color:var(--text-secondary,#9a8f80);margin-top:2px}
+.moreSection{margin-bottom:18px}
+.moreSectionLabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary,#9a8f80);padding:0 2px;margin-bottom:8px}
+.flowPrompt{position:fixed;bottom:72px;left:12px;right:12px;background:var(--s1,#fff);border-radius:16px;padding:14px 16px;box-shadow:0 4px 28px rgba(0,0,0,0.18);z-index:999;border:1px solid var(--border,#e0dbd0);animation:fadeSlideIn 0.25s ease}
+.flowPrompt.fpHidden{display:none}
+.flowPromptMsg{font-size:14px;font-weight:500;color:var(--text,#1a1710);margin-bottom:10px;line-height:1.5}
+.flowPromptActions{display:flex;gap:8px;flex-wrap:wrap}
+.flowPromptActions button{flex:1;min-width:80px;padding:9px 12px;font-size:13px;margin:0}
+.jobPropInfo{margin:4px 0 6px;line-height:1.7}
+.jobPropInfo a{color:#087443;text-decoration:none;font-weight:500;font-size:13px}
+.jobPropInfo div{font-size:13px;color:var(--text-secondary,#9a8f80)}
+</style>`);
+
 
 const COMPANY={name:"5Cs Property Services LLC",tagline:"Cleaned Up &bull; Fixed Right &bull; Ready To Sell",phone:"918-424-7953",email:"craig.chaney.87@gmail.com"};
 
@@ -155,24 +185,21 @@ appRoot.innerHTML=`
 </section>
 <section id="appScreen" class="hidden">
   <section id="dashboardView">
-    <div class="grid">
-      <div class="stat" onclick="openPayments()"><b>Paid</b><h2 id="dashPaid">$0</h2><div class="statHint">Tap for payments</div></div>
-      <div class="stat" onclick="openOwedJobs()"><b>Owed</b><h2 id="dashOwed">$0</h2><div class="statHint">Tap to collect</div></div>
-      <div class="stat" onclick="openExpenses()"><b>Expenses</b><h2 id="dashExpenses">$0</h2><div class="statHint">Tap to review</div></div>
-      <div class="stat" onclick="openProfitBreakdown()"><b>Profit</b><h2 id="dashProfit">$0</h2><div class="statHint">Tap for report</div></div>
+    <div class="statsStrip">
+      <div class="statPill" onclick="openPayments()"><div class="statPillVal" id="dashPaid">$0</div><div class="statPillLabel">Collected</div></div>
+      <div class="statPill statPillOwe" onclick="openOwedJobs()"><div class="statPillVal" id="dashOwed">$0</div><div class="statPillLabel">Owed</div></div>
+      <div class="statPill statPillProfit" onclick="openProfitBreakdown()"><div class="statPillVal" id="dashProfit">$0</div><div class="statPillLabel">Profit</div></div>
+      <div class="statPill" onclick="showView('invoicesView')"><div class="statPillVal" id="dashInvoiceCount">0</div><div class="statPillLabel">Invoices</div></div>
     </div>
-    <div class="grid">
-      <div class="stat" onclick="openTodaySchedule()"><b>Today</b><h2 id="dashTodayJobs">0</h2><div class="statHint">Tap for today</div></div>
-      <div class="stat" onclick="openUpcomingSchedule()"><b>Upcoming</b><h2 id="dashUpcomingJobs">0</h2><div class="statHint">Next 7 days</div></div>
-      <div class="stat" onclick="showView('recurringView')"><b>Recurring</b><h2 id="dashRecurringJobs">0</h2><div class="statHint">Tap calendar</div></div>
-      <div class="stat" onclick="showView('invoicesView')"><b>Invoices</b><h2 id="dashInvoiceCount">0</h2><div class="statHint">Owing</div></div>
+    <div id="notificationCenter"></div>
+    <div class="box"><h2>Today's Jobs</h2><div id="todaySchedulePreview"></div></div>
+    <div class="box"><h2>Unpaid</h2><div id="attentionList"></div></div>
+    <div style="display:none">
+      <span id="dashExpenses"></span><span id="dashTodayJobs"></span>
+      <span id="dashUpcomingJobs"></span><span id="dashRecurringJobs"></span>
+      <div id="recentJobs"></div><div id="upcomingSchedulePreview"></div>
+      <div id="topCustomers"></div>
     </div>
-    <div class="box"><h2>Alerts</h2><div id="notificationCenter"></div></div>
-    <div class="box"><h2>Today's Schedule</h2><div id="todaySchedulePreview"></div></div>
-    <div class="box"><h2>Overdue / Unpaid</h2><div id="attentionList"></div></div>
-    <div id="recentJobs" style="display:none"></div>
-    <div id="upcomingSchedulePreview" style="display:none"></div>
-    <div id="topCustomers" style="display:none"></div>
   </section>
 
   <section id="scheduleView" class="hidden">
@@ -459,19 +486,42 @@ appRoot.innerHTML=`
   </section>
 
   <section id="settingsView" class="hidden">
-    <div class="box"><h2>More</h2><div class="moreGrid">
-      <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
-      <button onclick="showView('invoicesView')">Invoices</button>
-      <button onclick="showView('paymentsView')">Payments</button>
-      <button onclick="showView('partnersView')">Partners</button>
-      <button onclick="showView('recurringView')">Recurring</button>
-      <button onclick="showView('expensesView')">Expenses</button>
-      <button onclick="openProfitBreakdown()">Reports</button>
-      <button onclick="openGlobalSearch()">Search</button>
-      <button onclick="exportBackup()">Export Backup</button>
-      <button class="secondary" onclick="logout()">Logout</button>
-    </div></div>
-    <div class="box"><h2>Settings</h2><p class="small">Offline saving is enabled. Changes sync automatically when back online.</p></div>
+    <div class="box">
+      <h2>Menu</h2>
+      <div class="moreSection">
+        <div class="moreSectionLabel">Work</div>
+        <div class="moreGrid">
+          <button onclick="showView('jobsView')">All Jobs</button>
+          <button onclick="showView('bidsView')">Bids</button>
+          <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
+          <button onclick="openWorkflow()">Workflow</button>
+        </div>
+      </div>
+      <div class="moreSection">
+        <div class="moreSectionLabel">Money</div>
+        <div class="moreGrid">
+          <button onclick="showView('invoicesView')">Invoices</button>
+          <button onclick="showView('paymentsView')">Payments</button>
+          <button onclick="showView('expensesView')">Expenses</button>
+          <button onclick="openProfitBreakdown()">Reports</button>
+        </div>
+      </div>
+      <div class="moreSection">
+        <div class="moreSectionLabel">Relationships</div>
+        <div class="moreGrid">
+          <button onclick="showView('partnersView')">Partners</button>
+          <button onclick="showView('recurringView')">Recurring</button>
+        </div>
+      </div>
+      <div class="moreSection">
+        <div class="moreSectionLabel">Tools</div>
+        <div class="moreGrid">
+          <button onclick="openGlobalSearch()">Search</button>
+          <button onclick="exportBackup()">Export Backup</button>
+          <button class="secondary" onclick="logout()">Logout</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section id="globalSearchView" class="hidden">
@@ -481,16 +531,14 @@ appRoot.innerHTML=`
 </section>`;
 
 bottomNav.innerHTML=`
-  <button id="navDashboard" onclick="showView('dashboardView')">${ICONS.home}<span>Home</span></button>
+  <button id="navToday"     onclick="showView('dashboardView')">${ICONS.home}<span>Today</span></button>
   <button id="navCustomers" onclick="showView('customersView')">${ICONS.customers}<span>Customers</span></button>
-  <button id="navJobs"      onclick="showView('jobsView')">${ICONS.jobs}<span>Jobs</span></button>
-  <button id="navBids"      onclick="showView('bidsView')">${ICONS.bids}<span>Bids</span></button>
   <button id="navMore"      onclick="showView('settingsView')">${ICONS.more}<span>More</span></button>`;
 
 fabMenu.innerHTML=`
-  <button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
   <button onclick="toggleFab();showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
   <button onclick="toggleFab();showView('bidsView');toggleBox('bidFormBox',true)">Create Bid</button>
+  <button onclick="toggleFab();showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
   <button onclick="toggleFab();showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
   <button onclick="toggleFab();showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>`;
 
@@ -540,11 +588,9 @@ window.showView=function(id){
   el(id).classList.remove("hidden");
   fabMenu.classList.add("hidden");
   document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
-  if(id==="dashboardView") el("navDashboard").classList.add("active");
-  if(id==="customersView"||id==="customerDetailView") el("navCustomers").classList.add("active");
-  if(id==="jobsView") el("navJobs").classList.add("active");
-  if(id==="bidsView"||id==="invoiceView") el("navBids").classList.add("active");
-  if(["settingsView","scheduleView","expensesView","recurringView","profitView","paymentsView","workflowView","invoicesView","partnersView","globalSearchView"].includes(id)) el("navMore").classList.add("active");
+  if(id==="dashboardView") el("navToday").classList.add("active");
+  else if(id==="customersView"||id==="customerDetailView") el("navCustomers").classList.add("active");
+  else el("navMore").classList.add("active");
   const titles={dashboardView:"Business dashboard",scheduleView:"Schedule",workflowView:"Workflow board",bidsView:"Bids",profitView:"Reports",customersView:"Customers",customerDetailView:"Customer detail",jobsView:"Jobs",paymentsView:"Payments",recurringView:"Recurring calendar",expensesView:"Expense ledger",invoicesView:"Invoice center",invoiceView:"Invoice preview",partnersView:"Referral Partners",settingsView:"More",globalSearchView:"Search"};
   document.getElementById("headerSub").innerText=titles[id]||"Business dashboard";
   window.scrollTo(0,0);
@@ -690,7 +736,10 @@ window.markUnpaid=async function(id){
 window.markPaid=async function(id){
   const j=jobs.find(x=>x.id===id);if(!j)return;const bal=jobBalance(j);if(bal<=0){alert("This job is already paid.");return;}
   await addDoc(collection(db,"payments"),{jobId:j.id,customerId:j.customerId,amount:bal,date:today(),notes:"Marked paid",createdAt:new Date().toISOString()});
-  await updateDoc(doc(db,"jobs",id),{paid:Number(j.amount||0),status:"Complete"});showToast("Job marked as paid");renderAll();
+  await updateDoc(doc(db,"jobs",id),{paid:Number(j.amount||0),status:"Complete"});
+  showToast("Job marked as paid");
+  showFlowPrompt(`${safe(j.title)} is paid. Send ${safe(getCustomerName(j.customerId))} a review request?`,[{label:"Send Review Request",cls:"green",fn:`requestReview('${id}')`}]);
+  renderAll();
   if(activeCustomerDetailId&&!el("customerDetailView").classList.contains("hidden"))setTimeout(()=>viewCustomer(activeCustomerDetailId),500);
 };
 window.markAllPaid=async function(customerId){
@@ -701,7 +750,15 @@ window.markAllPaid=async function(customerId){
   showToast("All jobs marked paid");setTimeout(()=>viewCustomer(customerId),600);
 };
 window.setJobStatus=async function(id,status){
-  try{await updateDoc(doc(db,"jobs",id),{status});renderAll();if(activeCustomerDetailId&&!el("customerDetailView").classList.contains("hidden"))setTimeout(()=>viewCustomer(activeCustomerDetailId),400);}
+  try{
+    await updateDoc(doc(db,"jobs",id),{status});
+    renderAll();
+    if(status==="Complete"){
+      const j=jobs.find(x=>x.id===id);
+      if(j) showFlowPrompt(`${safe(j.title)} is complete. Ready to invoice ${safe(getCustomerName(j.customerId))}?`,[{label:"Create Invoice",cls:"green",fn:`makeInvoice('${j.customerId}')`}]);
+    }
+    if(activeCustomerDetailId&&!el("customerDetailView").classList.contains("hidden"))setTimeout(()=>viewCustomer(activeCustomerDetailId),400);
+  }
   catch(e){alert("Status update failed: "+e.message);}
 };
 window.makeJobRecurring=function(jobId){
@@ -1039,7 +1096,10 @@ window.deleteBid=async function(id){if(!confirm("Delete this bid?"))return;try{a
 window.convertBidToJob=async function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;if(!confirm("Convert this bid to a job?"))return;
   await addDoc(collection(db,"jobs"),{customerId:b.customerId,title:b.title,date:today(),time:"",amount:Number(b.total||0),paid:0,notes:(b.notes||"")+"\n\nCreated from bid.",status:"Scheduled",createdAt:new Date().toISOString()});
-  await updateDoc(doc(db,"bids",id),{status:"Approved",convertedAt:new Date().toISOString()});showToast("Bid converted to job");
+  await updateDoc(doc(db,"bids",id),{status:"Approved",convertedAt:new Date().toISOString()});
+  showToast("Bid converted to job");
+  const _b=bids.find(x=>x.id===id);
+  if(_b)showFlowPrompt(`${safe(_b.title)} converted to a job. Open Jobs to schedule it?`,[{label:"View Jobs",cls:"green",fn:"showView('jobsView')"}]);
 };
 window.printBid=function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;const c=getCustomer(b.customerId);
@@ -1297,7 +1357,10 @@ function jobCardHtml(j){
   const bal=jobBalance(j),list=jobPayments(j.id),ol=overdueLabel(j.date);
   const isComplete=j.status==="Complete",isPaid=paymentStatus(j)==="Paid";
   const ws=j.status||"Scheduled";
-  return `<div class="jobCard"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)} ${j.time?"at "+timeLabel(j.time):""}</div></div>${bal>0?`<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--gold);letter-spacing:-0.02em">${money(bal)}</div><div class="small">balance</div></div>`:`<div style="font-size:18px;font-weight:700;color:var(--green)">Paid</div>`}</div><div style="margin-bottom:6px">${paymentBadge(j)}${workflowBadge(j)}${ol&&bal>0?`<span class="badge badgeRed">${safe(ol)}</span>`:""}</div><div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div><div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>${j.notes?`<p style="margin-top:8px;font-size:13px">${safe(j.notes)}</p>`:""}<details><summary>Payment history (${list.length})</summary>${list.length?list.map(paymentLineHtml).join(""):"<p class='small'>No payment records yet.</p>"}</details><div class="row">${ws==="Scheduled"?`<button class="gold" onclick="setJobStatus('${j.id}','In Progress')">Start Job</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="In Progress"?`<button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="Complete"&&bal>0?`<button class="green" onclick="markPaid('${j.id}')">Mark Paid</button><button onclick="addPayment('${j.id}')">Add Payment</button>`:""}${isPaid?`<button class="red" onclick="markUnpaid('${j.id}')">Mark Unpaid</button>`:""}${ws!=="Complete"?`<button class="secondary" onclick="setJobStatus('${j.id}','Scheduled')">Reset</button>`:""}${isComplete&&isPaid?`<button class="blue" onclick="requestReview('${j.id}')">Request Review</button>`:""}<button class="gold" onclick="copyReminder('${j.id}')">Reminder</button><button onclick="makeJobRecurring('${j.id}')">Make Recurring</button><button class="secondary" onclick="editJob('${j.id}')">Edit</button><button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button></div></div>`;
+  const cust=getCustomer(j.customerId);
+  const phone=cleanPhone(cust?.phone);
+  const propInfo=`<div class="jobPropInfo">${phone?`<a href="tel:${phone}">📞 ${safe(cust.phone)}</a> `:""}${cust?.address?`<div>📍 ${safe(cust.address)}</div>`:""}${cust?.gateCode?`<div>🔑 ${safe(cust.gateCode)}</div>`:""}</div>`;
+  return `<div class="jobCard"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><h3>${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)} ${j.time?"at "+timeLabel(j.time):""}</div></div>${propInfo}${bal>0?`<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--gold);letter-spacing:-0.02em">${money(bal)}</div><div class="small">balance</div></div>`:`<div style="font-size:18px;font-weight:700;color:var(--green)">Paid</div>`}</div><div style="margin-bottom:6px">${paymentBadge(j)}${workflowBadge(j)}${ol&&bal>0?`<span class="badge badgeRed">${safe(ol)}</span>`:""}</div><div class="moneyLine"><span>Charged</span><b>${money(j.amount)}</b></div><div class="moneyLine"><span>Paid</span><b>${money(jobPaidAmount(j))}</b></div>${j.notes?`<p style="margin-top:8px;font-size:13px">${safe(j.notes)}</p>`:""}<details><summary>Payment history (${list.length})</summary>${list.length?list.map(paymentLineHtml).join(""):"<p class='small'>No payment records yet.</p>"}</details><div class="row">${ws==="Scheduled"?`<button class="gold" onclick="setJobStatus('${j.id}','In Progress')">Start Job</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="In Progress"?`<button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}${ws==="Complete"&&bal>0?`<button class="green" onclick="markPaid('${j.id}')">Mark Paid</button><button onclick="addPayment('${j.id}')">Add Payment</button>`:""}${isPaid?`<button class="red" onclick="markUnpaid('${j.id}')">Mark Unpaid</button>`:""}${ws!=="Complete"?`<button class="secondary" onclick="setJobStatus('${j.id}','Scheduled')">Reset</button>`:""}${isComplete&&isPaid?`<button class="blue" onclick="requestReview('${j.id}')">Request Review</button>`:""}<button class="gold" onclick="copyReminder('${j.id}')">Reminder</button><button onclick="makeJobRecurring('${j.id}')">Make Recurring</button><button class="secondary" onclick="editJob('${j.id}')">Edit</button><button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button></div></div>`;
 }
 function recurringCardHtml(r){
   const s=recurringStatus(r);
