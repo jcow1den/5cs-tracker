@@ -183,7 +183,7 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .statPillOwe::after{background:#b42318}
 .statPillProfit::after{background:var(--green,#087443)}
 .statPill:active{opacity:0.75;transform:scale(0.97)}
-.statPillVal{font-family:'DM Serif Display',Georgia,serif;font-size:20px;font-weight:400;color:var(--text,#1a1710);line-height:1.1;letter-spacing:-0.02em}
+.statPillVal{font-size:20px;font-weight:700;color:var(--text,#1a1710);line-height:1.1;letter-spacing:-0.02em}
 .statPillOwe .statPillVal{color:#b42318}
 .statPillProfit .statPillVal{color:#087443}
 .statPillLabel{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary,#9a8f80);margin-top:4px}
@@ -242,13 +242,13 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .heroCard{border-radius:18px;padding:20px;margin:0 0 12px;color:#fff;position:relative;overflow:hidden}
 .heroCardPos{background:linear-gradient(135deg,#054f31 0%,#087443 100%)}
 .heroCardNeg{background:linear-gradient(135deg,#7f1d1d 0%,#b42318 100%)}
-.heroProfit{font-family:'DM Serif Display',Georgia,serif;font-size:44px;font-weight:400;letter-spacing:-1px;line-height:1;margin:4px 0 8px}
+.heroProfit{font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin:4px 0 8px}
 .heroLabel{font-size:12px;opacity:0.75;font-weight:500;text-transform:uppercase;letter-spacing:0.08em}
 .heroStatus{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,0.2);margin-bottom:12px}
 .heroStats{display:flex;margin-top:4px;background:rgba(0,0,0,0.15);border-radius:12px;overflow:hidden}
 .heroStat{flex:1;padding:10px 8px;text-align:center;border-right:1px solid rgba(255,255,255,0.1)}
 .heroStat:last-child{border-right:none}
-.heroStatVal{font-family:'DM Serif Display',Georgia,serif;font-size:17px;font-weight:400;line-height:1.2}
+.heroStatVal{font-size:15px;font-weight:700;line-height:1.2}
 .heroStatLabel{font-size:10px;opacity:0.7;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em}
 .healthSection{margin-bottom:16px}
 .healthTitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary,#9a8f80);padding:0 2px;margin-bottom:8px}
@@ -267,7 +267,7 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .leaderRank{font-size:16px;font-weight:800;color:var(--text-secondary,#9a8f80);flex:0 0 24px;text-align:center}
 .leaderRank.gold{color:#b7791f}
 .leaderName{flex:1;font-size:14px;font-weight:500;color:var(--text,#1a1710)}
-.leaderAmt{font-family:'DM Serif Display',Georgia,serif;font-size:15px;font-weight:400;color:#087443}
+.leaderAmt{font-size:14px;font-weight:700;color:#087443}
 .agingBucket{margin-bottom:20px}
 .agingBucketHeader{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:12px;margin-bottom:8px}
 .agingBucketCurrent{background:#f0fdf4;border:1px solid #86efac}
