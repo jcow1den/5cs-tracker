@@ -225,7 +225,7 @@ const PRICE_LIST=[
 ];
 
 // Package psychology config
-const PKG_BADGES={basic:"",exterior:"Most Popular",readytosell:"Best Value",fullservice:"Complete Solution"};
+const PKG_BADGES={basic:"",exterior:"Most Popular",readytosell:"",fullservice:"Best Value"};
 const PKG_TAGLINES={
   basic:"Quick, clean curb appeal before the photos.",
   exterior:"Everything buyers see from the street — handled.",
@@ -1078,8 +1078,8 @@ function renderPackages(){
     const badge=PKG_BADGES[pkg.key]||"";
     const tagline=PKG_TAGLINES[pkg.key]||"";
     // Psychology: middle two packages get special treatment
-    const cardCls=pkg.key==="exterior"?"pkgCard pkgPopular":pkg.key==="readytosell"?"pkgCard pkgBest":"pkgCard";
-    const badgeHtml=badge?(pkg.key==="exterior"?`<div class="pkgBadge pkgBadgeGreen">⭐ ${badge}</div>`:pkg.key==="readytosell"?`<div class="pkgBadge pkgBadgeGold">★ ${badge}</div>`:`<div class="pkgBadge" style="background:#f0e8ff;color:#5b21b6">${badge}</div>`):"";
+    const cardCls=pkg.key==="exterior"?"pkgCard pkgPopular":pkg.key==="fullservice"?"pkgCard pkgBest":"pkgCard";
+    const badgeHtml=badge?(pkg.key==="exterior"?`<div class="pkgBadge pkgBadgeGreen">⭐ ${badge}</div>`:pkg.key==="fullservice"?`<div class="pkgBadge pkgBadgeGold">★ ${badge}</div>`:`<div class="pkgBadge" style="background:#f0e8ff;color:#5b21b6">${badge}</div>`):""
     return`<div class="${cardCls}">
       ${badgeHtml}
       <div class="pkgTitle">${safe(pkg.title)}</div>
