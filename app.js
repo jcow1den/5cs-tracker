@@ -143,6 +143,32 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .clientRowPaid{font-size:13px;font-weight:600;color:#087443}
 .clientRowOwesLabel{font-size:11px;font-weight:400;color:#b42318}
 .clientCallBtn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:rgba(8,116,67,0.1);border-radius:50%;color:#087443;text-decoration:none;font-size:16px;margin-top:4px;flex-shrink:0}
+.accordionBtn{width:100%;text-align:left;background:var(--s2,#f5f1e8);border:1px solid var(--border,#e0dbd0);border-radius:10px;padding:11px 14px;font-size:14px;font-weight:500;color:var(--text,#1a1710);cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.accordionBtn .accArrow{transition:transform 0.2s;font-size:12px;color:var(--text-secondary,#9a8f80)}
+.accordionBtn.open .accArrow{transform:rotate(180deg)}
+.accordionPanel{max-height:0;overflow:hidden;transition:max-height 0.35s ease}
+.accordionPanel.open{max-height:4000px}
+.plTotalBar{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f0fdf4;border-radius:8px;border:1px solid #86efac;margin:8px 0 4px}
+.plTotalBar span{font-size:13px;color:#166534;font-weight:500}
+.plTotalBar b{font-size:18px;font-weight:700;color:#087443}
+.plEditPrice{display:flex;align-items:center;gap:6px;padding:4px 0 2px 38px}
+.plEditPrice input{width:90px;margin:0;font-size:13px;font-weight:600;color:#087443;border-color:#86efac}
+.plEditPrice span{font-size:12px;color:#9a8f80}
+.pkgCard{background:var(--s1,#fff);border:1.5px solid var(--border,#e0dbd0);border-radius:16px;padding:16px;margin-bottom:12px;position:relative}
+.pkgCard.pkgPopular{border-color:#087443;background:#f8fffe}
+.pkgCard.pkgBest{border-color:#b7791f;background:#fffdf5}
+.pkgBadge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:3px 10px;border-radius:999px;margin-bottom:8px}
+.pkgBadgeGreen{background:#dcfce7;color:#054f31}
+.pkgBadgeGold{background:#fef3c7;color:#7c4a00}
+.pkgTitle{font-size:17px;font-weight:700;color:var(--text,#1a1710);margin-bottom:3px}
+.pkgTagline{font-size:13px;color:var(--text-secondary,#9a8f80);margin-bottom:10px;line-height:1.4}
+.pkgItems{margin-bottom:10px}
+.pkgItem{font-size:13px;color:var(--text,#1a1710);padding:2px 0;display:flex;align-items:center;gap:6px}
+.pkgItem::before{content:"✓";color:#087443;font-weight:700;flex-shrink:0}
+.pkgPricing{background:#f8f4ec;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.pkgRegular{font-size:13px;color:#9a8f80;text-decoration:line-through;margin-bottom:2px}
+.pkgPrice{font-size:26px;font-weight:700;color:#087443;letter-spacing:-0.5px;line-height:1.1}
+.pkgSavings{font-size:13px;font-weight:600;color:#b7791f;margin-top:2px}
 </style>`);
 
 
@@ -151,38 +177,71 @@ const COMPANY={name:"5Cs Property Services LLC",tagline:"Cleaned Up &bull; Fixed
 const LOT_SIZES=[{key:"sm",label:"Under \u00bc acre",sub:"Small city/subdivision lot"},{key:"md",label:"\u00bc \u2013 \u00bd acre",sub:"Average residential lot"},{key:"lg",label:"\u00bd \u2013 1 acre",sub:"Larger residential lot"},{key:"xl",label:"1+ acre",sub:"Rural or large property"}];
 const HOME_SIZES=[{key:"sm",label:"Under 1,500 sq ft",sub:"Small home"},{key:"md",label:"1,500\u20132,500 sq ft",sub:"Average home"},{key:"lg",label:"2,500\u20134,000 sq ft",sub:"Larger home"},{key:"xl",label:"4,000+ sq ft",sub:"Large or luxury home"}];
 const PRICE_LIST=[
-  {id:"lawn",     cat:"Exterior & Grounds", name:"Lawn Mowing",              hasSizes:true, sizeType:"lot",  prices:{sm:40,md:55,lg:75,xl:100},   firstOk:true},
-  {id:"cleanup",  cat:"Exterior & Grounds", name:"Full Yard Cleanup",         hasSizes:true, sizeType:"lot",  prices:{sm:135,md:175,lg:225,xl:290},firstOk:true},
-  {id:"hedge",    cat:"Exterior & Grounds", name:"Hedge & Shrub Trimming",    hasSizes:false,flat:95,                                             firstOk:false},
-  {id:"leaves",   cat:"Exterior & Grounds", name:"Leaf Removal",              hasSizes:false,flat:175,                                            firstOk:false},
-  {id:"hauling",  cat:"Exterior & Grounds", name:"Debris / Junk Hauling",     hasSizes:false,flat:95,                                             firstOk:false},
-  {id:"pressure", cat:"Exterior & Grounds", name:"Pressure Washing",          hasSizes:true, sizeType:"lot",  prices:{sm:90,md:130,lg:200,xl:280}, firstOk:false},
-  {id:"gutter",   cat:"Exterior & Grounds", name:"Gutter Cleaning",           hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:170}, firstOk:false},
-  {id:"windows",  cat:"Exterior & Grounds", name:"Window Cleaning (Ext.)",    hasSizes:false,flat:95,                                             firstOk:false},
-  {id:"deepclean",cat:"Interior Prep",       name:"Deep Cleaning",             hasSizes:true, sizeType:"home", prices:{sm:175,md:225,lg:300,xl:400},firstOk:false},
-  {id:"trashout", cat:"Interior Prep",       name:"Trash Out / Foreclosure",   hasSizes:true, sizeType:"home", prices:{sm:225,md:300,lg:400,xl:500},firstOk:false},
-  {id:"handyman", cat:"Interior Prep",       name:"Handyman / Minor Repairs",  hasSizes:false,flat:75,unit:"hr",                                  firstOk:false},
-  {id:"photos",   cat:"Photography & Media", name:"Professional Photography",  hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240},firstOk:false},
-  {id:"drone",    cat:"Photography & Media", name:"Drone Aerial Photos",       hasSizes:false,flat:125,                                            firstOk:false},
-  {id:"photodrone",cat:"Photography & Media",name:"Photos + Drone Combo",     hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350},firstOk:false},
-  {id:"checkin",  cat:"Ongoing / Vacant",    name:"Vacant Property Check-In",  hasSizes:false,flat:60,                                             firstOk:false},
-  {id:"storminsp",cat:"Ongoing / Vacant",    name:"Storm Damage Inspection",   hasSizes:false,flat:95,                                             firstOk:false},
-  {id:"minjob",   cat:"Other",               name:"Minimum Job Charge",        hasSizes:false,flat:75,                                             firstOk:false},
+  // Exterior & Grounds
+  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true},
+  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true},
+  {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        hasSizes:false,flat:95,unit:"load",                                   firstOk:false},
+  {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false},
+  {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"fence_repair",cat:"Exterior & Grounds",    name:"Fence Repair",                 hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      hasSizes:false,flat:150,                                              firstOk:false},
+  {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               hasSizes:false,flat:125,unit:"stump",                                 firstOk:false},
+  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       hasSizes:false,flat:75,unit:"door",                                   firstOk:false},
+  {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false},
+  // Interior Prep
+  {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
+  {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false},
+  {id:"handyman",    cat:"Interior Prep",          name:"Handyman / Minor Repairs",     hasSizes:false,flat:75,unit:"hr",                                     firstOk:false},
+  {id:"int_paint",   cat:"Interior Prep",          name:"Interior Painting",            hasSizes:false,flat:200,unit:"room",                                  firstOk:false},
+  {id:"touch_paint", cat:"Interior Prep",          name:"Paint Touch-Ups",              hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"carpet_clean",cat:"Interior Prep",          name:"Carpet Cleaning",              hasSizes:true, sizeType:"home", prices:{sm:150,md:200,lg:275,xl:375}, firstOk:false},
+  {id:"carpet_rem",  cat:"Interior Prep",          name:"Carpet Removal",               hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
+  {id:"drywall",     cat:"Interior Prep",          name:"Drywall Repair",               hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"caulk",       cat:"Interior Prep",          name:"Caulking & Weatherstripping",  hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"light_fix",   cat:"Interior Prep",          name:"Light Fixture Replacement",    hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
+  {id:"door_hw",     cat:"Interior Prep",          name:"Door Hardware Replacement",    hasSizes:false,flat:65,unit:"ea",                                     firstOk:false},
+  {id:"appliance",   cat:"Interior Prep",          name:"Appliance Removal",            hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
+  // Photography & Media
+  {id:"photos",      cat:"Photography & Media",    name:"Professional Photography",     hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240}, firstOk:false},
+  {id:"drone",       cat:"Photography & Media",    name:"Drone Aerial Photos",          hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"photodrone",  cat:"Photography & Media",    name:"Photos + Drone Combo",         hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350}, firstOk:false},
+  // Staging & Presentation
+  {id:"lockbox",     cat:"Staging & Presentation", name:"Lockbox Installation",         hasSizes:false,flat:50,                                               firstOk:false},
+  {id:"yardsign",    cat:"Staging & Presentation", name:"Yard Sign Installation",       hasSizes:false,flat:50,                                               firstOk:false},
+  {id:"staging",     cat:"Staging & Presentation", name:"Staging Consultation",         hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"key_dup",     cat:"Staging & Presentation", name:"Key Duplication",              hasSizes:false,flat:50,unit:"key",                                    firstOk:false},
+  // Ongoing / Vacant
+  {id:"checkin",     cat:"Ongoing / Vacant",       name:"Vacant Property Check-In",     hasSizes:false,flat:60,                                               firstOk:false},
+  {id:"storminsp",   cat:"Ongoing / Vacant",       name:"Storm Damage Inspection",      hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"utility",     cat:"Ongoing / Vacant",       name:"Utility Monitoring Visit",     hasSizes:false,flat:60,                                               firstOk:false},
+  {id:"winterize",   cat:"Ongoing / Vacant",       name:"Winterization Check",          hasSizes:false,flat:75,                                               firstOk:false},
+  // Other
+  {id:"minjob",      cat:"Other",                  name:"Minimum Job Charge",           hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"custom",      cat:"Other",                  name:"Custom Service",               hasSizes:false,flat:75,                                               firstOk:false},
 ];
 
+// Package psychology config
+const PKG_BADGES={basic:"",exterior:"Most Popular",readytosell:"Best Value",fullservice:"Complete Solution"};
+const PKG_TAGLINES={
+  basic:"Quick, clean curb appeal before the photos.",
+  exterior:"Everything buyers see from the street — handled.",
+  readytosell:"Walk in. List it. Done. One call covers it all.",
+  fullservice:"Craig handles everything. You just show up at closing.",
+};
+
 const PACKAGES=[
-  {key:"basic",      title:"Basic Curb Appeal",        discount:0.10,
-   desc:"Lawn mowing, edging, exterior window cleaning",
+  {key:"basic",       title:"Basic Curb Appeal",        discount:0.10,
    items:[{id:"lawn",sizeType:"lot"},{id:"windows"}]},
-  {key:"exterior",   title:"Full Exterior Prep",        discount:0.12,
-   desc:"Lawn mowing, full yard cleanup, pressure washing, gutter cleaning",
-   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"}]},
-  {key:"readytosell",title:"Ready To Sell",             discount:0.12,
-   desc:"Full Exterior Prep + deep interior clean + professional photography",
-   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"deepclean",sizeType:"home"},{id:"photos",sizeType:"home"}]},
-  {key:"fullservice",title:"Full Service Listing Prep", discount:0.15,
-   desc:"Ready To Sell + drone photos + handyman repairs",
-   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"pressure",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"deepclean",sizeType:"home"},{id:"photos",sizeType:"home"},{id:"drone"},{id:"handyman"}]},
+  {key:"exterior",    title:"Full Exterior Prep",         discount:0.12,
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"windows"}]},
+  {key:"readytosell", title:"Ready To Sell",              discount:0.13,
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"windows"},{id:"deepclean",sizeType:"home"},{id:"photos",sizeType:"home"}]},
+  {key:"fullservice", title:"Full Service Listing Prep",  discount:0.15,
+   items:[{id:"lawn",sizeType:"lot"},{id:"cleanup",sizeType:"lot"},{id:"gutter",sizeType:"lot"},{id:"windows"},{id:"deepclean",sizeType:"home"},{id:"photodrone",sizeType:"home"},{id:"handyman"}]},
 ];
 
 appRoot.innerHTML=`
@@ -366,63 +425,70 @@ appRoot.innerHTML=`
       <select id="bidCustomer"></select>
       <input id="bidTitle" placeholder="Bid title">
       <textarea id="bidNotes" placeholder="General notes"></textarea>
-      <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="secondary" onclick="openPriceListPanel()">Build from Price List</button>
-        <button class="secondary" onclick="openPackagesPanel()">Packages</button>
-      </div>
-      <div id="priceListPanel" class="box hidden" style="background:var(--s2);padding:12px">
-        <h3 style="margin-bottom:8px">Select Services</h3>
-        <div id="priceListContent"></div>
-        <div style="margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;border:1px solid #d0cbbf">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-            <input type="checkbox" id="plFirstCheck" style="width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#087443" onchange="togglePlFirst()">
-            <div>
-              <div style="font-size:14px;font-weight:500;color:var(--text)">First Visit / Neglected Property</div>
-              <div class="small">Apply 1.6x multiplier to all selected services</div>
-            </div>
-          </label>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <button class="green" onclick="addPriceListToBid()">Add to Bid</button>
-          <button class="secondary" onclick="toggleBox('priceListPanel')">Cancel</button>
+      <div style="margin:10px 0">
+        <button class="accordionBtn" id="plAccBtn" onclick="toggleAccordion('plAccBtn','priceListPanel',openPriceListPanel)">
+          &#9776; Build from Price List <span class="accArrow">&#9660;</span>
+        </button>
+        <div id="priceListPanel" class="accordionPanel" style="padding:0 4px">
+          <div id="priceListContent"></div>
+          <div id="plTotalBar" class="plTotalBar" style="display:none">
+            <span>Selected Total</span><b id="plRunningTotal">$0.00</b>
+          </div>
+          <div style="padding:8px 0 4px;border-top:0.5px solid #d0cbbf;margin-top:6px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 0">
+              <input type="checkbox" id="plFirstCheck" style="width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#087443" onchange="togglePlFirst()">
+              <div>
+                <div style="font-size:14px;font-weight:500;color:var(--text)">First Visit / Neglected Property</div>
+                <div class="small">Apply 1.6x multiplier to all selected services</div>
+              </div>
+            </label>
+          </div>
+          <div class="row" style="padding-bottom:8px">
+            <button class="green" onclick="addPriceListToBid()">Add Selected to Bid</button>
+            <button class="secondary" onclick="toggleAccordion('plAccBtn','priceListPanel',null)">Close</button>
+          </div>
         </div>
       </div>
 
-      <div id="packagesPanel" class="box hidden" style="background:var(--s2);padding:12px">
-        <h3 style="margin-bottom:10px">Pre-Built Packages</h3>
-        <div style="margin-bottom:12px">
-          <div class="small" style="margin-bottom:4px">Lot Size</div>
-          <select id="pkgLotSize" onchange="renderPackages()" style="margin:0 0 8px">
-            <option value="sm">Under &frac14; acre</option>
-            <option value="md">&frac14; &ndash; &frac12; acre</option>
-            <option value="lg">&frac12; &ndash; 1 acre</option>
-            <option value="xl">1+ acre</option>
-          </select>
-          <div class="small" style="margin-bottom:4px">Home Size</div>
-          <select id="pkgHomeSize" onchange="renderPackages()" style="margin:0">
-            <option value="sm">Under 1,500 sq ft</option>
-            <option value="md">1,500&ndash;2,500 sq ft</option>
-            <option value="lg">2,500&ndash;4,000 sq ft</option>
-            <option value="xl">4,000+ sq ft</option>
-          </select>
-        </div>
-        <div id="packagesContent"></div>
-        <div style="margin-top:12px;border-top:0.5px solid #d0cbbf;padding-top:12px">
-          <button class="secondary" style="width:100%;margin-bottom:8px" onclick="openCustomPkg()">+ Build Custom Package</button>
-          <div id="customPkgBox" class="hidden">
-            <div id="customPkgServices"></div>
-            <div style="margin:10px 0;display:flex;align-items:center;gap:10px">
-              <div style="font-size:14px;font-weight:500;color:var(--text)">Discount</div>
-              <input id="customPkgDiscount" type="number" min="0" max="50" value="10" style="width:70px;margin:0" oninput="updateCustomPkgTotal()">
-              <div style="font-size:14px;color:var(--text)">%</div>
-            </div>
-            <div id="customPkgTotals" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:8px">
-              <p class="small">Select services above to see your package price.</p>
-            </div>
-            <button class="green" style="width:100%" onclick="addCustomPackageToBid()">Add Custom Package to Bid</button>
+      <div style="margin:10px 0 0">
+        <button class="accordionBtn" id="pkgAccBtn" onclick="toggleAccordion('pkgAccBtn','packagesPanel',openPackagesPanel)">
+          &#11088; Pre-Built Packages <span class="accArrow">&#9660;</span>
+        </button>
+        <div id="packagesPanel" class="accordionPanel" style="padding:0 4px">
+          <div style="margin:8px 0">
+            <div class="small" style="margin-bottom:4px">Lot Size</div>
+            <select id="pkgLotSize" onchange="renderPackages()" style="margin:0 0 8px">
+              <option value="sm">Under &frac14; acre</option>
+              <option value="md">&frac14; &ndash; &frac12; acre</option>
+              <option value="lg">&frac12; &ndash; 1 acre</option>
+              <option value="xl">1+ acre</option>
+            </select>
+            <div class="small" style="margin-bottom:4px">Home Size</div>
+            <select id="pkgHomeSize" onchange="renderPackages()" style="margin:0">
+              <option value="sm">Under 1,500 sq ft</option>
+              <option value="md">1,500&ndash;2,500 sq ft</option>
+              <option value="lg">2,500&ndash;4,000 sq ft</option>
+              <option value="xl">4,000+ sq ft</option>
+            </select>
           </div>
+          <div id="packagesContent"></div>
+          <div style="border-top:0.5px solid #d0cbbf;padding-top:12px;margin-top:4px">
+            <button class="secondary" style="width:100%;margin-bottom:8px" onclick="openCustomPkg()">+ Build Custom Package</button>
+            <div id="customPkgBox" class="hidden">
+              <div id="customPkgServices"></div>
+              <div style="margin:10px 0;display:flex;align-items:center;gap:10px">
+                <div style="font-size:14px;font-weight:500;color:var(--text)">Discount</div>
+                <input id="customPkgDiscount" type="number" min="0" max="50" value="10" style="width:70px;margin:0" oninput="updateCustomPkgTotal()">
+                <div style="font-size:14px;color:var(--text)">%</div>
+              </div>
+              <div id="customPkgTotals" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:8px">
+                <p class="small">Select services above to see your package price.</p>
+              </div>
+              <button class="green" style="width:100%" onclick="addCustomPackageToBid()">Add Custom Package to Bid</button>
+            </div>
+          </div>
+          <button class="secondary" style="margin:8px 0;width:100%" onclick="toggleAccordion('pkgAccBtn','packagesPanel',null)">Close</button>
         </div>
-        <button class="secondary" style="margin-top:8px;width:100%" onclick="toggleBox('packagesPanel')">Cancel</button>
       </div>
       <div id="bidItems"></div>
       <button onclick="addBidItemRow()">+ Add Line Item Manually</button>
@@ -631,6 +697,7 @@ window.openExpenses=function(){showView("expensesView");};
 window.openPayments=function(){showView("paymentsView");};
 window.openProfitBreakdown=function(){showView("profitView");renderAll();};
 window.openWorkflow=function(){showView("workflowView");renderWorkflowBoard();};
+window.openGlobalSearch=function(){showView("globalSearchView");setTimeout(()=>{const i=el("globalSearchInput");if(i){i.focus();i.value="";runGlobalSearch();}},100);};
 window.toggleBox=function(id,forceOpen){const b=el(id);if(forceOpen===true){b.classList.remove("hidden");return;}b.classList.toggle("hidden");};
 window.clearProfitFilter=function(){el("profitFrom").value="";el("profitTo").value="";renderAll();};
 
@@ -862,29 +929,49 @@ window.deleteItem=async function(collectionName,id){
   }catch(e){alert("Delete failed: "+e.message);}
 };
 
-window.openPriceListPanel=function(){renderPriceList();el("priceListPanel").classList.remove("hidden");};
+window.toggleAccordion=function(btnId,panelId,openFn){
+  const btn=el(btnId),panel=el(panelId);if(!btn||!panel)return;
+  const isOpen=panel.classList.contains("open");
+  if(isOpen){panel.classList.remove("open");btn.classList.remove("open");}
+  else{if(openFn)openFn();panel.classList.add("open");btn.classList.add("open");}
+};
+
+window.openPriceListPanel=function(){renderPriceList();};
 function renderPriceList(){
   const cats=[...new Set(PRICE_LIST.map(s=>s.cat))];
   let html="";
   for(const cat of cats){
-    html+=`<div class="formSection" style="margin-top:10px">${safe(cat)}</div>`;
+    html+=`<div class="formSection" style="margin-top:8px;font-size:11px">${safe(cat)}</div>`;
     for(const svc of PRICE_LIST.filter(s=>s.cat===cat)){
-      const ph=svc.hasSizes?"price varies by size":money(svc.flat)+(svc.unit?"/"+svc.unit:"");
-      html+=`<div id="plRow_${svc.id}" style="padding:8px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px">
+      const defPrice=svc.hasSizes?svc.prices["sm"]:svc.flat;
+      const ph=svc.hasSizes?"size below":money(defPrice)+(svc.unit?"/"+svc.unit:"");
+      html+=`<div id="plRow_${svc.id}" style="padding:6px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px">
         <div style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 6px" onclick="togglePlSvc('${svc.id}')">
           <div id="plBox_${svc.id}" style="width:22px;height:22px;flex-shrink:0;border-radius:5px;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;transition:all 0.15s"></div>
           <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small" id="plHint_${svc.id}">${ph}</div></div>
         </div>
         <input type="checkbox" id="plCheck_${svc.id}" style="display:none">
-        <div id="plSize_${svc.id}" style="display:none;padding:4px 0 0 38px">
-          ${svc.hasSizes?`<select id="plSel_${svc.id}" style="margin:0">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:svc.unit==="hr"?`<div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="plHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0" oninput="updatePlHourly('${svc.id}')"><div style="font-size:13px;color:var(--text)" id="plHrsTotal_${svc.id}">${money(svc.flat)}</div></div>`:""}
+        <div id="plSize_${svc.id}" style="display:none;padding:4px 0 4px 38px">
+          ${svc.hasSizes
+            ?`<select id="plSel_${svc.id}" style="margin:0 0 4px" onchange="updatePlPrice('${svc.id}')">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} — ${money(svc.prices[sz.key])}</option>`).join("")}</select>`
+            :svc.unit==="hr"
+              ?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="plHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0" oninput="updatePlHourly('${svc.id}')"><div style="font-size:13px;color:var(--text)" id="plHrsTotal_${svc.id}">${money(svc.flat)}</div></div>`
+              :""}
+          <div class="plEditPrice">
+            <span>Price: $</span>
+            <input id="plPriceVal_${svc.id}" type="number" min="0" style="width:90px" value="${defPrice}" oninput="updatePriceListTotal()">
+            <span>✏️ adjustable</span>
+          </div>
         </div>
       </div>`;
     }
   }
   el("priceListContent").innerHTML=html;
   plFirstVisit=false;const fcb=el("plFirstCheck");if(fcb)fcb.checked=false;
+  const tb=el("plTotalBar");if(tb)tb.style.display="none";
+  if(el("plRunningTotal"))el("plRunningTotal").innerText="$0.00";
 }
+
 window.togglePlSvc=function(id){
   const cb=el(`plCheck_${id}`);
   const checked=!cb.checked;
@@ -892,18 +979,48 @@ window.togglePlSvc=function(id){
   const box=el(`plBox_${id}`);
   const row=el(`plRow_${id}`);
   const sd=el(`plSize_${id}`);
-  if(box){box.style.background=checked?"#087443":"#fff";box.style.borderColor=checked?"#087443":"#ccc";box.textContent=checked?"\u2713":"";}
+  if(box){box.style.background=checked?"#087443":"#fff";box.style.borderColor=checked?"#087443":"#ccc";box.textContent=checked?"✓":"";}
   if(row){row.style.background=checked?"rgba(8,116,67,0.08)":"";}
   if(sd)sd.style.display=checked?"block":"none";
-  updateCustomPkgTotal&&updateCustomPkgTotal();
+  if(checked){
+    const svc=PRICE_LIST.find(s=>s.id===id);
+    if(svc&&!svc.hasSizes&&svc.unit!=="hr"){
+      const pv=el(`plPriceVal_${id}`);
+      if(pv)pv.value=plFirstVisit?Math.round(svc.flat*1.6):svc.flat;
+    }
+  }
+  updatePriceListTotal();
 };
+
+window.updatePlPrice=function(id){
+  const svc=PRICE_LIST.find(s=>s.id===id);if(!svc||!svc.hasSizes)return;
+  const szKey=el(`plSel_${id}`)?.value||"sm";
+  const base=plFirstVisit?Math.round(svc.prices[szKey]*1.6):svc.prices[szKey];
+  const pv=el(`plPriceVal_${id}`);if(pv)pv.value=base;
+  updatePriceListTotal();
+};
+
 window.updatePlHourly=function(id){
   const svc=PRICE_LIST.find(s=>s.id===id);if(!svc||svc.unit!=="hr")return;
   const hrs=Math.max(0.5,Number(el(`plHrs_${id}`)?.value||1));
   const price=plFirstVisit?Math.round(svc.flat*hrs*1.6):Math.round(svc.flat*hrs);
   const tot=el(`plHrsTotal_${id}`);if(tot)tot.textContent=money(price);
-  const hint=el(`plHint_${id}`);if(hint)hint.textContent=`${money(price)} (${hrs} hr${hrs!==1?"s":""})`;
+  const pv=el(`plPriceVal_${id}`);if(pv)pv.value=price;
+  updatePriceListTotal();
 };
+
+window.updatePriceListTotal=function(){
+  let total=0;
+  PRICE_LIST.forEach(svc=>{
+    const cb=el(`plCheck_${svc.id}`);if(!cb?.checked)return;
+    const pv=el(`plPriceVal_${svc.id}`);
+    const price=pv?Number(pv.value||0):(svc.hasSizes?svc.prices["sm"]:svc.flat);
+    total+=price;
+  });
+  if(el("plRunningTotal"))el("plRunningTotal").innerText=money(total);
+  const tb=el("plTotalBar");if(tb)tb.style.display=total>0?"flex":"none";
+};
+
 window.togglePlFirst=function(){
   plFirstVisit=el("plFirstCheck")?.checked||false;
   PRICE_LIST.forEach(svc=>{
@@ -912,65 +1029,70 @@ window.togglePlFirst=function(){
       const sel=el(`plSel_${svc.id}`);const szKey=sel?.value||"sm";
       const base=svc.prices[szKey];
       hint.textContent=money(plFirstVisit?Math.round(base*1.6):base);
+      const pv=el(`plPriceVal_${svc.id}`);if(pv&&el(`plCheck_${svc.id}`)?.checked)pv.value=plFirstVisit?Math.round(base*1.6):base;
     }else{
       const p=plFirstVisit?Math.round(svc.flat*1.6):svc.flat;
       hint.textContent=money(p)+(svc.unit?"/"+svc.unit:"");
+      const pv=el(`plPriceVal_${svc.id}`);if(pv&&el(`plCheck_${svc.id}`)?.checked)pv.value=p;
     }
   });
+  updatePriceListTotal();
 };
+
 window.addPriceListToBid=function(){
   const selected=PRICE_LIST.filter(svc=>el(`plCheck_${svc.id}`)?.checked);
   if(!selected.length){alert("Select at least one service");return;}
   for(const svc of selected){
     let price,desc;
-    if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";price=svc.prices[szKey];const sizes=svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;}
-    else if(svc.unit==="hr"){const hrs=Math.max(0.5,Number(el(`plHrs_${svc.id}`)?.value||1));price=Math.round(svc.flat*hrs);desc=`${svc.name} (${hrs} hr${hrs!==1?"s":""})`;}
-    else{price=svc.flat;desc=svc.name;}
-    if(plFirstVisit)price=Math.round(price*1.6);
-    addBidItemRow(desc,1,price);
+    const pv=el(`plPriceVal_${svc.id}`);
+    if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";const sizes=svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;price=pv?Number(pv.value||0):svc.prices[szKey];}
+    else if(svc.unit==="hr"){const hrs=Math.max(0.5,Number(el(`plHrs_${svc.id}`)?.value||1));desc=`${svc.name} (${hrs} hr${hrs!==1?"s":""})`;price=pv?Number(pv.value||0):Math.round(svc.flat*hrs);}
+    else{desc=svc.name;price=pv?Number(pv.value||0):svc.flat;}
+    addBidItemRow(desc,1,Math.max(0,price));
   }
-  selected.forEach(svc=>{const cb=el(`plCheck_${svc.id}`);if(cb)cb.checked=false;const sd=el(`plSize_${svc.id}`);if(sd)sd.style.display="none";});
-  plFirstVisit=false;const cb2=el("plFirstCheck");if(cb2)cb2.checked=false;el("priceListPanel").classList.add("hidden");
+  selected.forEach(svc=>{const cb=el(`plCheck_${svc.id}`);if(cb)cb.checked=false;const sd=el(`plSize_${svc.id}`);if(sd)sd.style.display="none";const box=el(`plBox_${svc.id}`);if(box){box.style.background="#fff";box.style.borderColor="#ccc";box.textContent="";}const row=el(`plRow_${svc.id}`);if(row)row.style.background="";});
+  plFirstVisit=false;const cb2=el("plFirstCheck");if(cb2)cb2.checked=false;
+  if(el("plRunningTotal"))el("plRunningTotal").innerText="$0.00";
+  const tb=el("plTotalBar");if(tb)tb.style.display="none";
+  toggleAccordion("plAccBtn","priceListPanel",null);
   showToast(`${selected.length} service${selected.length===1?"":"s"} added to bid`);
 };
 
 window.openPackagesPanel=function(){
-  el("packagesPanel").classList.remove("hidden");
   renderPackages();
 };
 
 function renderPackages(){
   const lotSz=el("pkgLotSize")?.value||"sm";
   const homeSz=el("pkgHomeSize")?.value||"sm";
-  el("packagesContent").innerHTML=PACKAGES.map(pkg=>{
+  el("packagesContent").innerHTML=PACKAGES.map((pkg,idx)=>{
     let total=0;
     const lines=pkg.items.map(item=>{
       const svc=PRICE_LIST.find(s=>s.id===item.id);if(!svc)return null;
-      const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:svc.flat;
+      const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:(svc.unit==="hr"?svc.flat*2:svc.flat);
       total+=price;
       return{name:svc.name,price};
     }).filter(Boolean);
     const discounted=Math.round(total*(1-pkg.discount));
     const savings=total-discounted;
-    return`<div class="box" style="background:var(--s1);margin-bottom:8px">
-      <h3 style="margin-bottom:2px">${safe(pkg.title)}</h3>
-      <p class="small" style="margin-bottom:8px">${safe(pkg.desc)}</p>
-      <div style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px">
-        ${lines.map(li=>`<div class="moneyLine"><span style="font-size:13px">${safe(li.name)}</span><span style="font-size:13px">${money(li.price)}</span></div>`).join("")}
-        <div class="moneyLine" style="border-top:0.5px solid #d0cbbf;margin-top:6px;padding-top:6px">
-          <span style="font-size:13px;color:#9a8f80">Regular Total</span>
-          <span style="font-size:13px;color:#9a8f80;text-decoration:line-through">${money(total)}</span>
-        </div>
-        <div class="moneyLine">
-          <span style="font-size:14px;font-weight:600;color:#087443">Package Price</span>
-          <span style="font-size:18px;font-weight:700;color:#087443">${money(discounted)}</span>
-        </div>
-        <div class="moneyLine">
-          <span style="font-size:12px;color:#b7791f">Customer saves</span>
-          <span style="font-size:12px;font-weight:600;color:#b7791f">${money(savings)} (${Math.round(pkg.discount*100)}% off)</span>
-        </div>
+    const badge=PKG_BADGES[pkg.key]||"";
+    const tagline=PKG_TAGLINES[pkg.key]||"";
+    // Psychology: middle two packages get special treatment
+    const cardCls=pkg.key==="exterior"?"pkgCard pkgPopular":pkg.key==="readytosell"?"pkgCard pkgBest":"pkgCard";
+    const badgeHtml=badge?(pkg.key==="exterior"?`<div class="pkgBadge pkgBadgeGreen">⭐ ${badge}</div>`:pkg.key==="readytosell"?`<div class="pkgBadge pkgBadgeGold">★ ${badge}</div>`:`<div class="pkgBadge" style="background:#f0e8ff;color:#5b21b6">${badge}</div>`):"";
+    return`<div class="${cardCls}">
+      ${badgeHtml}
+      <div class="pkgTitle">${safe(pkg.title)}</div>
+      <div class="pkgTagline">${safe(tagline)}</div>
+      <div class="pkgItems">
+        ${lines.map(li=>`<div class="pkgItem">${safe(li.name)}</div>`).join("")}
       </div>
-      <button class="green" style="width:100%" onclick="addPackageToBid('${pkg.key}')">Add This Package to Bid</button>
+      <div class="pkgPricing">
+        <div class="pkgRegular">Individual pricing: ${money(total)}</div>
+        <div class="pkgPrice">${money(discounted)}</div>
+        <div class="pkgSavings">You save ${money(savings)} — ${Math.round(pkg.discount*100)}% off</div>
+      </div>
+      <button class="green" style="width:100%;font-size:15px;padding:12px" onclick="addPackageToBid('${pkg.key}')">Add ${safe(pkg.title)} to Bid</button>
     </div>`;
   }).join("");
 }
@@ -983,15 +1105,15 @@ window.addPackageToBid=function(key){
   let total=0;
   const lines=pkg.items.map(item=>{
     const svc=PRICE_LIST.find(s=>s.id===item.id);if(!svc)return null;
-    const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:svc.flat;
+    const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:(svc.unit==="hr"?svc.flat*2:svc.flat);
     total+=price;
     return{name:svc.name,price};
   }).filter(Boolean);
   const savings=Math.round(total*pkg.discount);
   lines.forEach(li=>addBidItemRow(li.name,1,li.price));
   addBidItemRow(`${pkg.title} Package Discount (${Math.round(pkg.discount*100)}% off)`,1,-savings);
-  el("packagesPanel").classList.add("hidden");
-  showToast(`${pkg.title} added to bid`);
+  toggleAccordion("pkgAccBtn","packagesPanel",null);
+  showToast(`${pkg.title} package added to bid`);
 };
 
 window.openCustomPkg=function(){
@@ -1070,7 +1192,7 @@ window.addCustomPackageToBid=function(){
   const savings=Math.round(total*(discount/100));
   selected.forEach(li=>addBidItemRow(li.name,1,li.price));
   if(savings>0)addBidItemRow(`Custom Package Discount (${discount}% off)`,1,-savings);
-  el("packagesPanel").classList.add("hidden");
+  toggleAccordion("pkgAccBtn","packagesPanel",null);
   showToast("Custom package added to bid");
 };
 
@@ -1126,7 +1248,7 @@ window.editBid=function(id){
   el("bidItems").innerHTML="";
   (b.items||[]).forEach(i=>addBidItemRow(i.desc||"",i.qty||"",i.price||""));updateBidTotal();
 };
-window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";el("priceListPanel").classList.add("hidden");};
+window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";if(el("plAccBtn"))el("plAccBtn").classList.remove("open");if(el("priceListPanel"))el("priceListPanel").classList.remove("open");};
 window.deleteBid=async function(id){if(!confirm("Delete this bid?"))return;try{await deleteDoc(doc(db,"bids",id));}catch(e){alert("Delete bid failed: "+e.message);}};
 window.convertBidToJob=async function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;if(!confirm("Convert this bid to a job?"))return;
