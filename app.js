@@ -73,6 +73,55 @@ function dateLabel(v){if(!v)return"";const d=new Date(v+"T00:00:00");return isNa
 function timeLabel(v){if(!v)return"";const[h,m]=v.split(":");let hr=Number(h);const ap=hr>=12?"PM":"AM";hr=hr%12||12;return`${hr}:${m||"00"} ${ap}`;}
 function addDays(dv,days){const d=new Date((dv||today())+"T00:00:00");d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
 function daysBetween(from,to){if(!from||!to)return 0;return Math.max(0,Math.floor((new Date(to+"T00:00:00")-new Date(from+"T00:00:00"))/(1000*60*60*24)));}
+
+// Haversine formula — straight-line distance between two lat/lng points in miles
+// OpenRouteService API key — real driving distance
+const ORS_API_KEY="eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdlYzRjZTg3NGJlNDRlNDE4NjJiMzQ3ZWMzOTNiYzhmIiwiaCI6Im11cm11cjY0In0=";
+
+// Haversine — straight-line fallback only
+function haversineMiles(lat1,lng1,lat2,lng2){
+  const R=3958.8;
+  const dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Calculate travel fee using real ORS driving distance
+async function calcTravelFee(address){
+  if(!address||address.trim().length<5)return{fee:0,miles:null,note:"Enter an address first."};
+  try{
+    // Step 1: Geocode the property address
+    const geoRes=await fetch(`https://api.openrouteservice.org/geocode/search?api_key=${ORS_API_KEY}&text=${encodeURIComponent(address)}&boundary.country=US&size=1`);
+    const geoData=await geoRes.json();
+    if(!geoData.features||!geoData.features.length)return{fee:25,miles:null,note:"Address not found — enter full address with city and state."};
+    const [destLng,destLat]=geoData.features[0].geometry.coordinates;
+
+    // Step 2: Get actual driving distance from Craig's office
+    const dirRes=await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_API_KEY}&start=${ORIGIN_LNG},${ORIGIN_LAT}&end=${destLng},${destLat}`);
+    const dirData=await dirRes.json();
+    if(!dirData.features||!dirData.features.length)throw new Error("No route");
+
+    const meters=dirData.features[0].properties.segments[0].distance;
+    const miles=Math.round((meters*0.000621371)*10)/10;
+
+    if(miles<=TRAVEL_FREE_MILES)return{fee:0,miles,note:`${miles} mi — within ${TRAVEL_FREE_MILES} mi, no charge.`};
+    const fee=Math.round(miles*TRAVEL_PER_MILE);
+    return{fee,miles,note:`${miles} driving mi × $${TRAVEL_PER_MILE}/mi = ${money(fee)}`};
+
+  }catch(e){
+    // Straight-line fallback if API unavailable
+    try{
+      const gr=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,{headers:{"User-Agent":"5CsTracker/1.0"}});
+      const gd=await gr.json();
+      if(gd&&gd.length){
+        const miles=Math.round(haversineMiles(ORIGIN_LAT,ORIGIN_LNG,parseFloat(gd[0].lat),parseFloat(gd[0].lon))*10)/10;
+        const fee=Math.round(miles*TRAVEL_PER_MILE);
+        return{fee,miles,note:`~${miles} mi (approx.) × $${TRAVEL_PER_MILE}/mi = ${money(fee)}`};
+      }
+    }catch(e2){}
+    return{fee:25,miles:null,note:"Could not calculate — adjust fee manually."};
+  }
+}
 function isPastDue(dv){if(!dv)return false;return new Date(dv+"T00:00:00")<new Date(today()+"T00:00:00");}
 function overdueLabel(dv){if(!dv||!isPastDue(dv))return"";const days=Math.floor((new Date(today()+"T00:00:00")-new Date(dv+"T00:00:00"))/86400000);return days===1?"1 day overdue":`${days} days overdue`;}
 
@@ -255,10 +304,30 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .todayExpandInfo a{color:#087443;text-decoration:none;font-weight:500}
 .todayExpandActions{display:flex;flex-wrap:wrap;gap:6px}
 .todayExpandActions button,.todayExpandActions a{margin:0;padding:8px 12px;font-size:13px;width:auto}
+.smartPrompt{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 14px;margin:8px 0}
+.smartPromptTitle{font-size:13px;font-weight:600;color:#166534;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.smartPromptResult{font-size:12px;color:#166534;margin-top:6px;font-weight:500}
+.smartPromptResult.error{color:#b45309}
+.jobFormToggle{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--s2,#f5f1e8);border-radius:10px;border:0.5px solid var(--border,#e0dbd0);margin:6px 0;cursor:pointer}
+.jobFormToggle:active{opacity:0.7}
+.jobFormToggleLabel{font-size:13px;font-weight:500;color:var(--text,#1a1710)}
+.jobFormToggleSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:1px}
+.jobFormToggleArrow{font-size:18px;color:var(--text-secondary,#9a8f80);transition:transform 0.2s}
+.jobFormToggleArrow.open{transform:rotate(180deg)}
+.jobFormSection{padding:10px 4px 4px;display:none}
+.jobFormSection.open{display:block}
 </style>`);
 
 
 const COMPANY={name:"5Cs Property Services LLC",tagline:"Cleaned Up &bull; Fixed Right &bull; Ready To Sell",phone:"918-424-7953",email:"craig.chaney.87@gmail.com"};
+
+// Travel fee origin — 313 S 6th St, McAlester, OK
+// Update these if the business address ever changes
+const ORIGIN_LAT=34.9269088;
+const ORIGIN_LNG=-95.7635979;
+const TRAVEL_BASE_FEE=0;      // No base fee — mileage only
+const TRAVEL_PER_MILE=1.25;   // Per mile rate ($)
+const TRAVEL_FREE_MILES=5;    // No charge within this radius (miles)
 
 const LOT_SIZES=[{key:"sm",label:"Under \u00bc acre",sub:"Small city/subdivision lot"},{key:"md",label:"\u00bc \u2013 \u00bd acre",sub:"Average residential lot"},{key:"lg",label:"\u00bd \u2013 1 acre",sub:"Larger residential lot"},{key:"xl",label:"1+ acre",sub:"Rural or large property"}];
 const HOME_SIZES=[{key:"sm",label:"Under 1,500 sq ft",sub:"Small home"},{key:"md",label:"1,500\u20132,500 sq ft",sub:"Average home"},{key:"lg",label:"2,500\u20134,000 sq ft",sub:"Larger home"},{key:"xl",label:"4,000+ sq ft",sub:"Large or luxury home"}];
@@ -475,7 +544,7 @@ appRoot.innerHTML=`
       <h2 id="jobFormTitle">Add Job</h2>
       <div class="formSection">Customer &amp; Description</div>
       <select id="jobCustomer"></select>
-      <input id="jobTitle" placeholder="Job description">
+      <input id="jobTitle" placeholder="Job description" oninput="checkJobSmartPrompts()">
       <div class="formSection">Schedule</div>
       <input id="jobDate" type="date">
       <input id="jobTime" type="time">
@@ -484,6 +553,9 @@ appRoot.innerHTML=`
       <input id="jobPaid" type="number" placeholder="Initial payment amount">
       <div class="formSection">Notes</div>
       <textarea id="jobNotes" placeholder="Job notes"></textarea>
+
+      <div id="jobSmartPrompts" style="margin-top:8px"></div>
+
       <button onclick="saveJob()" style="margin-top:12px">Save Job</button>
       <button class="secondary" onclick="resetJobForm()">Clear</button>
     </div>
@@ -947,6 +1019,84 @@ function renderAgingReport(){
 }
 window.openWorkflow=function(){showView("workflowView");renderWorkflowBoard();};
 window.openGlobalSearch=function(){showView("globalSearchView");setTimeout(()=>{const i=el("globalSearchInput");if(i){i.focus();i.value="";runGlobalSearch();}},100);};
+
+// Smart prompts — contextual follow-up questions on the job form
+const PHOTO_KEYWORDS=["photo","drone","aerial","picture","pic","media","listing photo"];
+const CLEAN_KEYWORDS=["clean","deep clean","trash out","cleanout","foreclosure"];
+const TRAVEL_KEYWORDS=["photo","drone","aerial","travel","distant","out of town"];
+
+window.checkJobSmartPrompts=function(){
+  const title=(el("jobTitle")?.value||"").toLowerCase();
+  const prompts=[];
+  const isPhoto=PHOTO_KEYWORDS.some(k=>title.includes(k));
+  const needsTravel=TRAVEL_KEYWORDS.some(k=>title.includes(k));
+
+  if(isPhoto||needsTravel){
+    prompts.push({
+      id:"jobPromptAddress",
+      icon:"📍",
+      label:"Add property address?",
+      sub:"Where is this job located? Used for travel fee calculation.",
+      content:`<input id="jobPropertyAddr" placeholder="Property address (e.g. 123 Main St, Krebs, OK)" style="margin-bottom:6px">
+        <button class="secondary" style="width:auto;padding:7px 14px;font-size:13px" onclick="calcJobTravelFee()">Calculate Travel Fee</button>
+        <div id="jobTravelResult" class="smartPromptResult"></div>
+        <div id="jobTravelFeeField" style="display:none;margin-top:6px">
+          <div class="small" style="margin-bottom:4px">Travel fee to add to job</div>
+          <input id="jobTravelFeeAmt" type="number" min="0" placeholder="0" style="width:120px;margin:0">
+        </div>`
+    });
+  }else{
+    prompts.push({
+      id:"jobPromptAddress",
+      icon:"📍",
+      label:"Add property address?",
+      sub:"Optional — helps with directions and gate codes.",
+      content:`<input id="jobPropertyAddr" placeholder="Property address" style="margin-bottom:0">`
+    });
+  }
+
+  const container=el("jobSmartPrompts");
+  if(!container)return;
+
+  // Only re-render if prompt IDs changed
+  const currentIds=container.dataset.prompts||"";
+  const newIds=prompts.map(p=>p.id).join(",");
+  if(currentIds===newIds)return;
+  container.dataset.prompts=newIds;
+
+  container.innerHTML=prompts.map(p=>`
+    <div class="jobFormToggle" onclick="toggleJobPrompt('${p.id}')">
+      <div>
+        <div class="jobFormToggleLabel">${p.icon} ${p.label}</div>
+        <div class="jobFormToggleSub">${p.sub}</div>
+      </div>
+      <div class="jobFormToggleArrow" id="${p.id}Arrow">⌄</div>
+    </div>
+    <div class="jobFormSection" id="${p.id}Section">${p.content}</div>
+  `).join("");
+};
+
+window.toggleJobPrompt=function(id){
+  const section=el(id+"Section");
+  const arrow=el(id+"Arrow");
+  if(!section)return;
+  const isOpen=section.classList.contains("open");
+  section.classList.toggle("open",!isOpen);
+  section.style.display=isOpen?"none":"block";
+  if(arrow)arrow.classList.toggle("open",!isOpen);
+};
+
+window.calcJobTravelFee=async function(){
+  const addr=el("jobPropertyAddr")?.value||"";
+  if(!addr.trim()){el("jobTravelResult").innerText="Enter an address first.";return;}
+  el("jobTravelResult").innerText="Calculating...";
+  const result=await calcTravelFee(addr);
+  el("jobTravelResult").innerText=result.note;
+  const feeField=el("jobTravelFeeField");
+  const feeAmt=el("jobTravelFeeAmt");
+  if(feeField)feeField.style.display="block";
+  if(feeAmt)feeAmt.value=result.fee;
+};
 window.toggleBox=function(id,forceOpen){const b=el(id);if(forceOpen===true){b.classList.remove("hidden");return;}b.classList.toggle("hidden");};
 window.clearProfitFilter=function(){el("profitFrom").value="";el("profitTo").value="";renderAll();};
 
@@ -1044,6 +1194,8 @@ window.editJob=function(id){
 };
 window.resetJobForm=function(){
   editingJobId=null;el("jobFormTitle").innerText="Add Job";
+  const sp=el("jobSmartPrompts");if(sp){sp.innerHTML="";sp.dataset.prompts="";}
+
   el("jobCustomer").value="";el("jobTitle").value="";el("jobDate").value=today();el("jobTime").value="";el("jobAmount").value="";el("jobPaid").value="";el("jobNotes").value="";
 };
 window.addPayment=async function(id){
@@ -1238,6 +1390,7 @@ window.togglePlSvc=function(id){
       const pv=el(`plPriceVal_${id}`);
       if(pv)pv.value=plFirstVisit?Math.round(svc.flat*1.6):svc.flat;
     }
+    if(["photos","drone","photodrone"].includes(id))autoPopulateTravelFee();
   }
   updatePriceListTotal();
 };
@@ -1267,8 +1420,66 @@ window.updatePriceListTotal=function(){
     const price=pv?Number(pv.value||0):(svc.hasSizes?svc.prices["sm"]:svc.flat);
     total+=price;
   });
+  // Add travel fee if checked
+  const tvCb=el("plCheck_travel");
+  if(tvCb?.checked){const tvPv=el("plPriceVal_travel");if(tvPv)total+=Number(tvPv.value||0);}
   if(el("plRunningTotal"))el("plRunningTotal").innerText=money(total);
   const tb=el("plTotalBar");if(tb)tb.style.display=total>0?"flex":"none";
+};
+
+window.autoPopulateTravelFee=function(){
+  // When photography is checked, show the travel fee row with an address prompt
+  // instead of auto-calculating from the customer address (job location != customer address)
+  const tvRow=el("plRow_travel");
+  if(!tvRow)return;
+
+  // Show a prompt inside the travel fee row's size section
+  const tvSize=el("plSize_travel");
+  if(tvSize){
+    tvSize.style.display="block";
+    // If the address prompt is not yet injected, add it
+    if(!el("plTravelAddrInput")){
+      const addrHtml=`<div class="smartPrompt" style="margin-top:6px">
+        <div class="smartPromptTitle">📍 Where is this job?</div>
+        <div class="small" style="margin-bottom:6px;color:#166534">Enter the property address (not the agent's address) to calculate the drive from McAlester.</div>
+        <input id="plTravelAddrInput" placeholder="e.g. 456 Oak St, Hartshorne, OK" style="margin-bottom:6px" oninput="debouncePlTravelFee()">
+        <div id="plTravelFeeNote" class="smartPromptResult"></div>
+      </div>`;
+      // Insert before the plEditPrice div
+      const pv=el("plPriceVal_travel");
+      if(pv&&pv.parentElement){
+        const wrapper=document.createElement("div");
+        wrapper.innerHTML=addrHtml;
+        pv.parentElement.insertBefore(wrapper,pv.parentElement.firstChild);
+      }
+    }
+  }
+
+  // Auto-check the travel row so it shows up
+  const tvCb=el("plCheck_travel");
+  const tvBox=el("plBox_travel");
+  if(tvCb&&!tvCb.checked){
+    tvCb.checked=true;
+    if(tvBox){tvBox.style.background="#087443";tvBox.style.borderColor="#087443";tvBox.textContent="✓";}
+    if(tvRow)tvRow.style.background="rgba(8,116,67,0.08)";
+  }
+  updatePriceListTotal();
+};
+
+let _plTravelTimer=null;
+window.debouncePlTravelFee=function(){
+  clearTimeout(_plTravelTimer);
+  _plTravelTimer=setTimeout(async()=>{
+    const addr=el("plTravelAddrInput")?.value||"";
+    if(addr.length<5)return;
+    const note=el("plTravelFeeNote");
+    if(note)note.innerText="Calculating...";
+    const result=await calcTravelFee(addr);
+    if(note)note.innerText=result.note;
+    const pv=el("plPriceVal_travel");
+    if(pv)pv.value=result.fee;
+    updatePriceListTotal();
+  },800);
 };
 
 window.togglePlFirst=function(){
