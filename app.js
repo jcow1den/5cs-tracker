@@ -167,29 +167,12 @@ appRoot.innerHTML=`
       <div class="stat" onclick="showView('recurringView')"><b>Recurring</b><h2 id="dashRecurringJobs">0</h2><div class="statHint">Tap calendar</div></div>
       <div class="stat" onclick="showView('invoicesView')"><b>Invoices</b><h2 id="dashInvoiceCount">0</h2><div class="statHint">Owing</div></div>
     </div>
-    <div class="box"><h2>Today's Schedule</h2><div id="todaySchedulePreview"></div></div>
     <div class="box"><h2>Alerts</h2><div id="notificationCenter"></div></div>
+    <div class="box"><h2>Today's Schedule</h2><div id="todaySchedulePreview"></div></div>
     <div class="box"><h2>Overdue / Unpaid</h2><div id="attentionList"></div></div>
-    <div class="box"><h2>Next 7 Days</h2><div id="upcomingSchedulePreview"></div></div>
-    <div class="box"><h2>Recent Jobs</h2><div id="recentJobs"></div></div>
-    <div class="box noPrint"><h2>Quick Navigation</h2><div class="quickAdd">
-      <button onclick="showView('bidsView')">Bids</button>
-      <button onclick="openWorkflow()">Workflow</button>
-      <button onclick="showView('partnersView')">Partners</button>
-      <button onclick="openOwedJobs()">Unpaid Jobs</button>
-      <button onclick="openPaidJobs()">Paid Jobs</button>
-      <button onclick="openPayments()">Payments</button>
-      <button onclick="openProfitBreakdown()">Reports</button>
-      <button onclick="openGlobalSearch()">Search</button>
-    </div></div>
-    <div class="box noPrint"><h2>Quick Add</h2><div class="quickAdd">
-      <button onclick="showView('customersView');toggleBox('customerFormBox',true)">Add Customer</button>
-      <button onclick="showView('jobsView');toggleBox('jobFormBox',true)">Add Job</button>
-      <button onclick="showView('bidsView');toggleBox('bidFormBox',true)">Create Bid</button>
-      <button onclick="showView('expensesView');toggleBox('expenseFormBox',true)">Add Expense</button>
-      <button onclick="showView('recurringView');toggleBox('recurringFormBox',true)">Add Recurring</button>
-    </div></div>
-    <div class="box logoHero"><img src="logo.png" alt="5Cs Property Services LLC" onerror="this.style.display='none'"></div>
+    <div id="recentJobs" style="display:none"></div>
+    <div id="upcomingSchedulePreview" style="display:none"></div>
+    <div id="topCustomers" style="display:none"></div>
   </section>
 
   <section id="scheduleView" class="hidden">
