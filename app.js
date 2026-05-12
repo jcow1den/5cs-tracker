@@ -178,50 +178,50 @@ const LOT_SIZES=[{key:"sm",label:"Under \u00bc acre",sub:"Small city/subdivision
 const HOME_SIZES=[{key:"sm",label:"Under 1,500 sq ft",sub:"Small home"},{key:"md",label:"1,500\u20132,500 sq ft",sub:"Average home"},{key:"lg",label:"2,500\u20134,000 sq ft",sub:"Larger home"},{key:"xl",label:"4,000+ sq ft",sub:"Large or luxury home"}];
 const PRICE_LIST=[
   // Exterior & Grounds
-  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true},
-  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true},
-  {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        hasSizes:false,flat:95,unit:"load",                                   firstOk:false},
-  {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false},
-  {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"fence_repair",cat:"Exterior & Grounds",    name:"Fence Repair",                 hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      hasSizes:false,flat:150,                                              firstOk:false},
-  {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               hasSizes:false,flat:125,unit:"stump",                                 firstOk:false},
-  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         hasSizes:false,flat:175,                                              firstOk:false},
-  {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       hasSizes:false,flat:75,unit:"door",                                   firstOk:false},
-  {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false},
+  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 desc:"Mow, edge, and clean up.",                                             hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true},
+  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            desc:"Full debris removal and yard cleanup.",                                        hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true},
+  {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       desc:"Hedges and shrubs trimmed and shaped.",                                     hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 desc:"Leaves cleared from yard and beds.",                                            hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        desc:"Loaded and hauled away. Priced per load.",                           hasSizes:false,flat:95,unit:"load",                                   firstOk:false},
+  {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              desc:"Gutters cleared and flushed out.",                     hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false},
+  {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   desc:"Exterior windows cleaned.",                             hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"fence_repair",cat:"Exterior & Grounds",    name:"Fence Repair",                 desc:"Damaged areas repaired and secured.",                      hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    desc:"Full stain or paint application.",                           hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      desc:"Dead limbs removed and cleaned up.",                          hasSizes:false,flat:150,                                              firstOk:false},
+  {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               desc:"Ground down below grade.",                                 hasSizes:false,flat:125,unit:"stump",                                 firstOk:false},
+  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         desc:"Overgrowth cleared and removed.",                       hasSizes:false,flat:175,                                              firstOk:false},
+  {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       desc:"Door refreshed with a clean coat of paint.",                hasSizes:false,flat:75,unit:"door",                                   firstOk:false},
+  {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    desc:"Hard surfaces washed down. Add-on service — availability varies.",       hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false},
   // Interior Prep
-  {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
-  {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false},
-  {id:"handyman",    cat:"Interior Prep",          name:"Handyman / Minor Repairs",     hasSizes:false,flat:75,unit:"hr",                                     firstOk:false},
-  {id:"int_paint",   cat:"Interior Prep",          name:"Interior Painting",            hasSizes:false,flat:200,unit:"room",                                  firstOk:false},
-  {id:"touch_paint", cat:"Interior Prep",          name:"Paint Touch-Ups",              hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"carpet_clean",cat:"Interior Prep",          name:"Carpet Cleaning",              hasSizes:true, sizeType:"home", prices:{sm:150,md:200,lg:275,xl:375}, firstOk:false},
-  {id:"carpet_rem",  cat:"Interior Prep",          name:"Carpet Removal",               hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
-  {id:"drywall",     cat:"Interior Prep",          name:"Drywall Repair",               hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"caulk",       cat:"Interior Prep",          name:"Caulking & Weatherstripping",  hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"light_fix",   cat:"Interior Prep",          name:"Light Fixture Replacement",    hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
-  {id:"door_hw",     cat:"Interior Prep",          name:"Door Hardware Replacement",    hasSizes:false,flat:65,unit:"ea",                                     firstOk:false},
-  {id:"appliance",   cat:"Interior Prep",          name:"Appliance Removal",            hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
+  {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                desc:"Thorough cleaning throughout the home.", hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
+  {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      desc:"Full cleanout — everything removed from the property.",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false},
+  {id:"handyman",    cat:"Interior Prep",          name:"Handyman / Minor Repairs",     desc:"Small repairs handled by the hour.",         hasSizes:false,flat:75,unit:"hr",                                     firstOk:false},
+  {id:"int_paint",   cat:"Interior Prep",          name:"Interior Painting",            desc:"Walls painted, room by room. Labor only — client provides paint.",     hasSizes:false,flat:200,unit:"room",                                  firstOk:false},
+  {id:"touch_paint", cat:"Interior Prep",          name:"Paint Touch-Ups",              desc:"Scuffs and minor damage touched up.",                              hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"carpet_clean",cat:"Interior Prep",          name:"Carpet Cleaning",              desc:"Carpets cleaned and refreshed.",                           hasSizes:true, sizeType:"home", prices:{sm:150,md:200,lg:275,xl:375}, firstOk:false},
+  {id:"carpet_rem",  cat:"Interior Prep",          name:"Carpet Removal",               desc:"Carpet pulled up and hauled away.",                        hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false},
+  {id:"drywall",     cat:"Interior Prep",          name:"Drywall Repair",               desc:"Holes and damage patched and sanded.",                                   hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"caulk",       cat:"Interior Prep",          name:"Caulking & Weatherstripping",  desc:"Seals refreshed around tubs, windows, and doors.",                    hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"light_fix",   cat:"Interior Prep",          name:"Light Fixture Replacement",    desc:"Old fixtures swapped out. Client provides new fixtures.",                  hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
+  {id:"door_hw",     cat:"Interior Prep",          name:"Door Hardware Replacement",    desc:"Hardware replaced per door. Client provides new hardware.",                    hasSizes:false,flat:65,unit:"ea",                                     firstOk:false},
+  {id:"appliance",   cat:"Interior Prep",          name:"Appliance Removal",            desc:"Unwanted appliances disconnected and hauled away.",                    hasSizes:false,flat:75,unit:"ea",                                     firstOk:false},
   // Photography & Media
-  {id:"photos",      cat:"Photography & Media",    name:"Professional Photography",     hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240}, firstOk:false},
-  {id:"drone",       cat:"Photography & Media",    name:"Drone Aerial Photos",          hasSizes:false,flat:125,                                              firstOk:false},
-  {id:"photodrone",  cat:"Photography & Media",    name:"Photos + Drone Combo",         hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350}, firstOk:false},
+  {id:"photos",      cat:"Photography & Media",    name:"Professional Photography",     desc:"Listing photos, edited and delivered promptly.",       hasSizes:true, sizeType:"home", prices:{sm:150,md:175,lg:200,xl:240}, firstOk:false},
+  {id:"drone",       cat:"Photography & Media",    name:"Drone Aerial Photos",          desc:"Aerial photos of the property and surrounding area.",            hasSizes:false,flat:125,                                              firstOk:false},
+  {id:"photodrone",  cat:"Photography & Media",    name:"Photos + Drone Combo",         desc:"Ground and aerial photos — the complete package.",             hasSizes:true, sizeType:"home", prices:{sm:250,md:275,lg:310,xl:350}, firstOk:false},
   // Staging & Presentation
-  {id:"lockbox",     cat:"Staging & Presentation", name:"Lockbox Installation",         hasSizes:false,flat:50,                                               firstOk:false},
-  {id:"yardsign",    cat:"Staging & Presentation", name:"Yard Sign Installation",       hasSizes:false,flat:50,                                               firstOk:false},
-  {id:"staging",     cat:"Staging & Presentation", name:"Staging Consultation",         hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"key_dup",     cat:"Staging & Presentation", name:"Key Duplication",              hasSizes:false,flat:50,unit:"key",                                    firstOk:false},
+  {id:"lockbox",     cat:"Staging & Presentation", name:"Lockbox Installation",         desc:"Lockbox installed and set at the property.",                                 hasSizes:false,flat:50,                                               firstOk:false},
+  {id:"yardsign",    cat:"Staging & Presentation", name:"Yard Sign Installation",       desc:"Sign posted at the property.",                                     hasSizes:false,flat:50,                                               firstOk:false},
+  {id:"staging",     cat:"Staging & Presentation", name:"Staging Consultation",         desc:"Walk-through advice on presentation and layout.",        hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"key_dup",     cat:"Staging & Presentation", name:"Key Duplication",              desc:"Keys duplicated for property access.",                     hasSizes:false,flat:50,unit:"key",                                    firstOk:false},
   // Ongoing / Vacant
-  {id:"checkin",     cat:"Ongoing / Vacant",       name:"Vacant Property Check-In",     hasSizes:false,flat:60,                                               firstOk:false},
-  {id:"storminsp",   cat:"Ongoing / Vacant",       name:"Storm Damage Inspection",      hasSizes:false,flat:95,                                               firstOk:false},
-  {id:"utility",     cat:"Ongoing / Vacant",       name:"Utility Monitoring Visit",     hasSizes:false,flat:60,                                               firstOk:false},
-  {id:"winterize",   cat:"Ongoing / Vacant",       name:"Winterization Check",          hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"checkin",     cat:"Ongoing / Vacant",       name:"Vacant Property Check-In",     desc:"Property checked and report provided.", hasSizes:false,flat:60,                                               firstOk:false},
+  {id:"storminsp",   cat:"Ongoing / Vacant",       name:"Storm Damage Inspection",      desc:"Post-storm check with photos and written report.",              hasSizes:false,flat:95,                                               firstOk:false},
+  {id:"utility",     cat:"Ongoing / Vacant",       name:"Utility Monitoring Visit",     desc:"Utilities checked and any issues noted.",            hasSizes:false,flat:60,                                               firstOk:false},
+  {id:"winterize",   cat:"Ongoing / Vacant",       name:"Winterization Check",          desc:"Property checked for winter readiness.",                  hasSizes:false,flat:75,                                               firstOk:false},
   // Other
-  {id:"minjob",      cat:"Other",                  name:"Minimum Job Charge",           hasSizes:false,flat:75,                                               firstOk:false},
-  {id:"custom",      cat:"Other",                  name:"Custom Service",               hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"minjob",      cat:"Other",                  name:"Minimum Job Charge",           desc:"Minimum charge for any service call.",                                              hasSizes:false,flat:75,                                               firstOk:false},
+  {id:"custom",      cat:"Other",                  name:"Custom Service",               desc:"Custom service — described in the line item.",                             hasSizes:false,flat:75,                                               firstOk:false},
 ];
 
 // Package psychology config
@@ -948,7 +948,7 @@ function renderPriceList(){
       html+=`<div id="plRow_${svc.id}" style="padding:6px 0;border-bottom:0.5px solid #e8e4dc;border-radius:6px">
         <div style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 6px" onclick="togglePlSvc('${svc.id}')">
           <div id="plBox_${svc.id}" style="width:22px;height:22px;flex-shrink:0;border-radius:5px;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;transition:all 0.15s"></div>
-          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div><div class="small" id="plHint_${svc.id}">${ph}</div></div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--text)">${safe(svc.name)}</div>${svc.desc?`<div style="font-size:12px;color:#9a8f80;line-height:1.35;margin-top:1px">${safe(svc.desc)}</div>`:""}<div class="small" id="plHint_${svc.id}">${ph}</div></div>
         </div>
         <input type="checkbox" id="plCheck_${svc.id}" style="display:none">
         <div id="plSize_${svc.id}" style="display:none;padding:4px 0 4px 38px">
@@ -1071,7 +1071,7 @@ function renderPackages(){
       const svc=PRICE_LIST.find(s=>s.id===item.id);if(!svc)return null;
       const price=svc.hasSizes?svc.prices[item.sizeType==="lot"?lotSz:homeSz]:(svc.unit==="hr"?svc.flat*2:svc.flat);
       total+=price;
-      return{name:svc.name,price};
+      return{name:svc.name,desc:svc.desc||"",price};
     }).filter(Boolean);
     const discounted=Math.round(total*(1-pkg.discount));
     const savings=total-discounted;
@@ -1085,7 +1085,7 @@ function renderPackages(){
       <div class="pkgTitle">${safe(pkg.title)}</div>
       <div class="pkgTagline">${safe(tagline)}</div>
       <div class="pkgItems">
-        ${lines.map(li=>`<div class="pkgItem">${safe(li.name)}</div>`).join("")}
+        ${lines.map(li=>`<div class="pkgItem"><div><div>${safe(li.name)}</div>${li.desc?`<div style="font-size:11px;color:#9a8f80;margin-top:1px;line-height:1.3">${safe(li.desc)}</div>`:""}</div></div>`).join("")}
       </div>
       <div class="pkgPricing">
         <div class="pkgRegular">Individual pricing: ${money(total)}</div>
