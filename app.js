@@ -133,6 +133,16 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .jobPropInfo{margin:4px 0 6px;line-height:1.7}
 .jobPropInfo a{color:#087443;text-decoration:none;font-weight:500;font-size:13px}
 .jobPropInfo div{font-size:13px;color:var(--text-secondary,#9a8f80)}
+.clientRow{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--s1,#fff);border-radius:14px;margin-bottom:6px;border:0.5px solid var(--border,#e0dbd0);cursor:pointer;transition:opacity 0.15s;-webkit-tap-highlight-color:transparent}
+.clientRow:active{opacity:0.7}
+.clientRowInfo{flex:1;min-width:0}
+.clientRowName{font-size:15px;font-weight:600;color:var(--text,#1a1710);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clientRowSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clientRowRight{text-align:right;flex-shrink:0}
+.clientRowOwes{font-size:15px;font-weight:700;color:#b42318;line-height:1.2}
+.clientRowPaid{font-size:13px;font-weight:600;color:#087443}
+.clientRowOwesLabel{font-size:11px;font-weight:400;color:#b42318}
+.clientCallBtn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:rgba(8,116,67,0.1);border-radius:50%;color:#087443;text-decoration:none;font-size:16px;margin-top:4px;flex-shrink:0}
 </style>`);
 
 
@@ -191,6 +201,7 @@ appRoot.innerHTML=`
       <div class="statPill statPillProfit" onclick="openProfitBreakdown()"><div class="statPillVal" id="dashProfit">$0</div><div class="statPillLabel">Profit</div></div>
       <div class="statPill" onclick="showView('invoicesView')"><div class="statPillVal" id="dashInvoiceCount">0</div><div class="statPillLabel">Invoices</div></div>
     </div>
+    <div id="trendStrip" style="padding:0 14px 8px;font-size:12px;color:var(--text-secondary,#9a8f80)"></div>
     <div id="notificationCenter"></div>
     <div class="box"><h2>Today's Jobs</h2><div id="todaySchedulePreview"></div></div>
     <div class="box"><h2>Unpaid</h2><div id="attentionList"></div></div>
@@ -234,6 +245,8 @@ appRoot.innerHTML=`
         <div class="stat" onclick="openExpenses()"><b>Expenses</b><h2 id="profitExpenses">$0</h2><div class="statHint">Tap for expenses</div></div>
         <div class="stat"><b>Profit</b><h2 id="profitNet">$0</h2></div>
         <div class="stat" onclick="openOwedJobs()"><b>Outstanding</b><h2 id="profitOutstanding">$0</h2><div class="statHint">Tap for owed</div></div>
+        <div class="stat"><b>Avg Job Value</b><h2 id="profitAvgJob">$0</h2><div class="statHint">Per job</div></div>
+        <div class="stat"><b>Jobs This Month</b><h2 id="profitJobsMonth">0</h2><div class="statHint">Scheduled</div></div>
       </div>
     </div>
     <div class="box"><h2>Last 6 Months</h2><div id="revenueChart"></div></div>
@@ -326,9 +339,19 @@ appRoot.innerHTML=`
       <input id="recurringNextDate" type="date">
       <input id="recurringTime" type="time">
       <input id="recurringAmount" type="number" placeholder="Amount">
-      <select id="recurringFrequency">
-        <option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option>
+      <select id="recurringFrequency" onchange="toggleCustomFreq()">
+        <option value="weekly">Weekly (every 7 days)</option>
+        <option value="biweekly">Biweekly (every 14 days)</option>
+        <option value="monthly">Monthly</option>
+        <option value="custom">Custom interval</option>
       </select>
+      <div id="customFreqBox" style="display:none;margin-top:-4px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:14px;color:var(--text)">Every</span>
+          <input id="recurringCustomDays" type="number" min="1" max="365" value="10" style="width:80px;margin:0" placeholder="days">
+          <span style="font-size:14px;color:var(--text)">days</span>
+        </div>
+      </div>
       <button onclick="saveRecurring()">Save Recurring Job</button>
       <button class="secondary" onclick="resetRecurringForm()">Clear</button>
     </div>
@@ -492,15 +515,14 @@ appRoot.innerHTML=`
         <div class="moreSectionLabel">Work</div>
         <div class="moreGrid">
           <button onclick="showView('jobsView')">All Jobs</button>
-          <button onclick="showView('bidsView')">Bids</button>
           <button onclick="showView('scheduleView');showAllSchedule()">Schedule</button>
+          <button onclick="showView('invoicesView')">Invoices</button>
           <button onclick="openWorkflow()">Workflow</button>
         </div>
       </div>
       <div class="moreSection">
         <div class="moreSectionLabel">Money</div>
         <div class="moreGrid">
-          <button onclick="showView('invoicesView')">Invoices</button>
           <button onclick="showView('paymentsView')">Payments</button>
           <button onclick="showView('expensesView')">Expenses</button>
           <button onclick="openProfitBreakdown()">Reports</button>
@@ -531,8 +553,10 @@ appRoot.innerHTML=`
 </section>`;
 
 bottomNav.innerHTML=`
-  <button id="navToday"     onclick="showView('dashboardView')">${ICONS.home}<span>Today</span></button>
-  <button id="navCustomers" onclick="showView('customersView')">${ICONS.customers}<span>Customers</span></button>
+  <button id="navHome"      onclick="showView('dashboardView')">${ICONS.home}<span>Home</span></button>
+  <button id="navSchedule"  onclick="openTodaySchedule()">${ICONS.schedule}<span>Schedule</span></button>
+  <button id="navCustomers" onclick="showView('customersView')">${ICONS.customers}<span>Clients</span></button>
+  <button id="navBids"      onclick="showView('bidsView')">${ICONS.bids}<span>Bids</span></button>
   <button id="navMore"      onclick="showView('settingsView')">${ICONS.more}<span>More</span></button>`;
 
 fabMenu.innerHTML=`
@@ -588,8 +612,10 @@ window.showView=function(id){
   el(id).classList.remove("hidden");
   fabMenu.classList.add("hidden");
   document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
-  if(id==="dashboardView") el("navToday").classList.add("active");
+  if(id==="dashboardView") el("navHome").classList.add("active");
+  else if(id==="scheduleView") el("navSchedule").classList.add("active");
   else if(id==="customersView"||id==="customerDetailView") el("navCustomers").classList.add("active");
+  else if(id==="bidsView"||id==="invoiceView") el("navBids").classList.add("active");
   else el("navMore").classList.add("active");
   const titles={dashboardView:"Business dashboard",scheduleView:"Schedule",workflowView:"Workflow board",bidsView:"Bids",profitView:"Reports",customersView:"Customers",customerDetailView:"Customer detail",jobsView:"Jobs",paymentsView:"Payments",recurringView:"Recurring calendar",expensesView:"Expense ledger",invoicesView:"Invoice center",invoiceView:"Invoice preview",partnersView:"Referral Partners",settingsView:"More",globalSearchView:"Search"};
   document.getElementById("headerSub").innerText=titles[id]||"Business dashboard";
@@ -774,8 +800,12 @@ window.requestReview=function(jobId){
   navigator.clipboard.writeText(msg).then(()=>showToast("Review request copied to clipboard")).catch(()=>alert(msg));
 };
 
+window.toggleCustomFreq=function(){const v=el("recurringFrequency")?.value;const b=el("customFreqBox");if(b)b.style.display=v==="custom"?"block":"none";};
+
 window.saveRecurring=async function(){
-  const data={customerId:el("recurringCustomer").value,title:el("recurringTitle").value.trim(),nextDate:el("recurringNextDate").value||today(),time:el("recurringTime").value||"",amount:Number(el("recurringAmount").value||0),frequency:el("recurringFrequency").value};
+  const freq=el("recurringFrequency").value;
+  const customDays=freq==="custom"?Number(el("recurringCustomDays")?.value||10):null;
+  const data={customerId:el("recurringCustomer").value,title:el("recurringTitle").value.trim(),nextDate:el("recurringNextDate").value||today(),time:el("recurringTime").value||"",amount:Number(el("recurringAmount").value||0),frequency:freq,customDays};
   if(!data.customerId||!data.title){alert("Select a customer and enter recurring job title");return;}
   if(editingRecurringId){await updateDoc(doc(db,"recurring",editingRecurringId),data);}
   else{data.createdAt=new Date().toISOString();await addDoc(collection(db,"recurring"),data);}
@@ -785,20 +815,25 @@ window.editRecurring=function(id){
   const r=recurring.find(x=>x.id===id);if(!r)return;editingRecurringId=id;el("recurringFormTitle").innerText="Edit Recurring Job";
   el("recurringCustomer").value=r.customerId||"";el("recurringTitle").value=r.title||"";el("recurringNextDate").value=r.nextDate||today();
   el("recurringTime").value=r.time||"";el("recurringAmount").value=r.amount||0;el("recurringFrequency").value=r.frequency||"weekly";
+  if(el("recurringCustomDays"))el("recurringCustomDays").value=r.customDays||10;
+  if(el("customFreqBox"))el("customFreqBox").style.display=r.frequency==="custom"?"block":"none";
   showView("recurringView");el("recurringFormBox").classList.remove("hidden");
 };
 window.resetRecurringForm=function(){
   editingRecurringId=null;el("recurringFormTitle").innerText="Add Recurring Job";
   el("recurringCustomer").value="";el("recurringTitle").value="";el("recurringNextDate").value=today();
   el("recurringTime").value="";el("recurringAmount").value="";el("recurringFrequency").value="weekly";
+  if(el("recurringCustomDays"))el("recurringCustomDays").value=10;
+  if(el("customFreqBox"))el("customFreqBox").style.display="none";
 };
 window.createJobFromRecurring=async function(id){
   const r=recurring.find(x=>x.id===id);if(!r)return;
   await addDoc(collection(db,"jobs"),{customerId:r.customerId,title:r.title,date:r.nextDate,time:r.time||"",amount:Number(r.amount||0),paid:0,notes:"Created from recurring job",status:"Scheduled",createdAt:new Date().toISOString()});
   let nd=r.nextDate||today();
   if(r.frequency==="weekly")nd=addDays(nd,7);
-  if(r.frequency==="biweekly")nd=addDays(nd,14);
-  if(r.frequency==="monthly"){const d=new Date(nd+"T00:00:00");d.setMonth(d.getMonth()+1);nd=d.toISOString().slice(0,10);}
+  else if(r.frequency==="biweekly")nd=addDays(nd,14);
+  else if(r.frequency==="custom"&&r.customDays)nd=addDays(nd,Number(r.customDays));
+  else if(r.frequency==="monthly"){const d=new Date(nd+"T00:00:00");d.setMonth(d.getMonth()+1);nd=d.toISOString().slice(0,10);}
   await updateDoc(doc(db,"recurring",id),{nextDate:nd});showToast("Job created from recurring");
 };
 
@@ -1364,7 +1399,7 @@ function jobCardHtml(j){
 }
 function recurringCardHtml(r){
   const s=recurringStatus(r);
-  return `<div class="box"><div class="customerHeader"><div><h3>${safe(r.title)}</h3><div class="small">${safe(getCustomerName(r.customerId))}</div></div><span class="badge ${s.cls}">${s.label}</span></div><div class="moneyLine"><span>Next Date</span><b>${dateLabel(r.nextDate)} ${r.time?"at "+timeLabel(r.time):""}</b></div><div class="moneyLine"><span>Frequency</span><b>${safe(r.frequency)}</b></div><div class="moneyLine"><span>Amount</span><b style="color:var(--green)">${money(r.amount)}</b></div><div class="row"><button class="green" onclick="createJobFromRecurring('${r.id}')">Create Job</button><button class="secondary" onclick="editRecurring('${r.id}')">Edit</button><button class="red" onclick="deleteItem('recurring','${r.id}')">Delete</button></div></div>`;
+  return `<div class="box"><div class="customerHeader"><div><h3>${safe(r.title)}</h3><div class="small">${safe(getCustomerName(r.customerId))}</div></div><span class="badge ${s.cls}">${s.label}</span></div><div class="moneyLine"><span>Next Date</span><b>${dateLabel(r.nextDate)} ${r.time?"at "+timeLabel(r.time):""}</b></div><div class="moneyLine"><span>Frequency</span><b>${r.frequency==="custom"?`Every ${r.customDays||"?"} days`:safe(r.frequency)}</b></div><div class="moneyLine"><span>Amount</span><b style="color:var(--green)">${money(r.amount)}</b></div><div class="row"><button class="green" onclick="createJobFromRecurring('${r.id}')">Create Job</button><button class="secondary" onclick="editRecurring('${r.id}')">Edit</button><button class="red" onclick="deleteItem('recurring','${r.id}')">Delete</button></div></div>`;
 }
 function expenseCardHtml(e){
   return `<div class="box"><div class="customerHeader"><div><h3>${safe(e.category)}</h3><div class="small">${dateLabel(e.date)}</div></div><b style="font-size:18px;color:var(--red-text)">${money(e.amount)}</b></div>${e.notes?`<p>${safe(e.notes)}</p>`:""}<div class="row"><button class="secondary" onclick="editExpense('${e.id}')">Edit</button><button class="red" onclick="deleteItem('expenses','${e.id}')">Delete</button></div></div>`;
@@ -1407,6 +1442,16 @@ function renderAll(){
   const fPmts=payments.filter(p=>{if(filterFrom&&p.date<filterFrom)return false;if(filterTo&&p.date>filterTo)return false;return true;});
   const fExps=expenses.filter(e=>{if(filterFrom&&e.date<filterFrom)return false;if(filterTo&&e.date>filterTo)return false;return true;});
   const allPaid=payments.reduce((s,p)=>s+Number(p.amount||0),0);
+  // Monthly trend calculation
+  const _now=new Date();
+  const _thisM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}`;
+  const _lmD=new Date(_now);_lmD.setMonth(_lmD.getMonth()-1);
+  const _lastM=`${_lmD.getFullYear()}-${String(_lmD.getMonth()+1).padStart(2,"0")}`;
+  const _thisCollected=payments.filter(p=>(p.date||"").slice(0,7)===_thisM).reduce((s,p)=>s+Number(p.amount||0),0);
+  const _lastCollected=payments.filter(p=>(p.date||"").slice(0,7)===_lastM).reduce((s,p)=>s+Number(p.amount||0),0);
+  const _thisJobs=jobs.filter(j=>(j.date||"").slice(0,7)===_thisM).length;
+  const _lastJobs=jobs.filter(j=>(j.date||"").slice(0,7)===_lastM).length;
+  const _mName=_now.toLocaleDateString(undefined,{month:"short"});
   const allExp=expenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const totalOwed=jobs.reduce((s,j)=>s+jobBalance(j),0);
   const fPaid=fPmts.reduce((s,p)=>s+Number(p.amount||0),0);
@@ -1416,11 +1461,30 @@ function renderAll(){
   const custWithBal=customers.filter(c=>customerTotals(c.id).owed>0);
 
   el("dashPaid").innerText=money(allPaid);el("dashOwed").innerText=money(totalOwed);
-  el("dashExpenses").innerText=money(allExp);el("dashProfit").innerText=money(allPaid-allExp);
+  el("dashExpenses").innerText=money(allExp);
+  const profitVal=allPaid-allExp;
+  el("dashProfit").innerText=money(profitVal);
+  const profitPill=document.querySelector(".statPillProfit");
+  if(profitPill){profitPill.querySelector(".statPillVal").style.color=profitVal>=0?"#087443":"#b42318";}
+  // Trend strip
+  const trendEl=el("trendStrip");
+  if(trendEl){
+    const cPct=_lastCollected>0?Math.round((_thisCollected-_lastCollected)/_lastCollected*100):null;
+    const jPct=_lastJobs>0?Math.round((_thisJobs-_lastJobs)/_lastJobs*100):null;
+    const trendArrow=(n)=>n>0?`<span style="color:#087443">↑${n}%</span>`:`<span style="color:#b42318">↓${Math.abs(n)}%</span>`;
+    const parts=[];
+    if(_thisCollected>0||_lastCollected>0)parts.push(`${_mName}: ${money(_thisCollected)} collected${cPct!==null?" "+trendArrow(cPct)+" vs last month":""}`);
+    if(_thisJobs>0||_lastJobs>0)parts.push(`${_thisJobs} job${_thisJobs!==1?"s":""} scheduled${jPct!==null?" "+trendArrow(jPct):""}`)
+    trendEl.innerHTML=parts.join(" &nbsp;·&nbsp; ");
+  }
   el("dashTodayJobs").innerText=todayJobs.length;el("dashUpcomingJobs").innerText=upcoming.length;
   el("dashRecurringJobs").innerText=recurring.length;el("dashInvoiceCount").innerText=custWithBal.length;
   el("profitPaid").innerText=money(fPaid);el("profitExpenses").innerText=money(fExpTotal);
-  el("profitNet").innerText=money(fPaid-fExpTotal);el("profitOutstanding").innerText=money(totalOwed);
+  const netVal=fPaid-fExpTotal;el("profitNet").innerText=money(netVal);if(el("profitNet"))el("profitNet").style.color=netVal>=0?"#087443":"#b42318";
+  el("profitOutstanding").innerText=money(totalOwed);
+  const _jwAmt=jobs.filter(j=>Number(j.amount||0)>0);const _avgJob=_jwAmt.length?Math.round(_jwAmt.reduce((s,j)=>s+Number(j.amount||0),0)/_jwAmt.length):0;
+  if(el("profitAvgJob"))el("profitAvgJob").innerText=money(_avgJob);
+  if(el("profitJobsMonth"))el("profitJobsMonth").innerText=_thisJobs||0;
 
   renderRevenueChart();
 
@@ -1461,7 +1525,7 @@ function renderAll(){
   el("recentJobs").innerHTML=jobs.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,5).map(j=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(getCustomerName(j.customerId),"sm")}<div style="flex:1"><h3 style="margin:0">${safe(j.title)}</h3><div class="small">${safe(getCustomerName(j.customerId))} &bull; ${dateLabel(j.date)}</div></div>${paymentBadge(j)}</div><div class="row" style="margin-top:8px"><button onclick="viewCustomer('${j.customerId}')">Customer</button><button onclick="editJob('${j.id}')">Edit</button></div></div>`).join("")||"<p class='small'>No jobs yet.</p>";
 
   const cq=el("customerSearch").value.trim().toLowerCase();
-  el("customerList").innerHTML=customers.slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))).filter(c=>{const t=`${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.gateCode||""} ${c.preferredContact||""} ${c.serviceFrequency||""} ${c.propertyNotes||""} ${c.notes||""} ${jobs.filter(j=>j.customerId===c.id).map(j=>j.title).join(" ")}`.toLowerCase();return !cq||t.includes(cq);}).map(c=>{const totals=customerTotals(c.id),phone=cleanPhone(c.phone);return`<div class="customerCard"><div class="customerHeader"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(c.name,"md")}<div><h3 style="margin:0">${safe(c.name)}</h3><div class="small">${safe(c.phone)}</div><div class="small">${safe(c.address)}</div>${c.serviceFrequency?`<div class="small">${safe(c.serviceFrequency)}</div>`:""}</div></div><span class="badge ${totals.owed>0?"badgeRed":"badgeGreen"}">${totals.owed>0?"Owes":"Paid Up"}</span></div>${totals.paid>0?`<div style="display:flex;align-items:center;gap:8px;margin:4px 0">${tierBadgeHtml(totals.paid)}${tierProgressHtml(totals.paid)}</div>`:"" }<div class="moneyLine"><span>Paid</span><b style="color:var(--green)">${money(totals.paid)}</b></div><div class="moneyLine"><span>Owed</span><b style="color:${totals.owed>0?"var(--red-text)":"var(--text)"}">${money(totals.owed)}</b></div><div class="row"><button onclick="viewCustomer('${c.id}')">View</button><button onclick="makeInvoice('${c.id}')">Invoice</button>${phone?`<a class="actionLink" href="tel:${phone}">Call</a>`:""}${phone?`<a class="actionLink" href="sms:${phone}">Text</a>`:""}<button class="secondary" onclick="editCustomer('${c.id}')">Edit</button><button class="red" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`;}).join("")||"<p class='small'>No customers found.</p>";
+    el("customerList").innerHTML=customers.slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))).filter(c=>{const t=`${c.name||""} ${c.email||""} ${c.phone||""} ${c.address||""} ${c.notes||""}`.toLowerCase();return !cq||t.includes(cq);}).map(c=>{const totals=customerTotals(c.id),phone=cleanPhone(c.phone);const tier=totals.paid>0?tierBadgeHtml(totals.paid):"";return`<div class="clientRow" onclick="viewCustomer('${c.id}')">${avatarHtml(c.name,"md")}<div class="clientRowInfo"><div class="clientRowName">${safe(c.name)}</div><div class="clientRowSub">${safe(c.address||c.phone||"No address saved")}</div>${tier?`<div style="margin-top:3px">${tier}</div>`:""}</div><div class="clientRowRight">${totals.owed>0?`<div class="clientRowOwes">${money(totals.owed)}<div class="clientRowOwesLabel">owed</div></div>`:`<div class="clientRowPaid">✓ Paid</div>`}${phone?`<a href="tel:${phone}" onclick="event.stopPropagation()" class="clientCallBtn">📞</a>`:""}</div></div>`;}).join("")||"<p class='small'>No customers found.</p>";
 
   const jq=el("jobSearch").value.trim().toLowerCase(),sf=el("jobStatusFilter").value;
   el("jobList").innerHTML=jobs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).filter(j=>{const ps=paymentStatus(j).toLowerCase(),ws=String(j.status||"Scheduled").toLowerCase(),t=`${j.title||""} ${j.notes||""} ${getCustomerName(j.customerId)}`.toLowerCase();let ok=sf==="all"||ps===sf||ws===sf;if(sf==="today")ok=j.date===today();if(sf==="upcoming")ok=j.date>today()&&j.date<=addDays(today(),7);return ok&&(!jq||t.includes(jq));}).map(jobCardHtml).join("")||"<p class='small'>No jobs found.</p>";
