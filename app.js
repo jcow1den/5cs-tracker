@@ -1325,6 +1325,7 @@ window.setJobStatus=async function(id,status){
     await updateDoc(doc(db,"jobs",id),{status});
     renderAll();
     renderTodayPreview();
+    if(!el("scheduleView").classList.contains("hidden"))renderSchedule("today");
     if(status==="Complete"){
       const j=jobs.find(x=>x.id===id);
       if(j) showFlowPrompt(`${safe(j.title)} is complete. Ready to invoice ${safe(getCustomerName(j.customerId))}?`,[{label:"Create Invoice",cls:"green",fn:`makeInvoice('${j.customerId}')`}]);
@@ -2043,7 +2044,9 @@ function renderSchedule(mode){
   if(mode==="today"){list=list.filter(j=>j.date===today());el("scheduleTitle").innerText="Today's Jobs";}
   else if(mode==="upcoming"){const end=addDays(today(),7);list=list.filter(j=>j.date>=today()&&j.date<=end);el("scheduleTitle").innerText="Next 7 Days";}
   else{list=list.filter(j=>j.date);el("scheduleTitle").innerText="All Scheduled Jobs";}
-  el("scheduleList").innerHTML=list.length?list.map(scheduleCardHtml).join(""):"<p class='small'>No scheduled jobs found.</p>";
+  // Use collapsible today cards for today view, standard cards for others
+  const cardFn=mode==="today"?todayCardHtml:scheduleCardHtml;
+  el("scheduleList").innerHTML=list.length?list.map(cardFn).join(""):"<p class='small'>No scheduled jobs found.</p>";
 }
 window.renderSchedule=renderSchedule;
 
