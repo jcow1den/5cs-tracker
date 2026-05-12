@@ -72,6 +72,7 @@ function cleanPhone(p){return String(p||"").replace(/\D/g,"");}
 function dateLabel(v){if(!v)return"";const d=new Date(v+"T00:00:00");return isNaN(d)?v:d.toLocaleDateString();}
 function timeLabel(v){if(!v)return"";const[h,m]=v.split(":");let hr=Number(h);const ap=hr>=12?"PM":"AM";hr=hr%12||12;return`${hr}:${m||"00"} ${ap}`;}
 function addDays(dv,days){const d=new Date((dv||today())+"T00:00:00");d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
+function daysBetween(from,to){if(!from||!to)return 0;return Math.max(0,Math.floor((new Date(to+"T00:00:00")-new Date(from+"T00:00:00"))/(1000*60*60*24)));}
 function isPastDue(dv){if(!dv)return false;return new Date(dv+"T00:00:00")<new Date(today()+"T00:00:00");}
 function overdueLabel(dv){if(!dv||!isPastDue(dv))return"";const days=Math.floor((new Date(today()+"T00:00:00")-new Date(dv+"T00:00:00"))/86400000);return days===1?"1 day overdue":`${days} days overdue`;}
 
@@ -115,6 +116,15 @@ const ICONS={
 document.body.insertAdjacentHTML("afterbegin",`<div id="syncBadge" class="syncBadge">Online</div>`);
 function updateSyncBadge(){const b=el("syncBadge");if(!b)return;if(navigator.onLine){b.textContent="Online";b.classList.remove("offline");}else{b.textContent="Offline";b.classList.add("offline");}}
 window.addEventListener("online",updateSyncBadge);window.addEventListener("offline",updateSyncBadge);updateSyncBadge();
+
+// Navigation history for back button
+const TOP_LEVEL_VIEWS=["dashboardView","scheduleView","customersView","bidsView","settingsView"];
+let navHistory=[];
+window.goBack=function(){
+  const prev=navHistory.pop();
+  if(prev)showView(prev);
+  else showView("dashboardView");
+};
 document.head.insertAdjacentHTML("beforeend",`<style>
 .statsStrip{display:flex;gap:8px;padding:12px 12px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .statPill{flex:1;min-width:72px;background:var(--s1,#fff);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;border:0.5px solid var(--border,#e0dbd0);transition:opacity 0.15s}
@@ -169,6 +179,66 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 .pkgRegular{font-size:13px;color:#9a8f80;text-decoration:line-through;margin-bottom:2px}
 .pkgPrice{font-size:26px;font-weight:700;color:#087443;letter-spacing:-0.5px;line-height:1.1}
 .pkgSavings{font-size:13px;font-weight:600;color:#b7791f;margin-top:2px}
+.backBtn{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--text-secondary,#9a8f80);font-size:14px;padding:10px 14px 4px;cursor:pointer;margin:0}
+.backBtn:active{opacity:0.6}
+.backBtn::before{content:"←";font-size:16px}
+.reportTabBar{display:flex;gap:2px;padding:12px 12px 0;background:var(--s2,#f5f1e8)}
+.reportTab{flex:1;padding:10px 6px;border-radius:10px 10px 0 0;border:none;background:transparent;color:var(--text-secondary,#9a8f80);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.reportTab.active{background:var(--s1,#fff);color:var(--text,#1a1710);font-weight:600;border-bottom:2px solid #087443}
+.heroCard{border-radius:18px;padding:20px;margin:0 0 12px;color:#fff;position:relative;overflow:hidden}
+.heroCardPos{background:linear-gradient(135deg,#054f31 0%,#087443 100%)}
+.heroCardNeg{background:linear-gradient(135deg,#7f1d1d 0%,#b42318 100%)}
+.heroProfit{font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin:4px 0 8px}
+.heroLabel{font-size:12px;opacity:0.75;font-weight:500;text-transform:uppercase;letter-spacing:0.08em}
+.heroStatus{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,0.2);margin-bottom:12px}
+.heroStats{display:flex;margin-top:4px;background:rgba(0,0,0,0.15);border-radius:12px;overflow:hidden}
+.heroStat{flex:1;padding:10px 8px;text-align:center;border-right:1px solid rgba(255,255,255,0.1)}
+.heroStat:last-child{border-right:none}
+.heroStatVal{font-size:15px;font-weight:700;line-height:1.2}
+.heroStatLabel{font-size:10px;opacity:0.7;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em}
+.healthSection{margin-bottom:16px}
+.healthTitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary,#9a8f80);padding:0 2px;margin-bottom:8px}
+.healthItem{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--s1,#fff);border-radius:12px;margin-bottom:6px;border:0.5px solid var(--border,#e0dbd0)}
+.healthIcon{font-size:18px;flex-shrink:0;line-height:1.3}
+.healthBody{flex:1}
+.healthText{font-size:13px;font-weight:500;color:var(--text,#1a1710);line-height:1.4}
+.healthSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:2px}
+.healthAction{font-size:12px;font-weight:600;color:#087443;margin-top:4px;cursor:pointer;text-decoration:underline}
+.expBarRow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f0ece4}
+.expBarLabel{font-size:13px;color:var(--text,#1a1710);flex:0 0 120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.expBarTrack{flex:1;background:#f0ece4;border-radius:999px;height:8px;overflow:hidden}
+.expBarFill{height:8px;border-radius:999px;transition:width 0.4s ease}
+.expBarAmt{font-size:13px;font-weight:600;color:var(--text,#1a1710);min-width:58px;text-align:right}
+.leaderRow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f0ece4}
+.leaderRank{font-size:16px;font-weight:800;color:var(--text-secondary,#9a8f80);flex:0 0 24px;text-align:center}
+.leaderRank.gold{color:#b7791f}
+.leaderName{flex:1;font-size:14px;font-weight:500;color:var(--text,#1a1710)}
+.leaderAmt{font-size:14px;font-weight:700;color:#087443}
+.agingBucket{margin-bottom:20px}
+.agingBucketHeader{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:12px;margin-bottom:8px}
+.agingBucketCurrent{background:#f0fdf4;border:1px solid #86efac}
+.agingBucketWarn{background:#fffbeb;border:1px solid #fcd34d}
+.agingBucketCrit{background:#fff1f2;border:1px solid #fca5a5}
+.agingBucketTitle{font-size:14px;font-weight:600}
+.agingBucketTotal{font-size:15px;font-weight:700}
+.agingRow{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s1,#fff);border-radius:10px;margin-bottom:6px;border:0.5px solid var(--border,#e0dbd0)}
+.agingRowLeft{flex:1;min-width:0}
+.agingRowName{font-size:14px;font-weight:500;color:var(--text,#1a1710);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agingRowSub{font-size:12px;color:var(--text-secondary,#9a8f80);margin-top:1px}
+.agingDaysBadge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;flex-shrink:0}
+.agingAmt{font-size:15px;font-weight:700;flex-shrink:0}
+.periodReport{padding:16px;background:#fff}
+.periodHeader{text-align:center;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #1a1710}
+.periodTable{width:100%;border-collapse:collapse;margin-bottom:16px}
+.periodTable th{text-align:left;padding:8px 6px;border-bottom:2px solid #e0dbd0;font-size:11px;color:#9a8f80;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+.periodTable td{padding:8px 6px;border-bottom:0.5px solid #f0ece4;font-size:13px;color:#1a1710}
+.periodTable .totalRow td{font-weight:700;border-top:2px solid #e0dbd0;padding-top:12px}
+.periodSummary{background:#f5f1e8;border-radius:10px;padding:14px;margin-top:16px}
+@media print{
+  .bottomNav,.fab,.noPrint,.reportTabBar,header{display:none!important}
+  .periodReport{padding:0}
+  body{background:#fff}
+}
 </style>`);
 
 
@@ -291,27 +361,51 @@ appRoot.innerHTML=`
   </section>
 
   <section id="profitView" class="hidden">
-    <div class="box">
-      <h2>Profit Breakdown</h2>
-      <div class="row noPrint" style="align-items:flex-end;gap:8px">
-        <div style="flex:1"><div class="small" style="margin-bottom:4px">From</div><input id="profitFrom" type="date" style="margin:0"></div>
-        <div style="flex:1"><div class="small" style="margin-bottom:4px">To</div><input id="profitTo" type="date" style="margin:0"></div>
-        <button style="flex:0 0 auto;width:auto;padding:12px 18px" onclick="renderAll()">Filter</button>
-        <button class="secondary" style="flex:0 0 auto;width:auto;padding:12px 18px" onclick="clearProfitFilter()">Clear</button>
-      </div>
-      <div class="grid" style="margin-top:12px">
-        <div class="stat" onclick="openPayments()"><b>Collected</b><h2 id="profitPaid">$0</h2><div class="statHint">Tap for payments</div></div>
-        <div class="stat" onclick="openExpenses()"><b>Expenses</b><h2 id="profitExpenses">$0</h2><div class="statHint">Tap for expenses</div></div>
-        <div class="stat"><b>Profit</b><h2 id="profitNet">$0</h2></div>
-        <div class="stat" onclick="openOwedJobs()"><b>Outstanding</b><h2 id="profitOutstanding">$0</h2><div class="statHint">Tap for owed</div></div>
-        <div class="stat"><b>Avg Job Value</b><h2 id="profitAvgJob">$0</h2><div class="statHint">Per job</div></div>
-        <div class="stat"><b>Jobs This Month</b><h2 id="profitJobsMonth">0</h2><div class="statHint">Scheduled</div></div>
-      </div>
+    <div class="reportTabBar noPrint">
+      <button class="reportTab active" id="tabOverview" onclick="switchReportTab('overview')">Overview</button>
+      <button class="reportTab" id="tabPeriod" onclick="switchReportTab('period')">Period Report</button>
+      <button class="reportTab" id="tabAging" onclick="switchReportTab('aging')">Aging</button>
     </div>
-    <div class="box"><h2>Last 6 Months</h2><div id="revenueChart"></div></div>
-    <div class="box"><h2>Customer Tiers</h2><div id="tierBreakdown"></div></div>
-    <div class="box"><h2>Expense Breakdown</h2><div id="expenseBreakdown"></div></div>
-    <div class="box"><h2>Top Customers By Paid Amount</h2><div id="topCustomers"></div></div>
+
+    <div id="reportOverview" style="padding:12px">
+      <div id="reportHeroCard" class="heroCard heroCardPos">
+        <div class="heroLabel">Net Profit</div>
+        <div class="heroProfit" id="profitNet">$0</div>
+        <div id="heroStatus" class="heroStatus">Calculating...</div>
+        <div class="heroStats">
+          <div class="heroStat"><div class="heroStatVal" id="profitPaid">$0</div><div class="heroStatLabel">Collected</div></div>
+          <div class="heroStat"><div class="heroStatVal" id="profitExpenses">$0</div><div class="heroStatLabel">Expenses</div></div>
+          <div class="heroStat"><div class="heroStatVal" id="profitOutstanding">$0</div><div class="heroStatLabel">Owed</div></div>
+          <div class="heroStat"><div class="heroStatVal" id="profitAvgJob">$0</div><div class="heroStatLabel">Avg Job</div></div>
+        </div>
+      </div>
+      <div class="healthSection">
+        <div class="healthTitle">Business Health</div>
+        <div id="healthAlerts"></div>
+      </div>
+      <div class="box" style="margin:0 0 12px"><h2 style="margin-bottom:12px">Last 6 Months</h2><div id="revenueChart"></div></div>
+      <div class="box" style="margin:0 0 12px"><h2 style="margin-bottom:10px">Top Customers</h2><div id="topCustomers"></div></div>
+      <div class="box" style="margin:0 0 12px"><h2 style="margin-bottom:10px">Expense Breakdown</h2><div id="expenseBreakdown"></div></div>
+      <div class="box" style="margin:0 0 12px"><h2 style="margin-bottom:10px">Customer Tiers</h2><div id="tierBreakdown"></div></div>
+      <div style="display:none"><span id="profitJobsMonth">0</span></div>
+    </div>
+
+    <div id="reportPeriod" style="display:none;padding:12px">
+      <div class="box" style="margin:0 0 12px">
+        <h2 style="margin-bottom:12px">Period Report</h2>
+        <div class="row noPrint" style="align-items:flex-end;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:120px"><div class="small" style="margin-bottom:4px">From</div><input id="profitFrom" type="date" style="margin:0"></div>
+          <div style="flex:1;min-width:120px"><div class="small" style="margin-bottom:4px">To</div><input id="profitTo" type="date" style="margin:0"></div>
+          <button style="width:auto;padding:12px 18px" onclick="generatePeriodReport()">Generate</button>
+          <button class="secondary" style="width:auto;padding:12px 18px" onclick="clearProfitFilter()">Clear</button>
+        </div>
+      </div>
+      <div id="periodReportContent"></div>
+    </div>
+
+    <div id="reportAging" style="display:none;padding:12px">
+      <div id="agingReportContent"></div>
+    </div>
   </section>
 
   <section id="customersView" class="hidden">
@@ -674,9 +768,31 @@ function startListeners(){
 const ALL_VIEWS=["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","partnersView","settingsView","globalSearchView"];
 
 window.showView=function(id){
+  // Track navigation history
+  const currentVisible=ALL_VIEWS.find(v=>!el(v).classList.contains("hidden"));
+  if(currentVisible&&currentVisible!==id){
+    navHistory.push(currentVisible);
+    if(navHistory.length>20)navHistory.shift();
+  }
+  if(TOP_LEVEL_VIEWS.includes(id))navHistory=[];
+
   ALL_VIEWS.forEach(v=>el(v).classList.add("hidden"));
   el(id).classList.remove("hidden");
   fabMenu.classList.add("hidden");
+
+  // Show/hide back button
+  let backBtn=el("globalBackBtn");
+  if(!backBtn){
+    backBtn=document.createElement("button");
+    backBtn.id="globalBackBtn";
+    backBtn.className="backBtn noPrint";
+    backBtn.onclick=goBack;
+    backBtn.innerHTML="Back";
+    const appScreen=el("appScreen");
+    if(appScreen)appScreen.insertBefore(backBtn,appScreen.firstChild);
+  }
+  backBtn.style.display=TOP_LEVEL_VIEWS.includes(id)||navHistory.length===0?"none":"flex";
+
   document.querySelectorAll(".bottomNav button").forEach(b=>b.classList.remove("active"));
   if(id==="dashboardView") el("navHome").classList.add("active");
   else if(id==="scheduleView") el("navSchedule").classList.add("active");
@@ -695,7 +811,124 @@ window.openUpcomingSchedule=function(){showView("scheduleView");renderSchedule("
 window.showAllSchedule=function(){showView("scheduleView");renderSchedule("all");};
 window.openExpenses=function(){showView("expensesView");};
 window.openPayments=function(){showView("paymentsView");};
-window.openProfitBreakdown=function(){showView("profitView");renderAll();};
+window.openProfitBreakdown=function(){showView("profitView");renderAll();switchReportTab("overview");};
+
+window.switchReportTab=function(tab){
+  ["overview","period","aging"].forEach(t=>{
+    const el2=el("report"+t.charAt(0).toUpperCase()+t.slice(1));
+    if(el2)el2.style.display=t===tab?"block":"none";
+    const btn=el("tab"+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn)btn.classList.toggle("active",t===tab);
+  });
+  if(tab==="aging")renderAgingReport();
+  if(tab==="period"){const c=el("periodReportContent");if(c&&!c.innerHTML)generatePeriodReport();}
+};
+
+window.generatePeriodReport=function(){
+  const from=el("profitFrom")?.value||"";
+  const to=el("profitTo")?.value||"";
+  const fPmts=payments.filter(p=>{if(from&&(p.date||"")<from)return false;if(to&&(p.date||"")>to)return false;return true;});
+  const fExps=expenses.filter(e=>{if(from&&(e.date||"")<from)return false;if(to&&(e.date||"")>to)return false;return true;});
+  const totalIn=fPmts.reduce((s,p)=>s+Number(p.amount||0),0);
+  const totalOut=fExps.reduce((s,e)=>s+Number(e.amount||0),0);
+  const net=totalIn-totalOut;
+  const totalOwed=jobs.reduce((s,j)=>s+jobBalance(j),0);
+  const label=from&&to?`${dateLabel(from)} — ${dateLabel(to)}`:from?`From ${dateLabel(from)}`:to?`Through ${dateLabel(to)}`:"All Time";
+
+  const expGrp={};fExps.forEach(e=>{const k=e.category||"Other";expGrp[k]=(expGrp[k]||0)+Number(e.amount||0);});
+
+  el("periodReportContent").innerHTML=`
+    <div class="periodReport" id="printableReport">
+      <div class="periodHeader">
+        <div style="font-size:20px;font-weight:700;color:#1a1710">${safe(COMPANY.name)}</div>
+        <div style="font-size:13px;color:#9a8f80;margin-top:2px">${safe(COMPANY.phone)} &bull; ${safe(COMPANY.email)}</div>
+        <div style="font-size:15px;font-weight:600;margin-top:8px">Financial Report</div>
+        <div style="font-size:13px;color:#9a8f80">${safe(label)}</div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9a8f80;margin-bottom:8px">Income</div>
+        <table class="periodTable">
+          <thead><tr><th>Date</th><th>Customer</th><th>Job</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            ${fPmts.sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(p=>{const job=jobs.find(j=>j.id===p.jobId);return`<tr><td>${dateLabel(p.date)}</td><td>${safe(getCustomerName(p.customerId))}</td><td>${safe(job?.title||p.notes||"Payment")}</td><td style="text-align:right;color:#087443;font-weight:600">${money(p.amount)}</td></tr>`;}).join("")}
+            <tr class="totalRow"><td colspan="3"><strong>Total Income</strong></td><td style="text-align:right;color:#087443"><strong>${money(totalIn)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9a8f80;margin-bottom:8px">Expenses</div>
+        <table class="periodTable">
+          <thead><tr><th>Date</th><th>Category</th><th>Notes</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            ${fExps.sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(e=>`<tr><td>${dateLabel(e.date)}</td><td>${safe(e.category)}</td><td>${safe(e.notes||"")}</td><td style="text-align:right;color:#b42318;font-weight:600">${money(e.amount)}</td></tr>`).join("")}
+            <tr class="totalRow"><td colspan="3"><strong>Total Expenses</strong></td><td style="text-align:right;color:#b42318"><strong>${money(totalOut)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      ${Object.keys(expGrp).length>0?`<div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9a8f80;margin-bottom:8px">Expense By Category</div>
+        <table class="periodTable">
+          <tbody>${Object.entries(expGrp).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${safe(k)}</td><td style="text-align:right;font-weight:600">${money(v)}</td></tr>`).join("")}</tbody>
+        </table>
+      </div>`:""}
+
+      <div class="periodSummary">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9a8f80;margin-bottom:10px">Summary</div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #e0dbd0"><span>Total Income</span><strong style="color:#087443">${money(totalIn)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #e0dbd0"><span>Total Expenses</span><strong style="color:#b42318">${money(totalOut)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #1a1710;margin-top:4px"><span style="font-weight:700;font-size:15px">Net Profit</span><strong style="font-size:18px;color:${net>=0?"#087443":"#b42318"}">${money(net)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:0.5px solid #e0dbd0;margin-top:4px"><span>Total Outstanding (All Time)</span><strong>${money(totalOwed)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Report Generated</span><span style="color:#9a8f80">${new Date().toLocaleDateString()}</span></div>
+      </div>
+
+      <div class="row noPrint" style="margin-top:16px">
+        <button onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </div>`;
+};
+
+function renderAgingReport(){
+  const todayStr=today();
+  const unpaidJobs=jobs.filter(j=>jobBalance(j)>0&&j.date);
+  const buckets=[
+    {label:"Current",sub:"0 – 30 days",min:0,max:30,cls:"agingBucketCurrent",textCls:"#087443",badgeBg:"#dcfce7",badgeColor:"#054f31"},
+    {label:"Overdue",sub:"31 – 60 days",min:31,max:60,cls:"agingBucketWarn",textCls:"#b45309",badgeBg:"#fef3c7",badgeColor:"#7c4a00"},
+    {label:"Critical",sub:"60+ days — needs immediate attention",min:61,max:9999,cls:"agingBucketCrit",textCls:"#b42318",badgeBg:"#fee2e2",badgeColor:"#7f1d1d"},
+  ];
+  let html="";
+  let anyFound=false;
+  buckets.forEach(b=>{
+    const items=unpaidJobs.map(j=>{
+      const d=daysBetween(j.date,todayStr);
+      return{...j,days:d,bal:jobBalance(j)};
+    }).filter(j=>j.days>=b.min&&j.days<=b.max).sort((a,b2)=>b2.days-a.days);
+    if(!items.length)return;
+    anyFound=true;
+    const bucketTotal=items.reduce((s,j)=>s+j.bal,0);
+    html+=`<div class="agingBucket">
+      <div class="agingBucketHeader ${b.cls}">
+        <div><div style="font-size:15px;font-weight:700;color:${b.textCls}">${b.label}</div><div style="font-size:12px;color:${b.textCls};opacity:0.75">${b.sub}</div></div>
+        <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:${b.textCls}">${money(bucketTotal)}</div><div style="font-size:11px;color:${b.textCls};opacity:0.75">${items.length} job${items.length===1?"":"s"}</div></div>
+      </div>
+      ${items.map(j=>{const cust=getCustomer(j.customerId);const phone=cleanPhone(cust?.phone);return`<div class="agingRow">
+        <div class="agingRowLeft">
+          <div class="agingRowName">${safe(getCustomerName(j.customerId))}</div>
+          <div class="agingRowSub">${safe(j.title)} &bull; ${dateLabel(j.date)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span class="agingDaysBadge" style="background:${b.badgeBg};color:${b.badgeColor}">${j.days}d</span>
+          <span class="agingAmt" style="color:${b.textCls}">${money(j.bal)}</span>
+          ${phone?`<a href="tel:${phone}" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(8,116,67,0.1);border-radius:50%;text-decoration:none;font-size:15px">📞</a>`:""}
+        </div>
+      </div>`}).join("")}
+    </div>`;
+  });
+  if(!anyFound)html=`<div class="box" style="text-align:center;padding:32px 16px"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="font-weight:600;font-size:16px;color:#087443">All caught up!</div><div class="small" style="margin-top:4px">No outstanding balances found.</div></div>`;
+  el("agingReportContent").innerHTML=`<div style="margin-bottom:12px"><div style="font-size:22px;font-weight:700;color:var(--text)">Outstanding Balances</div><div class="small">All jobs with unpaid balances, sorted by age.</div></div>${html}`;
+}
 window.openWorkflow=function(){showView("workflowView");renderWorkflowBoard();};
 window.openGlobalSearch=function(){showView("globalSearchView");setTimeout(()=>{const i=el("globalSearchInput");if(i){i.focus();i.value="";runGlobalSearch();}},100);};
 window.toggleBox=function(id,forceOpen){const b=el(id);if(forceOpen===true){b.classList.remove("hidden");return;}b.classList.toggle("hidden");};
@@ -1610,6 +1843,86 @@ function renderAll(){
 
   renderRevenueChart();
 
+  // === BUSINESS HEALTH SELF-AUDIT ===
+  const healthEl=el("healthAlerts");
+  if(healthEl){
+    const alerts=[];
+    const todayStr=today();
+    // Collection rate
+    const completedJobs=jobs.filter(j=>j.status==="Complete");
+    const paidCompletedJobs=completedJobs.filter(j=>paymentStatus(j)==="Paid");
+    const collRate=completedJobs.length>0?Math.round(paidCompletedJobs.length/completedJobs.length*100):null;
+    if(collRate!==null){
+      if(collRate>=90)alerts.push({icon:"✅",text:`${collRate}% collection rate`,sub:"Excellent — most completed jobs are paid.",color:"#087443"});
+      else if(collRate>=70)alerts.push({icon:"⚠️",text:`${collRate}% collection rate`,sub:`${completedJobs.length-paidCompletedJobs.length} completed job${completedJobs.length-paidCompletedJobs.length===1?"":"s"} still unpaid.`,color:"#b45309",action:"View unpaid",actionFn:"openOwedJobs()"});
+      else alerts.push({icon:"🔴",text:`${collRate}% collection rate — low`,sub:`${completedJobs.length-paidCompletedJobs.length} jobs completed without payment. Review billing.`,color:"#b42318",action:"View unpaid",actionFn:"openOwedJobs()"});
+    }
+    // Overdue 60+ days
+    const overdue60=jobs.filter(j=>jobBalance(j)>0&&j.date&&daysBetween(j.date,todayStr)>60);
+    if(overdue60.length>0){const amt=overdue60.reduce((s,j)=>s+jobBalance(j),0);alerts.push({icon:"🔴",text:`${overdue60.length} job${overdue60.length===1?"":"s"} overdue 60+ days`,sub:`${money(amt)} outstanding for over 2 months. Follow up now.`,color:"#b42318",action:"View aging",actionFn:"switchReportTab('aging')"});}
+    // Overdue 30-60 days
+    const overdue30=jobs.filter(j=>jobBalance(j)>0&&j.date&&daysBetween(j.date,todayStr)>30&&daysBetween(j.date,todayStr)<=60);
+    if(overdue30.length>0){const amt=overdue30.reduce((s,j)=>s+jobBalance(j),0);alerts.push({icon:"⚠️",text:`${overdue30.length} job${overdue30.length===1?"":"s"} overdue 30–60 days`,sub:`${money(amt)} has been outstanding over a month.`,color:"#b45309",action:"View aging",actionFn:"switchReportTab('aging')"});}
+    // Profit health
+    if(profitVal<0)alerts.push({icon:"🔴",text:"Expenses exceed income",sub:`You're ${money(Math.abs(profitVal))} in the red. Review your expenses.`,color:"#b42318",action:"View expenses",actionFn:"showView('expensesView')"});
+    else if(profitVal===0&&allPaid>0)alerts.push({icon:"⚠️",text:"Break even",sub:"Income and expenses are equal. Watch margins.",color:"#b45309"});
+    else if(profitVal>0&&allPaid>0)alerts.push({icon:"✅",text:`${money(profitVal)} net profit`,sub:`${allPaid>0?Math.round(profitVal/allPaid*100):0}% profit margin.`,color:"#087443"});
+    // Month trend
+    const cPct=_lastCollected>0?Math.round((_thisCollected-_lastCollected)/_lastCollected*100):null;
+    if(cPct!==null){
+      if(cPct>=10)alerts.push({icon:"📈",text:`Revenue up ${cPct}% vs last month`,sub:`${money(_thisCollected)} this month vs ${money(_lastCollected)} last month.`,color:"#087443"});
+      else if(cPct<=-15)alerts.push({icon:"📉",text:`Revenue down ${Math.abs(cPct)}% vs last month`,sub:`${money(_thisCollected)} this month vs ${money(_lastCollected)} last month. Check pipeline.`,color:"#b42318"});
+    }
+    // Unscheduled: no upcoming jobs
+    const futureJobs=jobs.filter(j=>j.date&&j.date>todayStr);
+    if(futureJobs.length===0&&jobs.length>0)alerts.push({icon:"⚠️",text:"No upcoming jobs scheduled",sub:"Nothing on the calendar. Time to follow up with clients.",color:"#b45309",action:"View schedule",actionFn:"openTodaySchedule()"});
+    // Average job value
+    if(_avgJob>0){
+      const highValueJobs=jobs.filter(j=>Number(j.amount||0)>=_avgJob*1.5).length;
+      if(highValueJobs>0)alerts.push({icon:"💰",text:`${highValueJobs} high-value job${highValueJobs===1?"":"s"} in your history`,sub:`Average job is ${money(_avgJob)}. Keep targeting similar work.`,color:"#087443"});
+    }
+
+    healthEl.innerHTML=alerts.length?alerts.map(a=>`<div class="healthItem">
+      <div class="healthIcon">${a.icon}</div>
+      <div class="healthBody">
+        <div class="healthText" style="color:${a.color}">${a.text}</div>
+        <div class="healthSub">${safe(a.sub)}</div>
+        ${a.action?`<div class="healthAction" onclick="${a.actionFn}">${a.action} →</div>`:""}
+      </div>
+    </div>`).join(""):"<div class='healthItem'><div class='healthIcon'>✅</div><div class='healthBody'><div class='healthText' style='color:#087443'>Looking good</div><div class='healthSub'>No issues detected.</div></div></div>";
+  }
+
+  // Hero card color
+  const heroCard=el("reportHeroCard");
+  if(heroCard){heroCard.className="heroCard "+(netVal>=0?"heroCardPos":"heroCardNeg");}
+  const heroStatus=el("heroStatus");
+  if(heroStatus){
+    if(netVal>0)heroStatus.innerHTML=`🟢 Profitable`;
+    else if(netVal<0)heroStatus.innerHTML=`⚠️ Review expenses`;
+    else heroStatus.innerHTML=`— Break even`;
+  }
+
+  // Beautified top customers leaderboard
+  const topCustData=customers.map(c=>({customer:c,total:customerTotals(c.id)})).filter(x=>x.total.paid>0).sort((a,b)=>b.total.paid-a.total.paid).slice(0,8);
+  el("topCustomers").innerHTML=topCustData.length?topCustData.map((x,i)=>`<div class="leaderRow">
+    <div class="leaderRank ${i===0?"gold":""}">${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
+    ${avatarHtml(x.customer.name,"sm")}
+    <div class="leaderName">${safe(x.customer.name)}${x.total.owed>0?` <span style="font-size:11px;color:#b42318">(owes ${money(x.total.owed)})</span>`:""}</div>
+    <div class="leaderAmt">${money(x.total.paid)}</div>
+    <button style="width:auto;padding:6px 10px;font-size:12px" onclick="viewCustomer('${x.customer.id}')">View</button>
+  </div>`).join(""):"<p class='small'>No payments collected yet.</p>";
+
+  // Expense breakdown as horizontal bars
+  const expGrp={};fExps.forEach(e=>{const k=e.category||"Other";expGrp[k]=(expGrp[k]||0)+Number(e.amount||0);});
+  const expEntries=Object.entries(expGrp).sort((a,b)=>b[1]-a[1]);
+  const maxExp=expEntries.length?expEntries[0][1]:1;
+  el("expenseBreakdown").innerHTML=expEntries.map(([cat,t])=>`<div class="expBarRow">
+    <div class="expBarLabel">${safe(cat)}</div>
+    <div class="expBarTrack"><div class="expBarFill" style="width:${Math.round(t/maxExp*100)}%"></div></div>
+    <div class="expBarAmt">${money(t)}</div>
+  </div>`).join("")||"<p class='small'>No expenses yet.</p>";
+
+  // Customer tiers
   const tierCounts={Platinum:[],Gold:[],Silver:[],Bronze:[]};
   customers.forEach(c=>{const p=customerTotals(c.id).paid;if(p>0)tierCounts[customerTier(p).name].push({customer:c,paid:p});});
   const tierDefs=[{name:"Platinum",color:"#7c3aed"},{name:"Gold",color:"#b7791f"},{name:"Silver",color:"#64748b"},{name:"Bronze",color:"#9a6340"}];
@@ -1620,12 +1933,8 @@ function renderAll(){
       const list=tierCounts[t.name];if(!list.length)return"";
       const icons={Platinum:"\u2726",Gold:"\u2605",Silver:"\u25c8",Bronze:"\u25c6"};
       return`<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:14px;font-weight:600;color:${t.color}">${icons[t.name]} ${t.name}</span><span class="small">${list.length} customer${list.length===1?"":"s"}</span></div>${list.sort((a,b)=>b.paid-a.paid).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #f0ece4"><div style="font-size:13px">${safe(x.customer.name)}</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:600;color:${t.color}">${money(x.paid)}</span><button style="width:auto;padding:4px 10px;font-size:12px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")}</div>`;
-    }).join(""):"<p class='small'>No customers with paid status yet. Tiers unlock once payments are collected.</p>";
+    }).join(""):"<p class='small'>No customers with paid status yet.</p>";
   }
-
-  const expGrp={};fExps.forEach(e=>{const k=e.category||"Other";expGrp[k]=(expGrp[k]||0)+Number(e.amount||0);});
-  el("expenseBreakdown").innerHTML=Object.entries(expGrp).sort((a,b)=>b[1]-a[1]).map(([cat,t])=>`<div class="moneyLine"><span>${safe(cat)}</span><b>${money(t)}</b></div>`).join("")||"<p class='small'>No expenses yet.</p>";
-  el("topCustomers").innerHTML=customers.map(c=>({customer:c,total:customerTotals(c.id)})).filter(x=>x.total.paid>0).sort((a,b)=>b.total.paid-a.total.paid).slice(0,5).map(x=>`<div class="box" style="background:var(--s2)"><div style="display:flex;align-items:center;gap:12px">${avatarHtml(x.customer.name,"sm")}<div style="flex:1"><h3 style="margin:0">${safe(x.customer.name)}</h3><div class="small">Paid: ${money(x.total.paid)} &bull; Owed: ${money(x.total.owed)}</div></div><button style="width:auto;padding:8px 12px;font-size:13px" onclick="viewCustomer('${x.customer.id}')">View</button></div></div>`).join("")||"<p class='small'>No payments collected yet.</p>";
 
   if(!el("workflowView").classList.contains("hidden"))renderWorkflowBoard();
 
