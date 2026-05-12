@@ -748,7 +748,7 @@ appRoot.innerHTML=`
       </div>
       <button class="green" onclick="saveBid()">Save Bid</button>
     </div>
-    <div class="box"><h2>Saved Bids</h2><div id="bidsList"></div></div>
+    <div class="box" id="savedBidsSection"><h2>Saved Bids</h2><div id="bidsList"></div></div>
   </section>
 
   <section id="expensesView" class="hidden">
@@ -1371,10 +1371,16 @@ window.toggleBox=function(id,forceOpen){
   const b=el(id);if(!b)return;
   if(forceOpen===true){b.classList.remove("hidden");}
   else b.classList.toggle("hidden");
+  const isOpen=!b.classList.contains("hidden");
   // Init smart prompts when forms open
-  if(!b.classList.contains("hidden")){
+  if(isOpen){
     if(id==="jobFormBox"){setTimeout(checkJobSmartPrompts,50);}
     if(id==="bidFormBox"){setTimeout(initBidTravelPrompt,50);}
+  }
+  // Hide saved bids list while bid form is open — less distraction
+  if(id==="bidFormBox"){
+    const savedSection=el("savedBidsSection");
+    if(savedSection)savedSection.style.display=isOpen?"none":"";
   }
 };
 window.clearProfitFilter=function(){el("profitFrom").value="";el("profitTo").value="";renderAll();};
@@ -1998,6 +2004,7 @@ window.saveBid=async function(){
 window.editBid=function(id){
   const b=bids.find(x=>x.id===id);if(!b)return;
   editingBidId=id;showView("bidsView");el("bidFormBox").classList.remove("hidden");
+  const savedSection=el("savedBidsSection");if(savedSection)savedSection.style.display="none";
   el("bidCustomer").value=b.customerId||"";el("bidTitle").value=b.title||"";el("bidNotes").value=b.notes||"";
   if(el("bidDiscountLabel"))el("bidDiscountLabel").value=b.discountLabel||"";
   if(el("bidDiscountType"))el("bidDiscountType").value=b.discountType||"amount";
@@ -2008,6 +2015,10 @@ window.editBid=function(id){
 window.resetBidForm=function(){editingBidId=null;el("bidCustomer").value="";el("bidTitle").value="";el("bidNotes").value="";if(el("bidDiscountLabel"))el("bidDiscountLabel").value="";if(el("bidDiscountType"))el("bidDiscountType").value="amount";if(el("bidDiscountValue"))el("bidDiscountValue").value="";el("bidItems").innerHTML="";if(el("bidSubtotal"))el("bidSubtotal").innerText="$0.00";el("bidTotal").innerText="$0.00";if(el("bidDiscountLine"))el("bidDiscountLine").style.display="none";if(el("plAccBtn"))el("plAccBtn").classList.remove("open");if(el("priceListPanel"))el("priceListPanel").classList.remove("open");
   const bsp=el("bidSmartPrompts");if(bsp){bsp.innerHTML="";bsp.dataset.prompts="";}
   setTimeout(initBidTravelPrompt,50);
+  // Hide form and show saved bids
+  el("bidFormBox").classList.add("hidden");
+  const savedSection=el("savedBidsSection");
+  if(savedSection)savedSection.style.display="";
 };
 window.deleteBid=async function(id){if(!confirm("Delete this bid?"))return;try{await deleteDoc(doc(db,"bids",id));}catch(e){alert("Delete bid failed: "+e.message);}};
 window.convertBidToJob=async function(id){
