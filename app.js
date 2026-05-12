@@ -348,6 +348,9 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 
 
 const COMPANY={name:"5Cs Property Services LLC",tagline:"Cleaned Up &bull; Fixed Right &bull; Ready To Sell",phone:"918-424-7953",email:"craig.chaney.87@gmail.com"};
+const REVIEW_URL="https://www.facebook.com/profile.php?id=61588932660465&sk=reviews";
+const PHOTO_MAX_WIDTH=1200; // Max photo width in px before compression
+const PHOTO_QUALITY=0.72;   // JPEG quality (0-1)
 
 // Travel fee origin — 313 S 6th St, McAlester, OK
 // Update these if the business address ever changes
@@ -943,6 +946,98 @@ function fmtMins(m){
   if(h&&min)return`${h} hr${h>1?"s":""} ${min} min`;
   if(h)return`${h} hr${h>1?"s":""}`;
   return`${min} min`;
+}
+
+// ── Photo helpers ──────────────────────────────────────────────────────────
+
+// Compress an image file to base64 JPEG under PHOTO_MAX_WIDTH
+function compressPhoto(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const scale=Math.min(1,PHOTO_MAX_WIDTH/img.width);
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.round(img.width*scale);
+        canvas.height=Math.round(img.height*scale);
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL("image/jpeg",PHOTO_QUALITY));
+      };
+      img.onerror=reject;
+      img.src=e.target.result;
+    };
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Save a photo to a job (type: "before" or "after")
+window.addJobPhoto=async function(jobId,type){
+  const input=document.createElement("input");
+  input.type="file";input.accept="image/*";input.capture="environment";
+  input.onchange=async()=>{
+    const file=input.files[0];if(!file)return;
+    showToast("Uploading photo...");
+    try{
+      const b64=await compressPhoto(file);
+      const job=jobs.find(j=>j.id===jobId);if(!job)return;
+      const photos=job.photos||{};
+      photos[type]=b64;
+      await updateDoc(doc(db,"jobs",jobId),{photos});
+      showToast("Photo saved");
+      renderAll();
+    }catch(e){showToast("Photo failed — try again");}
+  };
+  input.click();
+};
+
+// Remove a photo from a job
+window.removeJobPhoto=async function(jobId,type){
+  if(!confirm("Remove this photo?"))return;
+  const job=jobs.find(j=>j.id===jobId);if(!job)return;
+  const photos={...job.photos||{}};
+  delete photos[type];
+  await updateDoc(doc(db,"jobs",jobId),{photos});
+  showToast("Photo removed");
+  renderAll();
+};
+
+// View a photo fullscreen
+window.viewJobPhoto=function(src){
+  const overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.onclick=()=>overlay.remove();
+  const img=document.createElement("img");
+  img.src=src;img.style.cssText="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain";
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+};
+
+// Render photo section HTML for a job card
+function jobPhotoHtml(j){
+  const photos=j.photos||{};
+  const makeThumb=(type,label)=>{
+    if(photos[type])return`
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px">${label}</div>
+        <div style="position:relative;display:inline-block;width:100%">
+          <img src="${photos[type]}" onclick="viewJobPhoto('${photos[type]}')" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid var(--border)">
+          <button onclick="event.stopPropagation();removeJobPhoto('${j.id}','${type}')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;padding:0;margin:0;background:rgba(0,0,0,0.55);border:none;border-radius:50%;font-size:13px;color:#fff;line-height:1;min-width:0">✕</button>
+        </div>
+      </div>`;
+    return`
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px">${label}</div>
+        <button class="secondary" style="width:100%;aspect-ratio:4/3;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:10px;font-size:22px;color:var(--muted)" onclick="addJobPhoto('${j.id}','${type}')">
+          📷<span style="font-size:11px;font-weight:500">Add ${label}</span>
+        </button>
+      </div>`;
+  };
+  return`<div style="display:flex;gap:8px;margin:10px 0">
+    ${makeThumb("before","Before")}
+    ${makeThumb("after","After")}
+  </div>`;
 }
 
 const ALL_VIEWS=["dashboardView","workflowView","scheduleView","profitView","customersView","customerDetailView","jobsView","paymentsView","bidsView","recurringView","expensesView","invoicesView","invoiceView","partnersView","settingsView","globalSearchView"];
@@ -1570,9 +1665,24 @@ window.makeJobRecurring=function(jobId){
   showToast("Fill in frequency and save");
 };
 window.requestReview=function(jobId){
-  const j=jobs.find(x=>x.id===jobId);if(!j)return;const c=getCustomer(j.customerId);
-  const msg=`Hi ${c?.name||"there"}, this is Craig with 5Cs Property Services. We recently completed ${j.title} for you and just wanted to say thank you for your business. If you were happy with the work, a quick Google review would mean a lot to us and helps other folks in McAlester find a trustworthy service. Takes less than a minute. We truly appreciate it!`;
-  navigator.clipboard.writeText(msg).then(()=>showToast("Review request copied to clipboard")).catch(()=>alert(msg));
+  const j=jobs.find(x=>x.id===jobId);if(!j)return;
+  const c=getCustomer(j.customerId);
+  const phone=cleanPhone(c?.phone);
+  const msg=`Hi ${c?.name||"there"}, this is Craig with 5Cs Property Services! Thank you for your business on the ${j.title}. If you were happy with the work, a quick Facebook review would mean the world to us and helps other folks in the area find us. Takes less than a minute — ${REVIEW_URL} — Thank you! 🙏`;
+  if(phone){
+    window.location.href=`sms:${phone}?body=${encodeURIComponent(msg)}`;
+  }else{
+    navigator.clipboard.writeText(msg).then(()=>showToast("Review request copied")).catch(()=>alert(msg));
+  }
+};
+
+window.onMyWay=function(jobId){
+  const j=jobs.find(x=>x.id===jobId);if(!j)return;
+  const c=getCustomer(j.customerId);
+  const phone=cleanPhone(c?.phone);if(!phone)return;
+  const addr=c?.address?` at ${c.address}`:"";
+  const msg=`Hi ${c?.name||"there"}! This is Craig with 5Cs Property Services — I'm on my way to your property${addr}. See you soon!`;
+  window.location.href=`sms:${phone}?body=${encodeURIComponent(msg)}`;
 };
 
 window.toggleCustomFreq=function(){const v=el("recurringFrequency")?.value;const b=el("customFreqBox");if(b)b.style.display=v==="custom"?"block":"none";};
@@ -2382,6 +2492,7 @@ function todayCardHtml(j){
     </div>
     <div style="margin-bottom:8px">${paymentBadge(j)}${workflowBadge(j)}</div>
     <div class="todayExpandActions">
+      ${ws==="Scheduled"&&phone?`<button class="blue" onclick="onMyWay('${j.id}')">🚗 On My Way</button>`:""}
       ${ws==="Scheduled"?`<button class="gold" onclick="setJobStatus('${j.id}','In Progress')">Start Job</button><button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button>`:""}
       ${ws==="In Progress"?`<button class="green" onclick="setJobStatus('${j.id}','Complete')">Complete</button><button class="secondary" onclick="setJobStatus('${j.id}','Scheduled')">Reopen</button>`:""}
       ${ws==="Complete"&&bal>0?`<button class="green" onclick="markPaid('${j.id}')">Mark Paid</button><button onclick="addPayment('${j.id}')">Add Payment</button>`:""}
@@ -2392,7 +2503,8 @@ function todayCardHtml(j){
       <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
       <button class="red" onclick="deleteItem('jobs','${j.id}')">Delete</button>
     </div>
-    <div style="text-align:center;padding-top:10px">
+    ${jobPhotoHtml(j)}
+    <div style="text-align:center;padding-top:6px">
       <button class="secondary" style="width:auto;font-size:12px;padding:6px 16px" onclick="toggleTodayCard('${j.id}')">⌃ Collapse</button>
     </div>
   </div>`;
@@ -2668,7 +2780,8 @@ function unpaidCardHtml(j){
       <button class="secondary" onclick="editJob('${j.id}')">Edit</button>
       <button class="secondary" onclick="viewCustomer('${j.customerId}')">View Customer</button>
     </div>
-    <div style="text-align:center;padding-top:10px">
+    ${jobPhotoHtml(j)}
+    <div style="text-align:center;padding-top:6px">
       <button class="secondary" style="width:auto;font-size:12px;padding:6px 16px" onclick="toggleUnpaidCard('${j.id}')">⌃ Collapse</button>
     </div>
   </div>`;
