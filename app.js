@@ -604,7 +604,7 @@ appRoot.innerHTML=`
     <div class="box noPrint"><button onclick="toggleBox('bidFormBox')">Create Bid</button></div>
     <div id="bidFormBox" class="box hidden">
       <h2>Create Bid</h2>
-      <select id="bidCustomer"></select>
+      <select id="bidCustomer" onchange="refreshBidTravelPrompt()"></select>
       <input id="bidTitle" placeholder="Bid title">
       <textarea id="bidNotes" placeholder="General notes"></textarea>
       <div id="bidSmartPrompts" style="margin:8px 0"></div>
@@ -1054,17 +1054,29 @@ window.checkJobSmartPrompts=function(){
 
 window.initBidTravelPrompt=function(){
   const container=el("bidSmartPrompts");
-  if(!container||container.dataset.prompts==="set")return;
+  if(!container)return;
   container.dataset.prompts="set";
+
+  const custId=el("bidCustomer")?.value;
+  const cust=custId?getCustomer(custId):null;
+  const savedAddr=cust?.address||"";
+  const addrShortcut=savedAddr?`
+    <div style="margin-bottom:8px">
+      <div class="small" style="margin-bottom:4px;color:#166534">Use client's saved address:</div>
+      <button class="secondary" style="width:auto;padding:7px 12px;font-size:13px" onclick="useBidClientAddress(this.dataset.addr)" data-addr="${savedAddr.replace(/"/g,'&quot;')}">📍 ${(cust?.name||"Client").replace(/</g,'&lt;')} — ${savedAddr.replace(/</g,'&lt;')}</button>
+    </div>
+    <div class="small" style="margin-bottom:4px;color:#9a8f80">Or enter a different address:</div>`:"";
+
   container.innerHTML=`
     <div class="jobFormToggle" onclick="toggleJobPrompt('bidTravelPrompt')">
       <div>
         <div class="jobFormToggleLabel">🚗 Add travel fee?</div>
-        <div class="jobFormToggleSub">Enter the job address to calculate mileage from McAlester.</div>
+        <div class="jobFormToggleSub">Calculate mileage from McAlester to the job location.</div>
       </div>
       <div class="jobFormToggleArrow" id="bidTravelPromptArrow">⌄</div>
     </div>
     <div class="jobFormSection" id="bidTravelPromptSection">
+      ${addrShortcut}
       <input id="bidPropertyAddr" placeholder="Job address (e.g. 123 Main St, Hartshorne, OK)" style="margin-bottom:6px">
       <button class="secondary" style="width:auto;padding:7px 14px;font-size:13px" onclick="calcBidTravelFee()">Calculate</button>
       <div id="bidTravelResult" class="smartPromptResult"></div>
@@ -1078,6 +1090,34 @@ window.initBidTravelPrompt=function(){
       </div>
     </div>`;
 };
+
+window.refreshBidTravelPrompt=function(){
+  const container=el("bidSmartPrompts");
+  if(!container)return;
+  container.dataset.prompts="";
+  initBidTravelPrompt();
+};
+
+window.useBidClientAddress=async function(addr){
+  const input=el("bidPropertyAddr");
+  if(input)input.value=addr;
+  const resultEl=el("bidTravelResult");
+  if(resultEl)resultEl.innerText="Calculating...";
+  // Open the section if not already open
+  const section=el("bidTravelPromptSection");
+  if(section&&!section.classList.contains("open")){
+    section.classList.add("open");section.style.display="block";
+    const arrow=el("bidTravelPromptArrow");
+    if(arrow)arrow.classList.add("open");
+  }
+  const result=await calcTravelFee(addr);
+  if(resultEl)resultEl.innerText=result.note;
+  const feeField=el("bidTravelFeeField");
+  const feeAmt=el("bidTravelFeeAmt");
+  if(feeField)feeField.style.display=result.fee>0?"block":"none";
+  if(feeAmt)feeAmt.value=result.fee;
+};
+
 
 window.calcBidTravelFee=async function(){
   const addr=el("bidPropertyAddr")?.value||"";
