@@ -1103,6 +1103,8 @@ window.addBidTravelFeeToItems=function(){
   setTimeout(initBidTravelPrompt,100);
   showToast("Travel fee added to bid");
 };
+
+window.toggleJobPrompt=function(id){
   const section=el(id+"Section");
   const arrow=el(id+"Arrow");
   if(!section)return;
