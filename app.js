@@ -361,13 +361,23 @@ const TRAVEL_PER_MILE=1.25;   // Per mile rate ($)
 const TRAVEL_FREE_MILES=5;    // No charge within this radius (miles)
 
 const LOT_SIZES=[{key:"sm",label:"Under \u00bc acre",sub:"Small city/subdivision lot"},{key:"md",label:"\u00bc \u2013 \u00bd acre",sub:"Average residential lot"},{key:"lg",label:"\u00bd \u2013 1 acre",sub:"Larger residential lot"},{key:"xl",label:"1+ acre",sub:"Rural or large property"}];
+const MOW_SIZES=[{key:"sm",label:"Up to \u00bc acre",sub:"Small residential lot"},{key:"md",label:"Up to \u00bd acre",sub:"Medium residential lot"},{key:"lg",label:"Up to \u00be acre",sub:"Large residential lot"},{key:"xl",label:"Up to 1 acre",sub:"One-acre property"}];
 const HOME_SIZES=[{key:"sm",label:"Under 1,500 sq ft",sub:"Small home"},{key:"md",label:"1,500\u20132,500 sq ft",sub:"Average home"},{key:"lg",label:"2,500\u20134,000 sq ft",sub:"Larger home"},{key:"xl",label:"4,000+ sq ft",sub:"Large or luxury home"}];
+const serviceSizes=svc=>svc.sizeType==="mow"?MOW_SIZES:svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;
 const PRICE_LIST=[
   // Exterior & Grounds
-  {id:"lawn",        cat:"Exterior & Grounds",    name:"Lawn Mowing",                 desc:"Mow, edge, and clean up.",                                             hasSizes:true, sizeType:"lot",  prices:{sm:55,md:70,lg:90,xl:125},   firstOk:true,mins:90},
-  {id:"cleanup",     cat:"Exterior & Grounds",    name:"Full Yard Cleanup",            desc:"Full debris removal and yard cleanup.",                                        hasSizes:true, sizeType:"lot",  prices:{sm:150,md:200,lg:265,xl:325},firstOk:true,mins:180},
+  {id:"lawn",        cat:"Mowing & Grounds",      name:"Lawn Mowing — Weekly",        desc:"Mow, trim, and blow off. Properties over 1 acre are quoted hourly.",            hasSizes:true, sizeType:"mow",  prices:{sm:55,md:80,lg:100,xl:125},  firstOk:true,mins:90},
+  {id:"lawn_biweekly",cat:"Mowing & Grounds",     name:"Lawn Mowing — Biweekly",      desc:"Mow, trim, and blow off. Properties over 1 acre are quoted hourly.",            hasSizes:true, sizeType:"mow",  prices:{sm:65,md:95,lg:115,xl:145},  firstOk:true,mins:105},
+  {id:"edge_normal", cat:"Mowing & Grounds",      name:"Edging Add-On — Normal",      desc:"Normal amount of sidewalk, curb, or driveway edging.",                        hasSizes:false,flat:25,unit:"job",                                   firstOk:false,mins:30},
+  {id:"edge_heavy",  cat:"Mowing & Grounds",      name:"Edging Add-On — Heavy",       desc:"Large amount of edging or badly overgrown edges.",                             hasSizes:false,flat:50,unit:"job",                                   firstOk:false,mins:60},
+  {id:"cleanup",     cat:"Cleanup & Clearing",    name:"General Yard Cleanup",        desc:"General cleanup labor. Disposal and equipment are added separately.",          hasSizes:false,flat:60,unit:"hr",                                    firstOk:true,mins:60},
+  {id:"heavy_brush", cat:"Cleanup & Clearing",    name:"Heavy Brush / Overgrowth",    desc:"Heavy overgrowth cleanup per man-hour. Disposal and equipment are extra.",     hasSizes:false,flat:75,unit:"hr",                                    firstOk:true,mins:90},
+  {id:"leaves",      cat:"Cleanup & Clearing",    name:"Leaf Cleanup",                desc:"Leaf cleanup per man-hour. Haul-off or disposal is added separately.",          hasSizes:false,flat:60,unit:"hr",                                    firstOk:false,mins:60},
+  {id:"chainsaw",    cat:"Cleanup & Clearing",    name:"Chainsaw / Limb Work",        desc:"Cutting and limb work per man-hour. Haul-off and equipment are extra.",        hasSizes:false,flat:85,unit:"hr",                                    firstOk:false,mins:90},
+  {id:"brushhog",    cat:"Cleanup & Clearing",    name:"Brush Hogging — Maintained",  desc:"Normally maintained field or lot.",                                           hasSizes:false,flat:100,unit:"hr",                                   firstOk:false,mins:60},
+  {id:"brushhog_heavy",cat:"Cleanup & Clearing",  name:"Brush Hogging — Heavy",       desc:"Tall or heavy growth.",                                                        hasSizes:false,flat:125,unit:"hr",                                   firstOk:false,mins:90},
+  {id:"brushhog_severe",cat:"Cleanup & Clearing", name:"Brush Hogging — Severe",      desc:"Very heavy growth, obstacles, or difficult conditions.",                      hasSizes:false,flat:150,unit:"hr",                                   firstOk:false,mins:120},
   {id:"hedge",       cat:"Exterior & Grounds",    name:"Hedge & Shrub Trimming",       desc:"Hedges and shrubs trimmed and shaped.",                                     hasSizes:false,flat:95,                                               firstOk:false,mins:90},
-  {id:"leaves",      cat:"Exterior & Grounds",    name:"Leaf Removal",                 desc:"Leaves cleared from yard and beds.",                                            hasSizes:false,flat:175,                                              firstOk:false,mins:135},
   {id:"hauling",     cat:"Exterior & Grounds",    name:"Debris / Junk Hauling",        desc:"Loaded and hauled away. Priced per load.",                           hasSizes:false,flat:95,unit:"load",                                   firstOk:false,mins:120},
   {id:"gutter",      cat:"Exterior & Grounds",    name:"Gutter Cleaning",              desc:"Gutters cleared and flushed out.",                     hasSizes:true, sizeType:"lot",  prices:{sm:80,md:110,lg:140,xl:175},  firstOk:false,mins:90},
   {id:"windows",     cat:"Exterior & Grounds",    name:"Window Cleaning (Exterior)",   desc:"Exterior windows cleaned.",                             hasSizes:false,flat:95,                                               firstOk:false,mins:90},
@@ -375,9 +385,16 @@ const PRICE_LIST=[
   {id:"fence_stain", cat:"Exterior & Grounds",    name:"Fence Staining / Painting",    desc:"Full stain or paint application.",                           hasSizes:false,flat:175,                                              firstOk:false,mins:270},
   {id:"tree_trim",   cat:"Exterior & Grounds",    name:"Tree Trimming & Limbing",      desc:"Dead limbs removed and cleaned up.",                          hasSizes:false,flat:150,                                              firstOk:false,mins:180},
   {id:"stump",       cat:"Exterior & Grounds",    name:"Stump Grinding",               desc:"Ground down below grade.",                                 hasSizes:false,flat:125,unit:"stump",                                 firstOk:false,mins:90},
-  {id:"brush",       cat:"Exterior & Grounds",    name:"Brush / Lot Clearing",         desc:"Overgrowth cleared and removed.",                       hasSizes:false,flat:175,                                              firstOk:false,mins:210},
   {id:"ext_door",    cat:"Exterior & Grounds",    name:"Exterior Door Painting",       desc:"Door refreshed with a clean coat of paint.",                hasSizes:false,flat:75,unit:"door",                                   firstOk:false,mins:90},
   {id:"pressure",    cat:"Exterior & Grounds",    name:"Pressure Washing (Add-On)",    desc:"Hard surfaces washed down. Add-on service — availability varies.",       hasSizes:true, sizeType:"lot",  prices:{sm:90,md:135,lg:200,xl:285},  firstOk:false,mins:120},
+  // Mulch & Beds
+  {id:"bed_prep",    cat:"Mulch & Beds",           name:"Bed Prep — Basic",            desc:"Basic bed cleanup and preparation.",                                          hasSizes:false,flat:0.25,unit:"sq ft",                                firstOk:false,mins:30},
+  {id:"bed_prep_heavy",cat:"Mulch & Beds",         name:"Bed Prep — Heavy",            desc:"Beds with heavy weeds or overgrowth.",                                        hasSizes:false,flat:0.50,unit:"sq ft",                                firstOk:false,mins:60},
+  {id:"weed_treat",  cat:"Mulch & Beds",           name:"Chemical Weed Treatment",     desc:"Weed treatment with a $45 minimum.",                                         hasSizes:false,flat:45,unit:"job",                                    firstOk:false,mins:30},
+  {id:"bed_edge",    cat:"Mulch & Beds",           name:"Landscape Bed Edging",        desc:"Priced per linear foot. Materials are added separately.",                    hasSizes:false,flat:1.25,unit:"linear ft",                             firstOk:false,mins:60},
+  {id:"mulch_normal",cat:"Mulch & Beds",           name:"Mulch Installation — Normal", desc:"Installation per yard with normal access. Mulch material is added separately.",hasSizes:false,flat:68,unit:"yard",                                     firstOk:false,mins:60},
+  {id:"mulch_difficult",cat:"Mulch & Beds",        name:"Mulch Installation — Difficult",desc:"Installation per yard with difficult access or extensive hand carrying.",   hasSizes:false,flat:85,unit:"yard",                                     firstOk:false,mins:90},
+  {id:"mulch_delivery",cat:"Mulch & Beds",         name:"Mulch Pickup & Delivery",     desc:"Minimum pickup and delivery charge. Increase for long-distance trips.",       hasSizes:false,flat:75,unit:"load",                                   firstOk:false,mins:45},
   // Interior Prep
   {id:"deepclean",   cat:"Interior Prep",          name:"Deep Cleaning",                desc:"Thorough cleaning throughout the home.", hasSizes:true, sizeType:"home", prices:{sm:200,md:275,lg:375,xl:475}, firstOk:false,mins:270},
   {id:"trashout",    cat:"Interior Prep",          name:"Trash Out / Foreclosure",      desc:"Full cleanout — everything removed from the property.",      hasSizes:true, sizeType:"home", prices:{sm:250,md:325,lg:425,xl:525}, firstOk:false,mins:330},
@@ -1777,7 +1794,7 @@ function renderPriceList(){
         <input type="checkbox" id="plCheck_${svc.id}" style="display:none">
         <div id="plSize_${svc.id}" style="display:none;padding:4px 0 4px 38px">
           ${svc.hasSizes
-            ?`<select id="plSel_${svc.id}" style="margin:0 0 4px" onchange="updatePlPrice('${svc.id}')">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} — ${money(svc.prices[sz.key])}</option>`).join("")}</select>`
+            ?`<select id="plSel_${svc.id}" style="margin:0 0 4px" onchange="updatePlPrice('${svc.id}')">${serviceSizes(svc).map(sz=>`<option value="${sz.key}">${sz.label} — ${money(svc.prices[sz.key])}</option>`).join("")}</select>`
             :svc.unit==="hr"
               ?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="plHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0" oninput="updatePlHourly('${svc.id}')"><div style="font-size:13px;color:var(--text)" id="plHrsTotal_${svc.id}">${money(svc.flat)}</div></div>`
               :""}
@@ -1928,7 +1945,7 @@ window.addPriceListToBid=function(){
   for(const svc of selected){
     let price,desc;
     const pv=el(`plPriceVal_${svc.id}`);
-    if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";const sizes=svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES;const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;price=pv?Number(pv.value||0):svc.prices[szKey];}
+    if(svc.hasSizes){const szKey=el(`plSel_${svc.id}`)?.value||"sm";const sizes=serviceSizes(svc);const sz=sizes.find(s=>s.key===szKey);desc=`${svc.name} (${sz?.label||""})`;price=pv?Number(pv.value||0):svc.prices[szKey];}
     else if(svc.unit==="hr"){const hrs=Math.max(0.5,Number(el(`plHrs_${svc.id}`)?.value||1));desc=`${svc.name} (${hrs} hr${hrs!==1?"s":""})`;price=pv?Number(pv.value||0):Math.round(svc.flat*hrs);}
     else{desc=svc.name;price=pv?Number(pv.value||0):svc.flat;}
     addBidItemRow(desc,1,Math.max(0,price));
@@ -2015,7 +2032,7 @@ window.openCustomPkg=function(){
         </div>
         <input type="checkbox" id="cp_${svc.id}" style="display:none">
         <div id="cpSize_${svc.id}" style="display:none;padding:4px 0 0 28px">
-          ${svc.hasSizes?`<select id="cpSel_${svc.id}" style="margin:0;font-size:12px" onchange="updateCustomPkgTotal()">${(svc.sizeType==="lot"?LOT_SIZES:HOME_SIZES).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:svc.unit==="hr"?`<div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="cpHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0;font-size:12px" oninput="updateCustomPkgTotal()"></div>`:""}
+          ${svc.hasSizes?`<select id="cpSel_${svc.id}" style="margin:0;font-size:12px" onchange="updateCustomPkgTotal()">${serviceSizes(svc).map(sz=>`<option value="${sz.key}">${sz.label} \u2014 ${money(svc.prices[sz.key])}</option>`).join("")}</select>`:svc.unit==="hr"?`<div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:var(--text);font-weight:500">Hours:</div><input id="cpHrs_${svc.id}" type="number" min="0.5" step="0.5" value="1" style="width:80px;margin:0;font-size:12px" oninput="updateCustomPkgTotal()"></div>`:""}
         </div>
       </div>`;
     }
